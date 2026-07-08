@@ -1,6 +1,7 @@
 {
-  "lastUpdated": "2026-07-08T09:38:00Z",
+  "lastUpdated": "2026-07-08T00:00:00Z",
   "source": "https://shopee.vn/m/ma-giam-gia",
+  "note": "Dữ liệu ví dụ minh hoạ giao diện. Sẽ được thay bằng dữ liệu thật khi có ảnh chụp màn hình trang Mã Giảm Giá Shopee.",
   "vouchers": [
     {
       "id": 1,
@@ -15,7 +16,7 @@
       "status": "active",
       "hot": true,
       "tag": "Khách hàng mới",
-      "link": "https://shopee.vn/voucher/details?evcode=RlNWLTE0NTMzODUyNjIwNzU5MDg%3D&from_source=microsite&promotionId=1453385262075908&signature=bc79aa004e342c503af887c30e3eca5729c48e3bec049d44ceea347c0b44cca9&source=0",
+      "link": "https://shopee.vn/m/ma-giam-gia",
       "color": "#00b14f"
     },
     {
@@ -31,7 +32,7 @@
       "status": "active",
       "hot": false,
       "tag": "Khách hàng mới",
-      "link": "https://shopee.vn/voucher/details?evcode=RlNWLTE0NTMzODUyODczNzI4MDQ%3D&from_source=microsite&promotionId=1453385287372804&signature=ea104f2416f21333d09f46974c94e086845e499edf1b4575ac93bea2d4ada122&source=0",
+      "link": "https://shopee.vn/m/ma-giam-gia",
       "color": "#00b14f"
     },
     {
@@ -47,7 +48,7 @@
       "status": "active",
       "hot": true,
       "tag": "Khách hàng mới",
-      "link": "https://shopee.vn/voucher/details?evcode=Q1JNTlVJQ0w4MFQ3&from_source=microsite&promotionId=1451239564939264&signature=ba0680f1f1744f4689c7e6e1e54df34c60165737df31cc6c3da4549e0da37348&source=0",
+      "link": "https://shopee.vn/m/ma-giam-gia",
       "color": "#ee4d2d"
     },
     {
@@ -63,7 +64,7 @@
       "status": "active",
       "hot": false,
       "tag": "Khách hàng mới",
-      "link": "https://shopee.vn/voucher/details?evcode=Q1JNTlVJQ0w2MFQ3&from_source=microsite&promotionId=1451239581716480&signature=738e18d7aba3e15a05f64132b1cdfb5520f9a8239d01f2e361a8fb11ad50e1f6&source=0",
+      "link": "https://shopee.vn/m/ma-giam-gia",
       "color": "#ee4d2d"
     },
     {
@@ -79,7 +80,7 @@
       "status": "expired",
       "hot": false,
       "tag": "VIP",
-      "link": "https://shopee.vn/voucher/details?evcode=U1ZJUEQwMTA3TTBDMTAwUkE%3D&from_source=microsite&promotionId=1454203218333696&signature=f60d6bc6fa14e17640adf871c7e8c810f7e91b00b66b0ccd8407e4a6ea0b3f7e&source=0",
+      "link": "https://shopee.vn/m/ma-giam-gia",
       "color": "#f39c12"
     },
     {
@@ -95,7 +96,7 @@
       "status": "expired",
       "hot": false,
       "tag": "VIP",
-      "link": "https://shopee.vn/voucher/details?evcode=U1ZJUEQwODA3TTBDMTAwUg%3D%3D&from_source=microsite&promotionId=1454203211124736&signature=3e580c68d4c5b3adc1ead9e74836bede84d26cebd1201020afdfe97f1e7bbbcf&source=0",
+      "link": "https://shopee.vn/m/ma-giam-gia",
       "color": "#f39c12"
     },
     {
@@ -111,7 +112,7 @@
       "status": "active",
       "hot": false,
       "tag": "Xử Lý",
-      "link": "https://shopee.vn/voucher/details?evcode=SlVMQ0wxODQwMTAw&from_source=microsite&promotionId=1451924981714944&signature=21eb37a897de5e2eb0c2125d7ad02c168ed8f1835ebe5da94d78996bdab0c7f8&source=0",
+      "link": "https://shopee.vn/m/ma-giam-gia",
       "color": "#9b59b6"
     },
     {
@@ -127,7 +128,7 @@
       "status": "active",
       "hot": true,
       "tag": "Sắp hết",
-      "link": "https://shopee.vn/voucher/details?evcode=SlVMQ0wyMDQwMTAw&from_source=microsite&promotionId=1451924983156736&signature=a3d2f74a3a01edc64fe84c2d6858e73d523516c8dad71acd08bef4285a5359c1&source=0",
+      "link": "https://shopee.vn/m/ma-giam-gia",
       "color": "#9b59b6"
     }
   ]
