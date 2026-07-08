@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "scrape": "node scraper.mjs"
+    "scrape": "node scraper.mjs",
+    "analyze": "node analyze.mjs"
   },
   "devDependencies": {
     "playwright": "^1.47.0"

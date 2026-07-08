@@ -1,3 +1,8 @@
 node_modules/
 debug.png
+analyze-debug.png
 .env
+
+# per-run output of `node analyze.mjs <url>` — local/ad-hoc, not site content
+analysis.json
+price-history.json

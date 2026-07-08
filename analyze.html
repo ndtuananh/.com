@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Shopping Optimizer – Phân tích Deal Shopee</title>
+  <meta name="description" content="Dán link sản phẩm Shopee để phân tích Deal Score, giá sau voucher, tiết kiệm thực và khuyến nghị nên mua hay chờ." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="analyze.css" />
+</head>
+<body>
+  <div class="particles" id="particles"></div>
+
+  <header class="header">
+    <div class="header-inner">
+      <a class="logo" href="index.html" style="text-decoration:none;">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><circle cx="18" cy="18" r="18" fill="url(#lg1)"/><path d="M10 18c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8-8-3.6-8-8zm8-5a5 5 0 100 10A5 5 0 0018 13z" fill="#fff" fill-opacity=".9"/><defs><linearGradient id="lg1" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse"><stop stop-color="#EE4D2D"/><stop offset="1" stop-color="#FF7337"/></linearGradient></defs></svg>
+        <span>Voucher<b>Shopee</b></span>
+      </a>
+      <div class="header-right">
+        <a href="index.html" class="nav-link">🎫 Voucher</a>
+        <a href="analyze.html" class="nav-link active">🔥 Deal Score</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container an-container">
+    <section class="an-hero">
+      <div class="hero-tag">🤖 AI Shopping Optimizer</div>
+      <h1>Đáng mua hay nên chờ?</h1>
+      <p>Dán link sản phẩm Shopee để phân tích giá sau voucher, tiết kiệm thực và Deal Score — lấy trực tiếp từ dữ liệu Shopee, không đoán mò.</p>
+
+      <div class="an-form">
+        <input id="urlInput" type="text" placeholder="Dán link sản phẩm Shopee (vd: https://shopee.vn/...-i.123.456)" />
+        <button class="an-btn" onclick="copyCommand()">Sao chép lệnh phân tích</button>
+      </div>
+      <p class="an-hint" id="cmdHint">
+        1) Bấm "Sao chép lệnh phân tích" → dán vào terminal của dự án và Enter.<br/>
+        2) Đợi vài giây rồi bấm "Tải kết quả" bên dưới.
+      </p>
+      <button class="an-btn secondary" onclick="loadAnalysis()">🔄 Tải kết quả (analysis.json)</button>
+    </section>
+
+    <section id="result" class="an-result" style="display:none;"></section>
+
+    <section id="emptyState" class="an-empty">
+      <div class="icon">📊</div>
+      <p>Chưa có kết quả phân tích nào. Chạy lệnh <code>node analyze.mjs "&lt;link sản phẩm&gt;"</code> trong thư mục dự án, rồi bấm "Tải kết quả".</p>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <p>🧪 Dữ liệu giá/voucher lấy trực tiếp từ API sản phẩm của Shopee lúc phân tích. Mục "Ước tính" (Flash Sale, xu hướng giá) là suy luận, không phải số liệu chính thức.</p>
+    </div>
+  </footer>
+
+  <script src="analyze-app.js"></script>
+</body>
+</html>

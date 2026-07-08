@@ -1,6 +1,6 @@
 # Voucher Shopee 🎫
 
-Trang tổng hợp mã giảm giá Shopee, cập nhật tự động mỗi giờ.
+Trang tổng hợp mã giảm giá Shopee, cập nhật tự động mỗi giờ — kèm công cụ phân tích Deal Score cho từng sản phẩm.
 
 **Xem trực tiếp:** https://ndtuananh.github.io/.com/
 
@@ -12,6 +12,26 @@ Trang tổng hợp mã giảm giá Shopee, cập nhật tự động mỗi giờ
 | `vouchers.json` | Dữ liệu voucher hiện tại (do scraper ghi đè) |
 | `scraper.mjs` | Script cào + gửi email cảnh báo, chạy bởi GitHub Actions |
 | `.github/workflows/update-vouchers.yml` | Cron chạy `scraper.mjs` mỗi giờ, tự commit nếu có thay đổi |
+| `analyze.mjs` | CLI phân tích 1 link sản phẩm Shopee → Deal Score (xem mục bên dưới) |
+| `analyze.html` / `analyze.css` / `analyze-app.js` | Dashboard hiển thị kết quả từ `analyze.mjs` |
+
+## AI Shopping Optimizer — phân tích Deal Score theo từng sản phẩm
+
+Dán 1 link sản phẩm Shopee, công cụ tính giá sau voucher, tiết kiệm thực và Deal Score (0-100) kèm khuyến nghị `BUY_NOW` / `WAIT` / `NOT_GOOD`.
+
+**Cách chạy** (local, cần `SHOPEE_COOKIES` giống `scraper.mjs`):
+```bash
+node analyze.mjs "https://shopee.vn/ten-san-pham-i.<shopid>.<itemid>"
+```
+Lệnh này ghi ra `analysis.json` — mở `analyze.html` (double-click hoặc `npx http-server`) và bấm "Tải kết quả" để xem dashboard. Trang cũng có ô dán link + nút "Sao chép lệnh phân tích" để copy sẵn lệnh trên vào clipboard.
+
+**Nguồn dữ liệu:** không dùng API công khai (Shopee không có) mà đọc thẳng response nội bộ `/api/v4/pdp/get_pc` mà chính trang sản phẩm của Shopee gọi khi tải — cùng dữ liệu Shopee hiển thị cho tài khoản đang đăng nhập (giá, voucher Shop/Shopee đã được Shopee tự chọn tối ưu, đánh giá, đã bán, độ uy tín shop). Không đoán mò các con số này.
+
+**Những gì là ước tính (ghi rõ trong mục `estimates` của kết quả, không trộn vào số liệu thật):**
+- Dự đoán Flash Sale: suy luận đơn giản từ mức giảm giá hiện tại, không phải dữ liệu Flash Sale thật.
+- Xu hướng giá: `price-history.json` (gitignored, lưu local) tự tích luỹ một điểm dữ liệu mỗi lần chạy `analyze.mjs` cho cùng sản phẩm — cần chạy lại vài lần mới có xu hướng thật, không bịa lịch sử giá 60 ngày ngay từ lần đầu.
+- **Không có** so sánh Lazada/TikTok Shop — không có nguồn dữ liệu đáng tin cho việc này nên bỏ hẳn thay vì bịa số.
+- Hoàn Xu / quà tặng: chỉ hiển thị khi Shopee trả về giá trị cụ thể; nếu sản phẩm có chương trình quà tặng nhưng không có giá trị VNĐ rõ ràng, chỉ ghi nhận "có chương trình" chứ không bịa số tiền.
 
 ## Cách dữ liệu được cập nhật
 
