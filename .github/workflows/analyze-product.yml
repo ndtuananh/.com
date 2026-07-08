@@ -1,0 +1,61 @@
+name: Analyze Shopee Product
+
+# Lets a visitor on the deployed site trigger a real analysis without needing
+# Node/terminal locally: run this from the Actions tab (or the "Run workflow"
+# button analyze.html links to), paste a product URL, wait ~1 min, then reload
+# analyze.html on the live site — analysis.json will have been committed here.
+on:
+  workflow_dispatch:
+    inputs:
+      product_url:
+        description: 'Link sản phẩm Shopee cần phân tích'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  analyze-product:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run analyzer
+        # Route the input through env instead of interpolating "${{ inputs.product_url }}"
+        # directly into the shell string — direct interpolation lets a crafted input
+        # (e.g. containing `"; rm -rf . #`) break out of the quotes and inject commands.
+        run: node analyze.mjs "$PRODUCT_URL"
+        env:
+          SHOPEE_COOKIES: ${{ secrets.SHOPEE_COOKIES }}
+          PRODUCT_URL: ${{ inputs.product_url }}
+
+      - name: Upload debug screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analyze-debug-screenshot
+          path: analyze-debug.png
+          retention-days: 3
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add analysis.json price-history.json
+          git diff --staged --quiet || git commit -m "Analyze product: $PRODUCT_URL"
+          git push
+        env:
+          PRODUCT_URL: ${{ inputs.product_url }}

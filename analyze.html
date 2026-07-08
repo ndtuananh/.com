@@ -34,20 +34,27 @@
 
       <div class="an-form">
         <input id="urlInput" type="text" placeholder="Dán link sản phẩm Shopee (vd: https://shopee.vn/...-i.123.456)" />
-        <button class="an-btn" onclick="copyCommand()">Sao chép lệnh phân tích</button>
+        <button class="an-btn" onclick="runOnGitHub()">🚀 Phân tích trên GitHub</button>
       </div>
-      <p class="an-hint" id="cmdHint">
-        1) Bấm "Sao chép lệnh phân tích" → dán vào terminal của dự án và Enter.<br/>
-        2) Đợi vài giây rồi bấm "Tải kết quả" bên dưới.
+      <p class="an-hint">
+        1) Dán link ở trên rồi bấm "Phân tích trên GitHub" — link sẽ tự copy vào clipboard, tab GitHub Actions mở ra.<br/>
+        2) Trong tab đó bấm nút xanh <b>Run workflow</b> → dán link vào ô <b>product_url</b> → bấm <b>Run workflow</b> lần nữa để chạy thật.<br/>
+        3) Đợi khoảng 1 phút cho chạy xong, quay lại đây bấm "Tải kết quả".
       </p>
-      <button class="an-btn secondary" onclick="loadAnalysis()">🔄 Tải kết quả (analysis.json)</button>
+      <button class="an-btn secondary" onclick="loadAnalysis()">🔄 Tải kết quả</button>
+
+      <details class="an-advanced">
+        <summary>⚙️ Hoặc chạy bằng terminal (dành cho dev, có sẵn cookie local)</summary>
+        <button class="an-btn secondary" onclick="copyCommand()">Sao chép lệnh phân tích</button>
+        <p class="an-hint">Copy lệnh, dán vào terminal dự án (cần <code>node</code> + <code>SHOPEE_COOKIES</code> trong <code>.env</code>), Enter, rồi quay lại bấm "Tải kết quả".</p>
+      </details>
     </section>
 
     <section id="result" class="an-result" style="display:none;"></section>
 
     <section id="emptyState" class="an-empty">
       <div class="icon">📊</div>
-      <p>Chưa có kết quả phân tích nào. Chạy lệnh <code>node analyze.mjs "&lt;link sản phẩm&gt;"</code> trong thư mục dự án, rồi bấm "Tải kết quả".</p>
+      <p>Chưa có kết quả phân tích nào. Dán link sản phẩm ở trên rồi bấm "Phân tích trên GitHub".</p>
     </section>
   </main>
 

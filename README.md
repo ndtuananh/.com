@@ -12,18 +12,29 @@ Trang tổng hợp mã giảm giá Shopee, cập nhật tự động mỗi giờ
 | `vouchers.json` | Dữ liệu voucher hiện tại (do scraper ghi đè) |
 | `scraper.mjs` | Script cào + gửi email cảnh báo, chạy bởi GitHub Actions |
 | `.github/workflows/update-vouchers.yml` | Cron chạy `scraper.mjs` mỗi giờ, tự commit nếu có thay đổi |
-| `analyze.mjs` | CLI phân tích 1 link sản phẩm Shopee → Deal Score (xem mục bên dưới) |
+| `analyze.mjs` | Script phân tích 1 link sản phẩm Shopee → Deal Score (xem mục bên dưới) |
 | `analyze.html` / `analyze.css` / `analyze-app.js` | Dashboard hiển thị kết quả từ `analyze.mjs` |
+| `.github/workflows/analyze-product.yml` | Chạy `analyze.mjs` theo yêu cầu (workflow_dispatch), tự commit `analysis.json` |
 
 ## AI Shopping Optimizer — phân tích Deal Score theo từng sản phẩm
 
 Dán 1 link sản phẩm Shopee, công cụ tính giá sau voucher, tiết kiệm thực và Deal Score (0-100) kèm khuyến nghị `BUY_NOW` / `WAIT` / `NOT_GOOD`.
 
-**Cách chạy** (local, cần `SHOPEE_COOKIES` giống `scraper.mjs`):
+GitHub Pages là site tĩnh (không chạy được code khi khách bấm nút), nên **không có cách nào chạy phân tích ngay trong trình duyệt của khách**. Có 2 cách chạy thật:
+
+**1) Trên web, không cần cài gì** (khuyến nghị cho người dùng thường) — trang `analyze.html` đã tích hợp sẵn:
+1. Dán link sản phẩm vào ô, bấm "🚀 Phân tích trên GitHub" — link tự copy vào clipboard, tab GitHub Actions mở ra.
+2. Trong tab đó bấm nút xanh **Run workflow**, dán link vào ô `product_url`, bấm **Run workflow** lần nữa.
+3. Đợi ~1 phút cho Action chạy xong (dùng lại secret `SHOPEE_COOKIES` có sẵn) — nó tự commit `analysis.json` vào repo.
+4. Quay lại `analyze.html`, bấm "Tải kết quả".
+
+Chỉ chủ repo (đã đăng nhập GitHub, có quyền Actions) mới bấm "Run workflow" được — đây là công cụ cá nhân, không phải dịch vụ công khai nhiều người dùng cùng lúc (mỗi lần chạy sẽ ghi đè `analysis.json` của lần trước).
+
+**2) Local bằng terminal** (dành cho dev, cần `SHOPEE_COOKIES` trong `.env` giống `scraper.mjs`):
 ```bash
 node analyze.mjs "https://shopee.vn/ten-san-pham-i.<shopid>.<itemid>"
 ```
-Lệnh này ghi ra `analysis.json` — mở `analyze.html` (double-click hoặc `npx http-server`) và bấm "Tải kết quả" để xem dashboard. Trang cũng có ô dán link + nút "Sao chép lệnh phân tích" để copy sẵn lệnh trên vào clipboard.
+Lệnh này ghi ra `analysis.json` ngay tại chỗ — mở `analyze.html` local (`npx http-server`) và bấm "Tải kết quả".
 
 **Nguồn dữ liệu:** không dùng API công khai (Shopee không có) mà đọc thẳng response nội bộ `/api/v4/pdp/get_pc` mà chính trang sản phẩm của Shopee gọi khi tải — cùng dữ liệu Shopee hiển thị cho tài khoản đang đăng nhập (giá, voucher Shop/Shopee đã được Shopee tự chọn tối ưu, đánh giá, đã bán, độ uy tín shop). Không đoán mò các con số này.
 

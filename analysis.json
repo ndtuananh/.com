@@ -1,0 +1,49 @@
+{
+  "product_name": "Áo thun nam Muscle Fit vải Cotton Hàn mềm mịn tôn dáng - JT2503",
+  "url": "https://shopee.vn/a-i.259681663.29790593630",
+  "scraped_at": "2026-07-08T15:50:42.640Z",
+  "shop_name": "JBAGY _ Official Store",
+  "shop": {
+    "is_official": true,
+    "rating": 4.876318,
+    "response_rate": 97,
+    "follower_count": 604104
+  },
+  "original_price": 280000,
+  "sale_price": 189000,
+  "shopee_discount_percent": 33,
+  "voucher_shop": 10000,
+  "voucher_shopee": 10000,
+  "shipping_discount": 0,
+  "shipping_free": false,
+  "coins": 0,
+  "coins_detected": false,
+  "gift_detected": true,
+  "gift_note": "Mua để nhận quà",
+  "final_price": 169000,
+  "saving_money": 111000,
+  "saving_percent": 40,
+  "rating": 4.923132530120482,
+  "rating_count": 4150,
+  "sold_display": "30k+",
+  "sold_estimate": 30000,
+  "unlock_next_discount": 110000,
+  "unlock_next_discount_note": "Mua từ 299.000₫ để dùng voucher \"JBAG15K\"",
+  "deal_score": 70,
+  "recommendation": "WAIT",
+  "reason": [
+    "Giảm 40% so với giá gốc (280.000₫ → 169.000₫)",
+    "Đã áp voucher Shop, giảm thêm 10.000₫",
+    "Đã áp voucher Shopee, giảm thêm 10.000₫",
+    "Shop chính hãng/Mall, đánh giá 4.9/5",
+    "Sản phẩm đánh giá 4.9/5 từ 4.150 lượt",
+    "Có chương trình tặng kèm: Mua để nhận quà"
+  ],
+  "estimates": {
+    "note": "Các mục dưới đây là ước tính/suy luận từ dữ liệu hiện có — KHÔNG phải số liệu chính thức từ Shopee.",
+    "flash_sale": "Ước tính: mức giảm khá sâu, có thể đây đã là giá khuyến mãi — không phát hiện Flash Sale đang chạy.",
+    "price_trend": "Chưa đủ dữ liệu lịch sử — chạy lại analyze.mjs vào lần khác để bắt đầu theo dõi xu hướng giá thật.",
+    "price_history_points": 1,
+    "lowest_price_tracked": 169000
+  }
+}

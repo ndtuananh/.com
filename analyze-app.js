@@ -1,4 +1,5 @@
 const ANALYSIS_JSON = 'analysis.json';
+const ACTIONS_URL = 'https://github.com/ndtuananh/.com/actions/workflows/analyze-product.yml';
 
 function createParticles() {
   const container = document.getElementById('particles');
@@ -24,16 +25,32 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2800);
 }
 
-function copyCommand() {
+function readUrlInput() {
   const url = document.getElementById('urlInput').value.trim();
-  if (!url) {
-    showToast('⚠️ Dán link sản phẩm Shopee vào ô trước đã.');
-    return;
-  }
+  if (!url) showToast('⚠️ Dán link sản phẩm Shopee vào ô trước đã.');
+  return url;
+}
+
+function copyCommand() {
+  const url = readUrlInput();
+  if (!url) return;
   const cmd = `node analyze.mjs "${url}"`;
   navigator.clipboard.writeText(cmd)
     .then(() => showToast('✅ Đã sao chép lệnh — dán vào terminal dự án.'))
     .catch(() => showToast('⚠️ Không sao chép được, hãy tự gõ: ' + cmd));
+}
+
+// No backend on GitHub Pages (it's a static site) — this reuses the repo's
+// existing GitHub Actions + SHOPEE_COOKIES secret instead of a new hosting
+// account or exposing the cookie client-side. Actions doesn't support
+// pre-filling workflow_dispatch inputs via URL, so we copy the link to the
+// clipboard and open the run page for the user to paste it in.
+function runOnGitHub() {
+  const url = readUrlInput();
+  if (!url) return;
+  navigator.clipboard.writeText(url).catch(() => {});
+  window.open(ACTIONS_URL, '_blank', 'noopener');
+  showToast('✅ Đã copy link — dán vào ô "product_url" trong tab GitHub vừa mở.');
 }
 
 const fmt = n => (typeof n === 'number' ? n.toLocaleString('vi-VN') + '₫' : '—');
