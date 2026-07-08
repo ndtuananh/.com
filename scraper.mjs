@@ -3,6 +3,7 @@
 // run is diagnosable without needing a manual screenshot.
 import { chromium } from 'playwright';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
+import nodemailer from 'nodemailer';
 
 // Local-only convenience: load .env (gitignored) so SHOPEE_COOKIES can be tested
 // without ever pasting the cookie into a commit or into chat. GitHub Actions ignores
@@ -29,6 +30,31 @@ const TYPE_RULES = [
 
 function classify(text) {
   return TYPE_RULES.find(r => r.test(text));
+}
+
+// Emails the user's own Gmail (SMTP + App Password, no third-party service) when a
+// voucher newly crosses the "hot" (nearly-claimed-out) threshold.
+async function sendHotAlert(hotVouchers) {
+  const user = process.env.GMAIL_USER || 'nguyendinhtuananh1992@gmail.com';
+  const pass = process.env.GMAIL_APP_PASSWORD;
+  if (!pass) {
+    console.log('GMAIL_APP_PASSWORD not set — skipping hot voucher email');
+    return;
+  }
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass },
+  });
+  const listHtml = hotVouchers
+    .map(v => `<li><b>${v.discount}</b> — ${v.minOrder} (${v.condition})</li>`)
+    .join('');
+  await transporter.sendMail({
+    from: user,
+    to: user,
+    subject: `🔥 ${hotVouchers.length} voucher Shopee sắp hết — lấy ngay!`,
+    html: `<p>Có ${hotVouchers.length} voucher đang sắp hết lượt trên Shopee:</p><ul>${listHtml}</ul><p><a href="${URL}">Xem tại Shopee</a></p>`,
+  });
+  console.log(`📧 Sent hot voucher alert email for ${hotVouchers.length} voucher(s)`);
 }
 
 function parseCard(text) {
@@ -183,6 +209,16 @@ async function scrape() {
   console.log(vouchers.length > 0
     ? `✅ Found ${vouchers.length} vouchers, wrote ${OUT}`
     : `⚠️ No vouchers found, kept previous data. Check debug.png.`);
+
+  if (vouchers.length > 0) {
+    const prevHotKeys = new Set(
+      (previous.vouchers || []).filter(v => v.hot).map(v => `${v.discount}|${v.minOrder}`)
+    );
+    const newHot = output.vouchers.filter(v => v.hot && !prevHotKeys.has(`${v.discount}|${v.minOrder}`));
+    if (newHot.length > 0) {
+      await sendHotAlert(newHot).catch(err => console.error('Email send failed:', err.message));
+    }
+  }
 }
 
 scrape();

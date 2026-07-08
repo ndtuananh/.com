@@ -30,6 +30,7 @@ jobs:
         run: node scraper.mjs
         env:
           SHOPEE_COOKIES: ${{ secrets.SHOPEE_COOKIES }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
 
       - name: Upload debug screenshot
         if: always()
