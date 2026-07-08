@@ -214,11 +214,39 @@ function getFallbackVouchers() {
   ];
 }
 
+// ===== IN-APP BROWSER WARNING =====
+// Zalo/Facebook/Messenger/Instagram open links in their own embedded webview, which
+// blocks handing off to another app (Shopee) on both Android and iOS — no link format
+// can work around that OS-level restriction. Detecting it lets us tell the visitor how
+// to escape to a real browser instead of silently failing on the voucher click.
+function detectInAppBrowser() {
+  const ua = navigator.userAgent || '';
+  if (/Zalo/i.test(ua)) return 'Zalo';
+  if (/FBAN|FBAV|FB_IAB/i.test(ua)) return 'Facebook';
+  if (/Instagram/i.test(ua)) return 'Instagram';
+  if (/Line\//i.test(ua)) return 'Line';
+  return null;
+}
+
+function showInAppBrowserBanner(appName) {
+  const banner = document.createElement('div');
+  banner.className = 'iab-banner';
+  banner.innerHTML = `
+    ⚠️ Bạn đang mở trang này trong <b>${appName}</b> — ${appName} chặn việc mở thẳng app Shopee từ đây.
+    Bấm nút <b>⋮ / ... / Chia sẻ</b> ở góc trên và chọn <b>"Mở bằng trình duyệt"</b> để voucher mở đúng vào app Shopee.
+    <span class="iab-close" onclick="this.parentElement.remove()">✕</span>
+  `;
+  document.body.prepend(banner);
+}
+
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   createParticles();
   loadVouchers();
   startCountdown();
+
+  const inAppBrowser = detectInAppBrowser();
+  if (inAppBrowser) showInAppBrowserBanner(inAppBrowser);
 
   // Auto re-fetch every 5 mins
   setInterval(loadVouchers, AUTO_FETCH_INTERVAL);
