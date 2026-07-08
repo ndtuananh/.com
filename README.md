@@ -13,15 +13,14 @@ Trang tổng hợp mã giảm giá Shopee.
 
 ## Cách dữ liệu được cập nhật
 
-Trang "Mã Giảm Giá" của Shopee (`shopee.vn/m/ma-giam-gia`) là ứng dụng render bằng JavaScript và có hệ thống chống bot — không thể lấy dữ liệu chính xác bằng cách gọi API/scrape tự động. Vì vậy trang này **không dùng scraper hay cron tự động**.
+`scraper.mjs` dùng trình duyệt headless thật (Playwright) để mở `shopee.vn/m/ma-giam-gia` — trang này là SPA nên fetch HTTP thường không đọc được, cần render JS thật sự. GitHub Actions (`update-vouchers.yml`) chạy script này mỗi giờ, không cần đăng nhập.
 
-Quy trình cập nhật:
-1. Vào `shopee.vn/m/ma-giam-gia` trên trình duyệt, chụp màn hình danh sách voucher.
-2. Gửi ảnh chụp cho Claude (trong phiên làm việc này hoặc phiên mới).
-3. Claude đọc ảnh, cập nhật `vouchers.json`, commit và push lên `main`.
-4. GitHub Pages tự publish bản mới trong khoảng 1 phút.
+- Nếu tìm thấy voucher → ghi đè `vouchers.json`, cập nhật `lastUpdated`.
+- Nếu không tìm thấy gì (bị chặn/captcha/đổi giao diện) → **giữ nguyên dữ liệu cũ**, chỉ cập nhật `lastChecked`, không báo sai là "mới nhất".
+- Mỗi lần chạy đều chụp `debug.png` (toàn trang) và upload làm workflow artifact (Actions tab → chọn lần chạy → Artifacts) để kiểm tra Shopee đang trả về gì khi có sự cố.
 
-Cách này đảm bảo dữ liệu **chính xác vì lấy từ ảnh chụp thật**, không vi phạm điều khoản sử dụng của Shopee vì không có request tự động nào gọi tới hệ thống của họ.
+### Giới hạn thực tế
+Shopee có hệ thống chống bot; IP của GitHub Actions runner có thể bị chặn hoặc gặp captcha bất kỳ lúc nào, khiến workflow liên tục không lấy được dữ liệu mới dù không báo lỗi đỏ. Nếu để ý thấy `lastUpdated` không nhích lên trong thời gian dài, hãy kiểm tra `debug.png` trong Artifacts — nếu Shopee đang chặn, cách chắc chắn nhất vẫn là gửi ảnh chụp màn hình thật để cập nhật thủ công.
 
 ## Lưu ý
 
