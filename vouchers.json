@@ -1,8 +1,8 @@
 {
-  "lastUpdated": "2026-07-08T14:33:41.474Z",
-  "lastChecked": "2026-07-08T14:33:41.474Z",
+  "lastUpdated": "2026-07-08T16:45:27.919Z",
+  "lastChecked": "2026-07-08T16:45:27.919Z",
   "source": "https://shopee.vn/m/ma-giam-gia",
-  "note": "Lấy tự động bằng trình duyệt headless lúc 2026-07-08T14:33:41.474Z.",
+  "note": "Lấy tự động bằng trình duyệt headless lúc 2026-07-08T16:45:27.919Z.",
   "vouchers": [
     {
       "id": 1,
@@ -12,10 +12,10 @@
       "title": "Giảm 25% (Tối đa 200k₫)",
       "discount": "Giảm 25% (Tối đa 200k₫)",
       "minOrder": "Đơn tối thiểu 0₫",
-      "condition": "Đã dùng 98%",
+      "condition": "Xem điều kiện trên Shopee",
       "validity": "Xem HSD trên Shopee",
-      "status": "active",
-      "hot": true,
+      "status": "expired",
+      "hot": false,
       "tag": "Shopee Xử Lý",
       "link": "https://shopee.vn/m/ma-giam-gia",
       "color": "#ee4d2d"
@@ -60,7 +60,7 @@
       "title": "Giảm 20% (Tối đa 40k₫)",
       "discount": "Giảm 20% (Tối đa 40k₫)",
       "minOrder": "Đơn tối thiểu 100k₫",
-      "condition": "Đã dùng 73%",
+      "condition": "Đã dùng 75%",
       "validity": "Xem HSD trên Shopee",
       "status": "active",
       "hot": false,
@@ -140,7 +140,7 @@
       "title": "Giảm 10% (Tối đa 40k₫)",
       "discount": "Giảm 10% (Tối đa 40k₫)",
       "minOrder": "Đơn tối thiểu 320k₫",
-      "condition": "Xem điều kiện trên Shopee",
+      "condition": "Đã dùng 52%",
       "validity": "Xem HSD trên Shopee",
       "status": "active",
       "hot": false,
@@ -220,7 +220,7 @@
       "title": "Giảm 5k₫",
       "discount": "Giảm 5k₫",
       "minOrder": "Đơn tối thiểu 150k₫",
-      "condition": "Đã dùng 57%",
+      "condition": "Đã dùng 58%",
       "validity": "Xem HSD trên Shopee",
       "status": "active",
       "hot": false,
@@ -348,7 +348,7 @@
       "title": "Giảm 25k₫",
       "discount": "Giảm 25k₫",
       "minOrder": "Đơn tối thiểu 200k₫",
-      "condition": "Đã dùng 61%",
+      "condition": "Đã dùng 66%",
       "validity": "Xem HSD trên Shopee",
       "status": "active",
       "hot": false,
@@ -358,22 +358,6 @@
     },
     {
       "id": 23,
-      "type": "discount",
-      "label": "Shopee Xử Lý",
-      "badge": "⚡",
-      "title": "Giảm 2k₫",
-      "discount": "Giảm 2k₫",
-      "minOrder": "Đơn tối thiểu 200k₫",
-      "condition": "Đã dùng 99%",
-      "validity": "Xem HSD trên Shopee",
-      "status": "active",
-      "hot": true,
-      "tag": "Shopee Xử Lý",
-      "link": "https://shopee.vn/m/ma-giam-gia",
-      "color": "#ee4d2d"
-    },
-    {
-      "id": 24,
       "type": "discount",
       "label": "Shopee Xử Lý",
       "badge": "⚡",
@@ -389,7 +373,7 @@
       "color": "#ee4d2d"
     },
     {
-      "id": 25,
+      "id": 24,
       "type": "discount",
       "label": "Shopee Xử Lý",
       "badge": "⚡",
@@ -405,7 +389,7 @@
       "color": "#ee4d2d"
     },
     {
-      "id": 26,
+      "id": 25,
       "type": "discount",
       "label": "Shopee Xử Lý",
       "badge": "⚡",
@@ -421,7 +405,7 @@
       "color": "#ee4d2d"
     },
     {
-      "id": 27,
+      "id": 26,
       "type": "discount",
       "label": "Shopee Xử Lý",
       "badge": "⚡",
@@ -437,7 +421,7 @@
       "color": "#ee4d2d"
     },
     {
-      "id": 28,
+      "id": 27,
       "type": "discount",
       "label": "Shopee Xử Lý",
       "badge": "⚡",
@@ -453,7 +437,7 @@
       "color": "#ee4d2d"
     },
     {
-      "id": 29,
+      "id": 28,
       "type": "discount",
       "label": "Shopee Xử Lý",
       "badge": "⚡",
@@ -469,7 +453,7 @@
       "color": "#ee4d2d"
     },
     {
-      "id": 30,
+      "id": 29,
       "type": "discount",
       "label": "Shopee Xử Lý",
       "badge": "⚡",
@@ -485,7 +469,7 @@
       "color": "#ee4d2d"
     },
     {
-      "id": 31,
+      "id": 30,
       "type": "discount",
       "label": "Shopee Xử Lý",
       "badge": "⚡",
@@ -501,7 +485,7 @@
       "color": "#ee4d2d"
     },
     {
-      "id": 32,
+      "id": 31,
       "type": "discount",
       "label": "Shopee Xử Lý",
       "badge": "⚡",
@@ -517,7 +501,7 @@
       "color": "#ee4d2d"
     },
     {
-      "id": 33,
+      "id": 32,
       "type": "discount",
       "label": "Shopee Xử Lý",
       "badge": "⚡",
@@ -533,7 +517,7 @@
       "color": "#ee4d2d"
     },
     {
-      "id": 34,
+      "id": 33,
       "type": "discount",
       "label": "Shopee Xử Lý",
       "badge": "⚡",
@@ -549,13 +533,29 @@
       "color": "#ee4d2d"
     },
     {
-      "id": 35,
+      "id": 34,
       "type": "discount",
       "label": "Shopee Xử Lý",
       "badge": "⚡",
       "title": "Giảm 100k₫",
       "discount": "Giảm 100k₫",
       "minOrder": "Xem chi tiết trên Shopee",
+      "condition": "Xem điều kiện trên Shopee",
+      "validity": "Xem HSD trên Shopee",
+      "status": "active",
+      "hot": false,
+      "tag": "Shopee Xử Lý",
+      "link": "https://shopee.vn/m/ma-giam-gia",
+      "color": "#ee4d2d"
+    },
+    {
+      "id": 35,
+      "type": "discount",
+      "label": "Shopee Xử Lý",
+      "badge": "⚡",
+      "title": "Giảm 30k₫",
+      "discount": "Giảm 30k₫",
+      "minOrder": "Đơn tối thiểu 899k₫",
       "condition": "Xem điều kiện trên Shopee",
       "validity": "Xem HSD trên Shopee",
       "status": "active",
