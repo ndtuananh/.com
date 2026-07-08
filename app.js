@@ -232,8 +232,14 @@ function showInAppBrowserBanner(appName) {
   const banner = document.createElement('div');
   banner.className = 'iab-banner';
   banner.innerHTML = `
-    ⚠️ Bạn đang mở trang này trong <b>${appName}</b> — ${appName} chặn việc mở thẳng app Shopee từ đây.
-    Bấm nút <b>⋮ / ... / Chia sẻ</b> ở góc trên và chọn <b>"Mở bằng trình duyệt"</b> để voucher mở đúng vào app Shopee.
+    <div class="iab-text">
+      ⚠️ Bạn đang mở trang này trong <b>${appName}</b> — ${appName} chặn việc mở thẳng app Shopee từ đây.
+      Bấm nút <b>⋮ / ... / Chia sẻ</b> ở góc trên và chọn <b>"Mở bằng trình duyệt"</b> để voucher mở đúng vào app Shopee.
+      <button class="iab-video-toggle" onclick="this.closest('.iab-banner').querySelector('.iab-video').classList.toggle('show')">▶ Xem hướng dẫn</button>
+    </div>
+    <video class="iab-video" controls preload="metadata" playsinline>
+      <source src="assets/huong-dan-mo-trinh-duyet.mp4" type="video/mp4">
+    </video>
     <span class="iab-close" onclick="this.parentElement.remove()">✕</span>
   `;
   document.body.prepend(banner);

@@ -366,6 +366,19 @@ body {
   cursor: pointer; font-weight: 700; opacity: .6;
 }
 .iab-close:hover { opacity: 1; }
+.iab-video-toggle {
+  margin-left: 8px;
+  background: #664d03; color: #fff3cd;
+  border: none; border-radius: 100px;
+  padding: 4px 14px; font-size: .8rem; font-weight: 600;
+  cursor: pointer;
+}
+.iab-video {
+  display: none;
+  max-width: 420px; width: 100%;
+  margin: 10px auto 0; border-radius: 12px;
+}
+.iab-video.show { display: block; }
 
 /* ===== FOOTER ===== */
 .footer {
