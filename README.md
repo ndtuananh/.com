@@ -24,13 +24,18 @@ Trang `shopee.vn/m/ma-giam-gia` là SPA (cần JS render) và **chỉ hiện vou
 - Mỗi lần chạy đều chụp `debug.png` (toàn trang) và upload làm workflow artifact (Actions tab → chọn lần chạy → Artifacts) để kiểm tra khi có sự cố.
 
 ### Cookie hết hạn
-Cookie Shopee sẽ hết hạn theo thời gian. Khi đó cần lấy cookie mới:
+Cookie Shopee sẽ hết hạn theo thời gian. Khi phát hiện (trang yêu cầu đăng nhập lại), scraper **tự gửi email cảnh báo** tới Gmail chủ repo (chỉ gửi 1 lần khi mới phát hiện, không spam mỗi giờ) kèm hướng dẫn — không cần tự kiểm tra thủ công. Khi cookie mới được cập nhật và scrape thành công trở lại, trạng thái cảnh báo tự reset.
+
+Cách lấy cookie mới và cập nhật:
 1. Đăng nhập `shopee.vn` trên trình duyệt → F12 → tab Network → chọn request tới `shopee.vn` → copy giá trị header `Cookie`.
 2. Cập nhật secret: `gh secret set SHOPEE_COOKIES --repo ndtuananh/.com` (dán cookie khi được hỏi), hoặc qua Settings → Secrets and variables → Actions trên GitHub.
 
-## Cảnh báo voucher HOT qua email
+## Cảnh báo qua email
 
-Voucher đã dùng ≥90% lượt được đánh dấu `hot: true` (badge "HOT" trên web). Mỗi lần chạy, script so sánh với lần trước — nếu có voucher **mới** rơi vào diện HOT, tự gửi email tới Gmail của chủ repo qua SMTP (App Password, secret `GMAIL_APP_PASSWORD`). Không có secret này thì bỏ qua bước gửi email, các phần còn lại vẫn chạy bình thường.
+Dùng chung một cơ chế gửi email (SMTP Gmail + App Password, secret `GMAIL_APP_PASSWORD`; không có secret thì bỏ qua, phần còn lại vẫn chạy bình thường):
+
+- **Voucher HOT**: voucher đã dùng ≥90% lượt được đánh dấu `hot: true` (badge "HOT" trên web). Mỗi lần chạy, script so sánh với lần trước — nếu có voucher **mới** rơi vào diện HOT, gửi email danh sách.
+- **Cookie hết hạn**: xem mục "Cookie hết hạn" bên trên.
 
 ## Lưu ý
 

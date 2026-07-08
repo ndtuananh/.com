@@ -32,29 +32,41 @@ function classify(text) {
   return TYPE_RULES.find(r => r.test(text));
 }
 
-// Emails the user's own Gmail (SMTP + App Password, no third-party service) when a
-// voucher newly crosses the "hot" (nearly-claimed-out) threshold.
-async function sendHotAlert(hotVouchers) {
+// Emails the user's own Gmail (SMTP + App Password, no third-party service).
+// No-op if GMAIL_APP_PASSWORD isn't set (secret missing locally or not yet configured).
+async function sendEmail(subject, html) {
   const user = process.env.GMAIL_USER || 'nguyendinhtuananh1992@gmail.com';
   const pass = process.env.GMAIL_APP_PASSWORD;
   if (!pass) {
-    console.log('GMAIL_APP_PASSWORD not set — skipping hot voucher email');
+    console.log(`GMAIL_APP_PASSWORD not set — skipping email: ${subject}`);
     return;
   }
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user, pass },
-  });
+  const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user, pass } });
+  await transporter.sendMail({ from: user, to: user, subject, html });
+  console.log(`📧 Sent email: ${subject}`);
+}
+
+async function sendHotAlert(hotVouchers) {
   const listHtml = hotVouchers
     .map(v => `<li><b>${v.discount}</b> — ${v.minOrder} (${v.condition})</li>`)
     .join('');
-  await transporter.sendMail({
-    from: user,
-    to: user,
-    subject: `🔥 ${hotVouchers.length} voucher Shopee sắp hết — lấy ngay!`,
-    html: `<p>Có ${hotVouchers.length} voucher đang sắp hết lượt trên Shopee:</p><ul>${listHtml}</ul><p><a href="${URL}">Xem tại Shopee</a></p>`,
-  });
-  console.log(`📧 Sent hot voucher alert email for ${hotVouchers.length} voucher(s)`);
+  await sendEmail(
+    `🔥 ${hotVouchers.length} voucher Shopee sắp hết — lấy ngay!`,
+    `<p>Có ${hotVouchers.length} voucher đang sắp hết lượt trên Shopee:</p><ul>${listHtml}</ul><p><a href="${URL}">Xem tại Shopee</a></p>`
+  );
+}
+
+async function sendCookieExpiredAlert() {
+  await sendEmail(
+    '⚠️ Voucher Shopee: cookie đăng nhập đã hết hạn',
+    `<p>Scraper không lấy được voucher mới vì phiên đăng nhập Shopee đã hết hạn hoặc bị thiếu.</p>
+     <p>Cách sửa: mở shopee.vn (đã đăng nhập) → F12 → tab Network → chọn 1 request tới shopee.vn →
+     copy giá trị header <code>Cookie</code> → cập nhật secret <code>SHOPEE_COOKIES</code>
+     (repo Settings → Secrets and variables → Actions, hoặc lệnh
+     <code>gh secret set SHOPEE_COOKIES --repo ndtuananh/.com</code>).</p>
+     <p>Web vẫn hiển thị dữ liệu cũ cho tới khi cookie được cập nhật — sẽ không gửi lại email này
+     cho tới lần cập nhật thành công tiếp theo.</p>`
+  );
 }
 
 function parseCard(text) {
@@ -191,19 +203,27 @@ async function scrape() {
   const now = new Date().toISOString();
   const previous = existsSync(OUT) ? JSON.parse(readFileSync(OUT, 'utf-8')) : { vouchers: [] };
 
-  const output = vouchers.length > 0
-    ? {
-        lastUpdated: now,
-        lastChecked: now,
-        source: URL,
-        note: `Lấy tự động bằng trình duyệt headless lúc ${now}.`,
-        vouchers: vouchers.map((v, i) => ({ id: i + 1, ...v, color: '#ee4d2d' })),
-      }
-    : {
-        ...previous,
-        lastChecked: now,
-        note: failureReason || `Lần chạy ${now} không tìm thấy voucher (có thể bị chặn/captcha) — giữ nguyên dữ liệu cũ. Xem debug.png trong workflow artifact để kiểm tra.`,
-      };
+  let output;
+  if (vouchers.length > 0) {
+    output = {
+      lastUpdated: now,
+      lastChecked: now,
+      source: URL,
+      note: `Lấy tự động bằng trình duyệt headless lúc ${now}.`,
+      vouchers: vouchers.map((v, i) => ({ id: i + 1, ...v, color: '#ee4d2d' })),
+    };
+  } else {
+    output = {
+      ...previous,
+      lastChecked: now,
+      note: failureReason || `Lần chạy ${now} không tìm thấy voucher (có thể bị chặn/captcha) — giữ nguyên dữ liệu cũ. Xem debug.png trong workflow artifact để kiểm tra.`,
+    };
+    // Only alert once per outage, not every hour until someone fixes it.
+    if (failureReason && !previous.cookieExpiredAlerted) {
+      await sendCookieExpiredAlert().catch(err => console.error('Email send failed:', err.message));
+      output.cookieExpiredAlerted = true;
+    }
+  }
 
   writeFileSync(OUT, JSON.stringify(output, null, 2) + '\n', 'utf-8');
   console.log(vouchers.length > 0
