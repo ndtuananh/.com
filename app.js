@@ -89,9 +89,10 @@ function buildCard(v, idx) {
     ? `card-tag ${cm.tag}`
     : v.tag === 'Sắp hết' ? 'card-tag danger' : 'card-tag';
 
+  const appLink = toAppLink(v.link);
   const ctaHtml = isExpired
     ? `<span class="card-cta disabled">Hết lượt</span>`
-    : `<a class="card-cta" href="${v.link}" target="_blank" rel="noopener" onclick="trackClick(event,'${v.id}')">
+    : `<a class="card-cta" href="${appLink}" target="_blank" rel="noopener" onclick="trackClick(event,'${v.id}')">
          Lấy ngay →
        </a>`;
 
@@ -125,6 +126,21 @@ function buildCard(v, idx) {
     ${ctaHtml}
   </div>
 </div>`;
+}
+
+// ===== APP DEEP LINK =====
+// Android: try opening the Shopee app directly via an explicit intent, falling back
+// to the normal web link if the app isn't installed. iOS/desktop: use the plain web
+// link — iOS Universal Links already hand off to the app when tapped from Safari/
+// Chrome, and guessing at an unconfirmed custom URL scheme risks a broken/ugly error
+// instead. Note: links opened inside an in-app browser (Zalo, Facebook, Messenger)
+// won't hand off to another app on either platform — that's a webview restriction,
+// not something a link format can fix.
+function toAppLink(webUrl) {
+  const isAndroid = /android/i.test(navigator.userAgent);
+  if (!isAndroid) return webUrl;
+  const bare = webUrl.replace(/^https?:\/\//, '');
+  return `intent://${bare}#Intent;scheme=https;package=com.shopee.vn;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
 }
 
 // ===== CLICK HANDLER =====
