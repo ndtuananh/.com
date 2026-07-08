@@ -32,23 +32,34 @@ function classify(text) {
 }
 
 function parseCard(text) {
-  const discountMatch = text.match(/Giảm(?:\s*(?:tối đa)?)\s*[\d.,]+\s*[%₫đĐ]/i) || text.match(/[\d.,]+%/);
-  const minOrderMatch = text.match(/Đơn\s*(?:tối thiểu)?\s*[\d.,]*\s*[₫đĐ]/i);
-  const validityMatch = text.match(/HSD[^\n]*|Có hiệu lực[^\n]*|hết hạn[^\n]*/i);
-  if (!discountMatch) return null;
+  const percentMatch = text.match(/Giảm\s*(\d+)\s*%/i);
+  const flatMatch = !percentMatch && text.match(/Giảm\s*([\d.,]+\s*k?\s*₫)/i);
+  if (!percentMatch && !flatMatch) return null;
+
+  const capMatch = text.match(/tối đa\s*([\d.,]+\s*k?\s*₫)/i);
+  const minOrderMatch = text.match(/Đơn\s*Tối Thiểu\s*([\d.,]+\s*k?\s*₫)/i);
+  const usageMatch = text.match(/Đã dùng\s*(\d+)\s*%/i);
+  const isExpired = /Hết lượt/i.test(text);
+  const prefixMatch = text.match(/^([A-ZÀ-Ỹ ]{2,24}?)Giảm/);
   const rule = classify(text);
+
+  const discountLabel = percentMatch
+    ? `Giảm ${percentMatch[1]}%${capMatch ? ` (Tối đa ${capMatch[1].replace(/\s+/g, '')})` : ''}`
+    : `Giảm ${flatMatch[1].replace(/\s+/g, '')}`;
+  const label = (prefixMatch && prefixMatch[1].trim()) || rule.label;
+
   return {
     type: rule.type,
-    label: rule.label,
+    label,
     badge: rule.badge,
-    title: discountMatch[0].trim(),
-    discount: discountMatch[0].trim(),
-    minOrder: (minOrderMatch && minOrderMatch[0].trim()) || 'Xem chi tiết trên Shopee',
-    condition: 'Xem điều kiện trên Shopee',
-    validity: (validityMatch && validityMatch[0].trim()) || 'Xem HSD trên Shopee',
-    status: 'active',
-    hot: false,
-    tag: rule.type === 'new' ? 'Khách hàng mới' : rule.label,
+    title: discountLabel,
+    discount: discountLabel,
+    minOrder: minOrderMatch ? `Đơn tối thiểu ${minOrderMatch[1].replace(/\s+/g, '')}` : 'Xem chi tiết trên Shopee',
+    condition: usageMatch ? `Đã dùng ${usageMatch[1]}%` : 'Xem điều kiện trên Shopee',
+    validity: 'Xem HSD trên Shopee',
+    status: isExpired ? 'expired' : 'active',
+    hot: usageMatch ? Number(usageMatch[1]) >= 90 : false,
+    tag: label,
     link: URL,
   };
 }
@@ -90,32 +101,60 @@ async function scrape() {
   let vouchers = [];
   let failureReason = null;
   try {
-    await page.goto(URL, { waitUntil: 'networkidle', timeout: 45000 });
-    await page.waitForTimeout(3000);
+    await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    await page.waitForTimeout(4000);
 
     const bodyText = await page.locator('body').innerText().catch(() => '');
     if (/chưa đăng nhập|Đăng nhập để tiếp tục/i.test(bodyText)) {
       failureReason = 'Cookie hết hạn hoặc thiếu — trang yêu cầu đăng nhập lại (SHOPEE_COOKIES cần cập nhật).';
-    }
+    } else {
+      // Voucher sections are lazy-mounted (and some virtualized/unmounted once off-
+      // screen), so we extract at every scroll step instead of once at the end —
+      // otherwise scrolling back up drops whatever was already rendered below.
+      const extractCardTexts = () => page.evaluate(() => {
+        const seeds = Array.from(document.querySelectorAll('body *')).filter(
+          el => el.children.length === 0 && /giảm/i.test(el.textContent)
+        );
+        const results = new Set();
+        for (const seed of seeds) {
+          let node = seed;
+          let best = null;
+          for (let depth = 0; depth < 8 && node; depth++) {
+            const text = node.textContent.trim();
+            const looksComplete = /giảm/i.test(text) && /(điều kiện|lưu)/i.test(text);
+            if (looksComplete && text.length > 20 && text.length < 300) {
+              best = text;
+              break; // smallest ancestor that already contains a full single card
+            }
+            node = node.parentElement;
+          }
+          if (best) results.add(best.replace(/\s+/g, ' ').trim());
+        }
+        return Array.from(results);
+      });
 
-    const candidateSelectors = [
-      '[class*="voucher" i]',
-      '[class*="Voucher" i]',
-      '[data-testid*="voucher" i]',
-    ];
+      const allCardTexts = new Set();
+      const collect = async () => {
+        for (const t of await extractCardTexts()) allCardTexts.add(t);
+      };
 
-    let cardTexts = [];
-    for (const sel of candidateSelectors) {
-      const els = await page.locator(sel).all();
-      for (const el of els) {
-        const t = (await el.innerText().catch(() => '')).trim();
-        if (t && /Giảm|%/.test(t) && t.length < 600) cardTexts.push(t);
+      await collect();
+      let lastHeight = 0;
+      for (let i = 0; i < 25; i++) {
+        const height = await page.evaluate(() => document.body.scrollHeight);
+        if (height === lastHeight) break;
+        lastHeight = height;
+        await page.evaluate(h => window.scrollTo(0, h), height);
+        await page.waitForTimeout(1000);
+        await collect();
       }
-      if (cardTexts.length) break;
-    }
 
-    cardTexts = [...new Set(cardTexts)];
-    vouchers = cardTexts.map(parseCard).filter(Boolean);
+      const cardTexts = Array.from(allCardTexts);
+      console.log(`Candidate card texts: ${cardTexts.length}`);
+      if (cardTexts.length > 0) console.log(JSON.stringify(cardTexts.slice(0, 3), null, 2));
+
+      vouchers = cardTexts.map(parseCard).filter(Boolean);
+    }
   } catch (err) {
     console.error('Scrape error:', err.message);
   } finally {
