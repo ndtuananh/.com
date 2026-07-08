@@ -3,320 +3,86 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🎫 ShopeeDeal – Thu Thập Voucher Shopee</title>
-  <meta name="description" content="Ứng dụng thu thập và cập nhật mã giảm giá, voucher Shopee mới nhất. Tiết kiệm tối đa khi mua sắm online." />
+  <title>Voucher Shopee – Mã Giảm Giá Chính Thức 2026</title>
+  <meta name="description" content="Tổng hợp mã giảm giá Shopee mới nhất, cập nhật 24/7 theo thời gian thực. Freeship, giảm giá, ưu đãi đặc biệt từ Shopee Việt Nam." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- Particles Background -->
+  <div class="particles" id="particles"></div>
 
-  <!-- ========== HEADER ========== -->
-  <header class="site-header">
+  <!-- Header -->
+  <header class="header">
     <div class="header-inner">
-      <div class="logo-group">
-        <div class="logo-icon">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="8" fill="white" fill-opacity="0.2"/>
-            <text x="16" y="23" text-anchor="middle" font-size="18" fill="white">🎫</text>
-          </svg>
+      <div class="logo">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><circle cx="18" cy="18" r="18" fill="url(#lg1)"/><path d="M10 18c0-4.4 3.6-8 8-8s8 3.6 8 8-3.6 8-8 8-8-3.6-8-8zm8-5a5 5 0 100 10A5 5 0 0018 13z" fill="#fff" fill-opacity=".9"/><defs><linearGradient id="lg1" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse"><stop stop-color="#EE4D2D"/><stop offset="1" stop-color="#FF7337"/></linearGradient></defs></svg>
+        <span>Voucher<b>Shopee</b></span>
+      </div>
+      <div class="header-right">
+        <div class="live-badge">
+          <span class="dot"></span> LIVE – Cập nhật liên tục
         </div>
-        <div class="logo-text">
-          <span class="logo-main">ShopeeDeal</span>
-          <span class="logo-sub">Voucher Collector</span>
-        </div>
-      </div>
-
-      <div class="header-center">
-        <div class="search-wrapper">
-          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
-          <input id="searchInput" type="text" placeholder="Tìm mã voucher, danh mục..." autocomplete="off" />
-          <button id="clearSearch" class="clear-btn" title="Xóa tìm kiếm">✕</button>
-        </div>
-      </div>
-
-      <div class="header-actions">
-        <div class="refresh-info">
-          <div class="refresh-dot" id="refreshDot"></div>
-          <span id="nextRefresh">Cập nhật sau: <strong>05:00</strong></span>
-        </div>
-        <button id="refreshBtn" class="btn-refresh" title="Làm mới ngay">
-          <svg id="refreshIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18">
-            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
-            <path d="M21 3v5h-5"/>
-            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
-            <path d="M8 16H3v5"/>
-          </svg>
-          Làm mới
-        </button>
-        <button id="addVoucherBtn" class="btn-add">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
-            <path d="M12 5v14M5 12h14"/>
-          </svg>
-          Thêm Voucher
-        </button>
-      </div>
-    </div>
-
-    <!-- Stats bar -->
-    <div class="stats-bar">
-      <div class="stat-item">
-        <span class="stat-num" id="totalCount">0</span>
-        <span class="stat-label">Tổng voucher</span>
-      </div>
-      <div class="stat-divider"></div>
-      <div class="stat-item">
-        <span class="stat-num" id="activeCount">0</span>
-        <span class="stat-label">Còn hiệu lực</span>
-      </div>
-      <div class="stat-divider"></div>
-      <div class="stat-item">
-        <span class="stat-num" id="expiringCount">0</span>
-        <span class="stat-label">Sắp hết hạn</span>
-      </div>
-      <div class="stat-divider"></div>
-      <div class="stat-item">
-        <span class="stat-num" id="newCount">0</span>
-        <span class="stat-label">Mới hôm nay</span>
+        <div class="last-update" id="lastUpdate">Đang cập nhật...</div>
       </div>
     </div>
   </header>
 
-  <!-- ========== MAIN LAYOUT ========== -->
-  <div class="app-layout">
-
-    <!-- SIDEBAR -->
-    <aside class="sidebar">
-      <div class="sidebar-section">
-        <h3 class="sidebar-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
-          Danh mục
-        </h3>
-        <div class="filter-list" id="categoryFilter">
-          <button class="filter-btn active" data-cat="all">
-            <span class="filter-emoji">🛒</span> Tất cả
-            <span class="filter-badge" id="badge-all">0</span>
-          </button>
-          <button class="filter-btn" data-cat="freeship">
-            <span class="filter-emoji">🚚</span> Freeship
-            <span class="filter-badge" id="badge-freeship">0</span>
-          </button>
-          <button class="filter-btn" data-cat="fashion">
-            <span class="filter-emoji">👗</span> Thời trang
-            <span class="filter-badge" id="badge-fashion">0</span>
-          </button>
-          <button class="filter-btn" data-cat="electronics">
-            <span class="filter-emoji">📱</span> Điện tử
-            <span class="filter-badge" id="badge-electronics">0</span>
-          </button>
-          <button class="filter-btn" data-cat="food">
-            <span class="filter-emoji">🍜</span> Ăn uống
-            <span class="filter-badge" id="badge-food">0</span>
-          </button>
-          <button class="filter-btn" data-cat="beauty">
-            <span class="filter-emoji">💄</span> Làm đẹp
-            <span class="filter-badge" id="badge-beauty">0</span>
-          </button>
-          <button class="filter-btn" data-cat="home">
-            <span class="filter-emoji">🏠</span> Nhà cửa
-            <span class="filter-badge" id="badge-home">0</span>
-          </button>
-          <button class="filter-btn" data-cat="sport">
-            <span class="filter-emoji">⚽</span> Thể thao
-            <span class="filter-badge" id="badge-sport">0</span>
-          </button>
-          <button class="filter-btn" data-cat="baby">
-            <span class="filter-emoji">👶</span> Mẹ & Bé
-            <span class="filter-badge" id="badge-baby">0</span>
-          </button>
-          <button class="filter-btn" data-cat="travel">
-            <span class="filter-emoji">✈️</span> Du lịch
-            <span class="filter-badge" id="badge-travel">0</span>
-          </button>
-          <button class="filter-btn" data-cat="custom">
-            <span class="filter-emoji">⭐</span> Của tôi
-            <span class="filter-badge" id="badge-custom">0</span>
-          </button>
-        </div>
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="hero-tag">🔥 Ưu đãi hôm nay</div>
+      <h1>Mã Giảm Giá Shopee<br /><span class="gradient-text">Mới Nhất 2026</span></h1>
+      <p>Tổng hợp toàn bộ voucher, freeship & khuyến mãi từ Shopee Việt Nam<br/>Cập nhật tự động 24/7 – Không bỏ lỡ ưu đãi nào!</p>
+      <div class="hero-stats">
+        <div class="stat"><span id="totalVouchers">8</span><small>Voucher</small></div>
+        <div class="stat"><span id="activeVouchers">6</span><small>Còn hiệu lực</small></div>
+        <div class="stat"><span id="refreshCountdown">60</span><small>Giây làm mới</small></div>
       </div>
+    </div>
+    <div class="hero-decoration">
+      <div class="floating-card card-1">🎁 Freeship 500K</div>
+      <div class="floating-card card-2">💰 Giảm 80K</div>
+      <div class="floating-card card-3">⚡ VIP 25%</div>
+    </div>
+  </section>
 
-      <div class="sidebar-section">
-        <h3 class="sidebar-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-          Loại giảm
-        </h3>
-        <div class="filter-list" id="typeFilter">
-          <button class="filter-btn active" data-type="all">Tất cả loại</button>
-          <button class="filter-btn" data-type="percent">🏷️ Giảm %</button>
-          <button class="filter-btn" data-type="fixed">💰 Giảm tiền</button>
-          <button class="filter-btn" data-type="freeship">🚚 Miễn ship</button>
-        </div>
-      </div>
-
-      <div class="sidebar-section">
-        <h3 class="sidebar-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-          Trạng thái
-        </h3>
-        <div class="filter-list" id="statusFilter">
-          <button class="filter-btn active" data-status="all">Tất cả</button>
-          <button class="filter-btn" data-status="active">✅ Còn hiệu lực</button>
-          <button class="filter-btn" data-status="expiring">⚠️ Sắp hết hạn</button>
-        </div>
-      </div>
-
-      <div class="sidebar-section">
-        <h3 class="sidebar-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M3 3h18v4H3zM3 10h18M3 17h18"/></svg>
-          Sắp xếp
-        </h3>
-        <select id="sortSelect" class="sort-select">
-          <option value="newest">🆕 Mới nhất</option>
-          <option value="expiring">⏰ Sắp hết hạn</option>
-          <option value="discount_high">📈 Giảm nhiều nhất</option>
-          <option value="discount_low">📉 Giảm ít nhất</option>
-        </select>
-      </div>
-
-      <!-- Live ticker -->
-      <div class="live-ticker">
-        <div class="ticker-header">
-          <span class="live-dot"></span> Cập nhật gần đây
-        </div>
-        <div class="ticker-list" id="tickerList"></div>
-      </div>
-    </aside>
-
-    <!-- MAIN CONTENT -->
-    <main class="main-content">
-
-      <!-- Top bar -->
-      <div class="content-topbar">
-        <div class="result-info" id="resultInfo">Đang tải...</div>
-        <div class="view-toggle">
-          <button class="view-btn active" id="gridViewBtn" title="Lưới">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-          </button>
-          <button class="view-btn" id="listViewBtn" title="Danh sách">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Loading overlay -->
-      <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-spinner"></div>
-        <p>Đang cập nhật voucher...</p>
-      </div>
-
-      <!-- Voucher grid -->
-      <div class="voucher-grid" id="voucherGrid"></div>
-
-      <!-- Empty state -->
-      <div class="empty-state" id="emptyState" style="display:none">
-        <div class="empty-icon">🔍</div>
-        <h3>Không tìm thấy voucher</h3>
-        <p>Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
-        <button onclick="resetFilters()" class="btn-reset">Xóa bộ lọc</button>
-      </div>
-
-    </main>
-  </div>
-
-  <!-- ========== MODAL THÊM VOUCHER ========== -->
-  <div class="modal-backdrop" id="modalBackdrop">
-    <div class="modal" id="addModal">
-      <div class="modal-header">
-        <h2>➕ Thêm Voucher Mới</h2>
-        <button class="modal-close" id="modalClose">✕</button>
-      </div>
-      <form class="modal-form" id="addVoucherForm">
-        <div class="form-row">
-          <div class="form-group">
-            <label for="vCode">Mã voucher *</label>
-            <input type="text" id="vCode" placeholder="VD: SHOPEE50K" required style="text-transform:uppercase"/>
-          </div>
-          <div class="form-group">
-            <label for="vCat">Danh mục *</label>
-            <select id="vCat" required>
-              <option value="">Chọn danh mục</option>
-              <option value="freeship">🚚 Freeship</option>
-              <option value="fashion">👗 Thời trang</option>
-              <option value="electronics">📱 Điện tử</option>
-              <option value="food">🍜 Ăn uống</option>
-              <option value="beauty">💄 Làm đẹp</option>
-              <option value="home">🏠 Nhà cửa</option>
-              <option value="sport">⚽ Thể thao</option>
-              <option value="baby">👶 Mẹ & Bé</option>
-              <option value="travel">✈️ Du lịch</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="vTitle">Tên voucher *</label>
-            <input type="text" id="vTitle" placeholder="VD: Giảm 50K đơn từ 150K" required/>
-          </div>
-          <div class="form-group">
-            <label for="vType">Loại giảm *</label>
-            <select id="vType" required>
-              <option value="percent">% Giảm</option>
-              <option value="fixed">Giảm tiền cố định</option>
-              <option value="freeship">Miễn phí vận chuyển</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="vDiscount">Giá trị giảm *</label>
-            <input type="text" id="vDiscount" placeholder="VD: 50% hoặc 50.000đ" required/>
-          </div>
-          <div class="form-group">
-            <label for="vMin">Đơn tối thiểu</label>
-            <input type="text" id="vMin" placeholder="VD: 150.000đ"/>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="vExpiry">Hạn sử dụng *</label>
-            <input type="date" id="vExpiry" required/>
-          </div>
-          <div class="form-group">
-            <label for="vMax">Giảm tối đa</label>
-            <input type="text" id="vMax" placeholder="VD: 100.000đ"/>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="vNote">Ghi chú</label>
-          <textarea id="vNote" rows="2" placeholder="Điều kiện áp dụng, lưu ý..."></textarea>
-        </div>
-        <div class="modal-actions">
-          <button type="button" id="cancelBtn" class="btn-cancel">Hủy</button>
-          <button type="submit" class="btn-submit">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
-            Thêm Voucher
-          </button>
-        </div>
-      </form>
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <div class="filter-inner">
+      <button class="filter-btn active" data-filter="all" onclick="filterVouchers('all')">Tất cả</button>
+      <button class="filter-btn" data-filter="freeship" onclick="filterVouchers('freeship')">🚚 Freeship</button>
+      <button class="filter-btn" data-filter="discount" onclick="filterVouchers('discount')">💵 Giảm giá</button>
+      <button class="filter-btn" data-filter="vip" onclick="filterVouchers('vip')">⭐ VIP</button>
+      <button class="filter-btn" data-filter="new" onclick="filterVouchers('new')">🆕 Khách mới</button>
     </div>
   </div>
 
-  <!-- ========== TOAST NOTIFICATION ========== -->
-  <div class="toast-container" id="toastContainer"></div>
-
-  <!-- ========== VOUCHER DETAIL MODAL ========== -->
-  <div class="modal-backdrop" id="detailBackdrop">
-    <div class="modal modal-detail" id="detailModal">
-      <div class="modal-header">
-        <h2 id="detailTitle">Chi tiết voucher</h2>
-        <button class="modal-close" id="detailClose">✕</button>
-      </div>
-      <div id="detailContent"></div>
+  <!-- Voucher Grid -->
+  <main class="container">
+    <div class="section-header">
+      <h2>Danh sách Voucher</h2>
+      <button class="refresh-btn" onclick="loadVouchers()">
+        <svg class="spin-icon" id="spinIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        Làm mới
+      </button>
     </div>
-  </div>
+    <div class="voucher-grid" id="voucherGrid">
+      <!-- Vouchers loaded here -->
+    </div>
+  </main>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <p>🛡️ Dữ liệu lấy trực tiếp từ <a href="https://shopee.vn/m/ma-giam-gia" target="_blank" rel="noopener">Shopee Việt Nam</a> – Cập nhật tự động mỗi giờ</p>
+      <p class="footer-small">Nhấp vào voucher để mở trang Shopee và lưu mã ngay. Website cập nhật tự động qua GitHub Actions.</p>
+    </div>
+  </footer>
 
   <script src="app.js"></script>
 </body>
