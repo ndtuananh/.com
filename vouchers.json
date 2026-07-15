@@ -1,8 +1,8 @@
 {
   "lastUpdated": "2026-07-08T16:45:27.919Z",
-  "lastChecked": "2026-07-14T23:59:35.941Z",
+  "lastChecked": "2026-07-15T03:26:01.867Z",
   "source": "https://shopee.vn/m/ma-giam-gia",
-  "note": "Lần chạy 2026-07-14T23:59:35.941Z không tìm thấy voucher (có thể bị chặn/captcha) — giữ nguyên dữ liệu cũ. Xem debug.png trong workflow artifact để kiểm tra.",
+  "note": "Lần chạy 2026-07-15T03:26:01.867Z không tìm thấy voucher (có thể bị chặn/captcha) — giữ nguyên dữ liệu cũ. Xem debug.png trong workflow artifact để kiểm tra.",
   "vouchers": [
     {
       "id": 1,
