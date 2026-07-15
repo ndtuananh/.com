@@ -1,0 +1,88 @@
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>REV Excel → PDF | Cập nhật No. Required theo BOM</title>
+<meta name="description" content="Nạp Excel BOM + PDF shop drawing, tự nhận diện theo hình học và cập nhật số 'No. Required' cạnh mã lắp theo Total Qnty. Xem trước từng trang, sửa 1-click, xuất PDF — chạy 100% trên trình duyệt." />
+
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="./style.css" />
+
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">REV</span>
+      <div>
+        <h1>Excel&nbsp;→&nbsp;PDF · Cập nhật “No. Required”</h1>
+        <p class="sub">Khớp <b>Member No</b> · ghi đè số ngay trước nhãn <b>No.&nbsp;Required</b> bằng <b>Total Qnty</b> · xem trước &amp; sửa 1-click</p>
+      </div>
+    </div>
+    <div class="privacy">🔒 Riêng tư 100% — không có server</div>
+  </header>
+
+  <section class="card" id="step-excel">
+    <div class="card-head"><span class="num">1</span><h2>Nạp file Excel (BOM)</h2></div>
+    <label class="drop" id="drop-excel">
+      <input type="file" id="file-excel" accept=".xlsx,.xls,.xlsm" hidden />
+      <div class="drop-inner">
+        <div class="drop-ic">📊</div>
+        <div><b>Chọn / kéo thả</b> file Excel (.xlsx)</div>
+        <small id="excel-name">Cột <b>Member No</b> + cột <b>Total Qnty</b></small>
+      </div>
+    </label>
+
+    <div id="excel-config" class="hidden">
+      <details class="adv">
+        <summary>Tuỳ chỉnh cột (nếu file khác cấu trúc)</summary>
+        <div class="cfg-grid">
+          <label>Sheet<select id="sel-sheet"></select></label>
+          <label>Dòng tiêu đề<select id="sel-header"></select></label>
+          <label>Cột <b>Member No</b><select id="sel-member"></select></label>
+          <label>Cột <b>Giá trị</b> (Total Qnty)<select id="sel-value"></select></label>
+        </div>
+      </details>
+      <div id="excel-preview" class="preview"></div>
+    </div>
+  </section>
+
+  <section class="card disabled" id="step-pdf">
+    <div class="card-head"><span class="num">2</span><h2>Nạp file PDF (shop drawing gộp nhiều trang)</h2></div>
+    <label class="drop" id="drop-pdf">
+      <input type="file" id="file-pdf" accept="application/pdf,.pdf" hidden />
+      <div class="drop-inner">
+        <div class="drop-ic">📄</div>
+        <div><b>Chọn / kéo thả</b> file PDF</div>
+        <small id="pdf-name">App tự đọc, khớp member từng trang, dò số cạnh mã lắp</small>
+      </div>
+    </label>
+    <div id="pdf-status" class="status hidden"></div>
+  </section>
+
+  <section class="card disabled" id="step-review">
+    <div class="card-head">
+      <span class="num">3</span><h2>Đối chiếu &amp; xem trước từng trang</h2>
+      <div class="head-actions"><span id="review-summary" class="chip"></span></div>
+    </div>
+    <div class="legend">
+      <span><i class="sw sw-change"></i> đổi số</span>
+      <span><i class="sw sw-same"></i> giữ nguyên</span>
+      <span><i class="sw sw-skip"></i> chưa dò được (bấm để chọn tay)</span>
+      <span class="legend-hint">Bấm vào ô tô sáng để bật/tắt · bấm “Chọn ô khác” rồi click số đúng trên bản vẽ.</span>
+    </div>
+    <div id="warnings" class="warnings hidden"></div>
+    <div id="pages"></div>
+  </section>
+
+  <section class="card disabled" id="step-export">
+    <div class="card-head"><span class="num">4</span><h2>Xuất PDF</h2></div>
+    <div class="export-row">
+      <button id="btn-export" class="btn primary" disabled>⤓ Tạo &amp; tải PDF đã cập nhật</button>
+      <span id="export-status" class="muted"></span>
+    </div>
+  </section>
+
+  <footer class="foot">
+    Chạy hoàn toàn client-side · pdf.js + pdf-lib + SheetJS · không lưu, không gửi file lên máy chủ.
+  </footer>
+</div>
+
+<script type="module" src="./app.js"></script>
