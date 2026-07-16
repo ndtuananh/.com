@@ -407,6 +407,13 @@ begin
                         ag_total = greatest(ag_total - agg.s,0)
     from agg where p.id = agg.user_id;
   get diagnostics v_reversed = row_count;
+  -- ghi sổ quỹ dòng THU HỒI để khách thấy + thông báo (idempotent theo ref+reason)
+  insert into balance_log(user_id, change, balance_after, reason, ref)
+    select o.user_id, -o.user_commission, (select balance from profiles where id = o.user_id), 'reverse', o.order_id
+    from ag_orders o
+    where o.wallet_state = 'reversed' and o.status = 'rejected' and o.user_id is not null
+      and coalesce(o.user_commission,0) > 0
+      and not exists (select 1 from balance_log b where b.ref = o.order_id and b.reason = 'reverse');
 
   -- đánh dấu mã đơn khách đã nhận là "đã đối soát" khi đơn đã vào ví
   update ag_claims c set matched = true from ag_orders o
@@ -421,27 +428,26 @@ revoke all on function ag_reconcile(int) from public;
 -- Idempotent theo ref='refbonus:<referee>'. Gọi sau ag_reconcile / sau khi cộng ví bằng claim.
 create or replace function ag_referral_bonus()
 returns void language plpgsql security definer set search_path = public as $$
+declare r record; nbal bigint;
 begin
-  with newref as (
-    select distinct p.referred_by as ref_uid, p.id as referee
+  for r in
+    select p.referred_by as ref_uid, p.id as referee
     from profiles p
     where p.referred_by is not null
-      -- KHÔNG BAO GIỜ LỖ + chống farm ảo: chỉ thưởng khi bạn được giới thiệu đã tích
-      -- HOA HỒNG THẬT ≥ 5.000đ (welcome KHÔNG tính). Lúc đó app đã lãi ≥5.000đ từ
-      -- khách này (chia 50/50) nên chi 5.000đ referral vẫn net ≥ 0.
-      and coalesce((select sum(c.change) from balance_log c
-                    where c.user_id = p.id and c.reason = 'cashback'), 0) >= 5000
+      -- CHỐNG GIAN LẬN + KHÔNG LỖ: chỉ thưởng khi người được mời có hoa hồng THỰC NHẬN
+      -- (đơn đã quyết toán & CHƯA bị hoàn) ≥ 5.000đ. Dùng ag_orders.wallet_state='available'
+      -- (đã trừ đơn hoàn) thay vì tổng cashback gộp → mua rồi trả hàng KHÔNG lấy được thưởng.
+      and coalesce((select sum(o.user_commission) from ag_orders o
+                    where o.user_id = p.id and o.wallet_state = 'available'), 0) >= 5000
       and not exists (select 1 from balance_log b where b.reason='referral' and b.ref='refbonus:'||p.id::text)
-      -- trần 100 lượt/người giới thiệu (tối đa 500k) -> bao ngân sách
+      -- trần 100 lượt/người giới thiệu (tối đa 500k) → bao ngân sách
       and (select count(*) from balance_log b3 where b3.user_id = p.referred_by and b3.reason='referral') < 100
-  ), ins as (
+  loop
+    update profiles set balance = balance + 5000, ag_total = ag_total + 5000
+      where id = r.ref_uid returning balance into nbal;
     insert into balance_log(user_id, change, balance_after, reason, ref)
-      select ref_uid, 5000, null, 'referral', 'refbonus:'||referee::text from newref
-      returning user_id, change
-  )
-  update profiles pr set balance = balance + agg.s, ag_total = ag_total + agg.s
-    from (select user_id, sum(change) s from ins group by user_id) agg
-    where pr.id = agg.user_id;
+      values (r.ref_uid, 5000, nbal, 'referral', 'refbonus:'||r.referee::text);
+  end loop;
 end $$;
 revoke all on function ag_referral_bonus() from public;
 
