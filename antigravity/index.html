@@ -287,40 +287,9 @@ nav .ic{font-size:1.35rem}
     <div style="font-weight:800;font-size:1.06rem">🎉 <span id="readyText">Link của bạn đã sẵn sàng!</span></div>
     <div style="font-size:.86rem;opacity:.95;margin-top:4px">Bấm xem thông báo & lấy link gửi khách ngay 👉</div>
   </div>
-  <div class="card" id="promoBanner" style="background:linear-gradient(135deg,#FF7A45,#FF5A1F);color:#fff;border:none;box-shadow:0 8px 22px rgba(255,90,31,.3)">
-    <div style="font-weight:800;font-size:1.06rem">🎁 Quà chào mừng 10.000đ</div>
-    <div style="font-size:.86rem;opacity:.95;margin-top:4px" id="promoText">Tạo link đầu tiên để nhận ngay 10.000đ vào ví!</div>
-    <div id="promoCountdown" style="margin-top:9px"></div>
-  </div>
-  <div class="card" style="display:flex;gap:13px;align-items:center">
-    <img id="zaloQR" alt="QR Zalo" style="width:82px;height:82px;border-radius:11px;flex:0 0 auto;border:1px solid var(--line);background:#fff">
-    <div style="flex:1;min-width:0">
-      <div style="font-weight:800">📩 Kết bạn Zalo để nhận link</div>
-      <div class="sub" style="margin:3px 0 8px">Kết bạn Zalo <b class="zalo-name"></b> để nhận link hoàn tiền nhanh & được hỗ trợ trực tiếp.</div>
-      <button class="btn-primary" style="padding:9px 15px;font-size:.88rem" onclick="openZalo()">💬 Kết bạn Zalo ngay</button>
-    </div>
-  </div>
-  <div class="card" style="border-left:4px solid var(--accent)">
-    <div style="font-weight:800;margin-bottom:6px">💡 Chọn hàng CÓ hoàn tiền</div>
-    <div style="font-size:.9rem;line-height:1.55">
-      <div style="color:var(--ok)">✅ Shopee: <b>Freeship Xtra / Hoàn Xu</b> · TikTok: <b>"Chia sẻ liên kết"</b></div>
-      <div style="color:var(--warn);margin-top:4px">❌ Không: sữa, bỉm, thẻ cào, nạp ĐT, hàng giá gốc</div>
-    </div>
-    <div class="hint" style="margin-top:8px">📌 Mở app → <b>Chia sẻ</b> → <b>Sao chép link</b> → dán bên dưới.</div>
-  </div>
-  <div class="card" style="background:var(--accent-soft);border:1px solid var(--accent);border-radius:16px">
-    <div style="font-size:.92rem;line-height:1.65">
-      <b>💛 Ghi chú nhỏ nè:</b> Một vài sản phẩm/shop <b>không bật hoàn tiền</b> nên mình chưa đổi link được — <b>không phải lỗi của bạn đâu nha</b> 🥺. Bạn chọn món tương tự <b>có hoàn tiền</b> là lại nhận hoa hồng đều đều thôi 🥰 Cảm ơn bạn đã thương &amp; đồng hành nhé! 🤝
-    </div>
-  </div>
   <div class="card">
     <h2>🔗 Gửi link cần đổi</h2>
-    <p class="sub">Bạn dán link — kỹ thuật tạo link hoa hồng rồi gửi lại bạn.</p>
-    <div class="steps">
-      <div class="step"><div class="n">1</div><div class="who">Bạn</div><div class="t">Dán link</div></div>
-      <div class="step"><div class="n">2</div><div class="who">Bạn</div><div class="t">Gửi yêu cầu</div></div>
-      <div class="step"><div class="n">3</div><div class="who wa">Kỹ thuật</div><div class="t">Gửi link về</div></div>
-    </div>
+    <p class="sub">Dán link sản phẩm vào đây trước tiên — kỹ thuật tạo link hoa hồng rồi gửi lại bạn.</p>
     <label>Nền tảng</label>
     <div class="pills">
       <div class="pill active" data-plat="shopee" onclick="pickPlat('shopee')">🛒 Shopee</div>
@@ -332,12 +301,29 @@ nav .ic{font-size:1.35rem}
       <button class="btn-ghost" onclick="pasteTo('srcLink')">📋 Dán</button>
       <button class="btn-primary" id="btnSubmit" onclick="submitRequest()">🚀 Gửi yêu cầu</button>
     </div>
+    <div class="steps" style="margin-top:12px">
+      <div class="step"><div class="n">1</div><div class="who">Bạn</div><div class="t">Dán link</div></div>
+      <div class="step"><div class="n">2</div><div class="who">Bạn</div><div class="t">Gửi yêu cầu</div></div>
+      <div class="step"><div class="n">3</div><div class="who wa">Kỹ thuật</div><div class="t">Gửi link về</div></div>
+    </div>
     <div id="submitResult" class="hide">
       <div class="reqcode"><div><div class="s">MÃ YÊU CẦU CỦA BẠN</div><div class="c" id="newCode">AG000000</div></div>
         <span class="badge b-pending">Đang xử lý</span></div>
       <p class="hint">✅ Đã gửi! Bọn mình sẽ tạo link và gửi bạn ngay khi xong. Xem trạng thái ở tab <b>Yêu cầu</b>.</p>
-      <div class="row"><button class="btn-primary" onclick="openZalo()">💬 Kết bạn Zalo để nhận link nhanh</button></div>
-      <p class="hint" style="margin-top:10px">📋 Xem tất cả yêu cầu & trạng thái link ở tab <b>Yêu cầu</b> phía dưới.</p>
+      <p class="hint" style="margin-top:8px">📋 Xem tất cả yêu cầu & trạng thái link ở tab <b>Yêu cầu</b> · cần hỗ trợ nhanh thì kết bạn Zalo ở tab <b>Hướng dẫn</b>.</p>
+    </div>
+  </div>
+  <div class="card" style="border-left:4px solid var(--accent)">
+    <div style="font-weight:800;margin-bottom:6px">💡 Chọn hàng CÓ hoàn tiền</div>
+    <div style="font-size:.9rem;line-height:1.55">
+      <div style="color:var(--ok)">✅ Shopee: <b>Freeship Xtra / Hoàn Xu</b> · TikTok: <b>"Chia sẻ liên kết"</b></div>
+      <div style="color:var(--warn);margin-top:4px">❌ Không: sữa, bỉm, thẻ cào, nạp ĐT, hàng giá gốc</div>
+    </div>
+    <div class="hint" style="margin-top:8px">📌 Mở app → <b>Chia sẻ</b> → <b>Sao chép link</b> → dán ở trên.</div>
+  </div>
+  <div class="card" style="background:var(--accent-soft);border:1px solid var(--accent);border-radius:16px">
+    <div style="font-size:.92rem;line-height:1.65">
+      <b>💛 Ghi chú nhỏ nè:</b> Một vài sản phẩm/shop <b>không bật hoàn tiền</b> nên mình chưa đổi link được — <b>không phải lỗi của bạn đâu nha</b> 🥺. Bạn chọn món tương tự <b>có hoàn tiền</b> là lại nhận hoa hồng đều đều thôi 🥰 Cảm ơn bạn đã thương &amp; đồng hành nhé! 🤝
     </div>
   </div>
 </section>
@@ -370,6 +356,11 @@ nav .ic{font-size:1.35rem}
 
 <!-- TAB: VÍ -->
 <section id="tabWallet" class="hide">
+  <div class="card" id="promoBanner" style="background:linear-gradient(135deg,#FF7A45,#FF5A1F);color:#fff;border:none;box-shadow:0 8px 22px rgba(255,90,31,.3)">
+    <div style="font-weight:800;font-size:1.06rem">🎁 Quà chào mừng 10.000đ</div>
+    <div style="font-size:.86rem;opacity:.95;margin-top:4px" id="promoText">Tạo link đầu tiên để nhận ngay 10.000đ vào ví!</div>
+    <div id="promoCountdown" style="margin-top:9px"></div>
+  </div>
   <div class="card wallet">
     <div class="lbl">Số dư khả dụng</div>
     <div class="big" id="wAvail">0đ</div>
@@ -458,6 +449,14 @@ nav .ic{font-size:1.35rem}
     <div class="gstep"><span class="gn">3</span><b>Rút tiền</b></div>
     <video class="gvid" controls playsinline preload="metadata" src="/videos/buoc3-rut-tien.mp4"></video>
     <p class="sub" style="margin-top:8px">Vào tab <b>Ví</b> → nhập <b>số tiền + ngân hàng + số tài khoản</b> → <b>Tạo yêu cầu rút</b>. Đủ tối thiểu <b>20.000đ</b> là rút được.</p>
+  </div>
+  <div class="card" style="display:flex;gap:13px;align-items:center">
+    <img id="zaloQR" alt="QR Zalo" style="width:82px;height:82px;border-radius:11px;flex:0 0 auto;border:1px solid var(--line);background:#fff">
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:800">📩 Cần hỗ trợ? Kết bạn Zalo</div>
+      <div class="sub" style="margin:3px 0 8px">Kết bạn Zalo <b class="zalo-name"></b> để được hỗ trợ trực tiếp & nhận link nhanh.</div>
+      <button class="btn-primary" style="padding:9px 15px;font-size:.88rem" onclick="openZalo()">💬 Kết bạn Zalo ngay</button>
+    </div>
   </div>
 </section>
 
