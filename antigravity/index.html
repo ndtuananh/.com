@@ -1084,10 +1084,16 @@ function renderAdmWithdrawals(rows){var box=document.getElementById('admWithdraw
 // Mở THẲNG app MB Bank. Dùng intent LAUNCHER (action MAIN + category LAUNCHER) để mở app,
 // và S.browser_fallback_url = trang hiện tại để KHÔNG bị văng ra Google Play khi máy xử lý intent.
 function openBankApp(){
-  if(/android/i.test(navigator.userAgent)){
-    var fb=encodeURIComponent(location.href);
-    try{ window.location.href='intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.mbmobile;S.browser_fallback_url='+fb+';end'; }catch(e){}
-  } else { toast('Mở app MB Bank trên máy rồi bấm Quét QR nhé'); }
+  if(!/android/i.test(navigator.userAgent)){ toast('Mở app MB Bank trên máy rồi bấm Quét QR nhé'); return; }
+  // KHÔNG đặt browser_fallback_url (tránh reload về trang app khi đang chạy trong PWA).
+  var url='intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.mbmobile;end';
+  var standalone=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;
+  try{
+    // Mở qua tab mới để "thoát" sandbox PWA rồi để hệ thống xử lý intent → mở MB Bank.
+    var w=window.open(url,'_blank');
+    if(!w){ window.location.href=url; }
+  }catch(e){ try{ window.location.href=url; }catch(e2){} }
+  if(standalone) toast('Nếu không mở được MB Bank: bấm 💾 Lưu QR rồi mở MB → Quét QR → Chọn ảnh');
 }
 // Lưu ảnh QR gốc về máy (khỏi chụp màn hình) — trong MB Bank: Quét QR → Chọn ảnh từ thư viện.
 function saveQR(bank, acc, amount, nameEnc, phone){
