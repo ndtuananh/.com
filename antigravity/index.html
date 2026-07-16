@@ -40,21 +40,28 @@
   }
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{overflow-x:hidden}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
   background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;
+  overflow-x:hidden;max-width:100%;
   padding-bottom:env(safe-area-inset-bottom)}
 .hide{display:none!important}
-/* header */
+/* header — thanh full-width, nội dung căn giữa cột 560 để cân với phần thân */
 header{position:sticky;top:0;z-index:40;background:var(--glass);backdrop-filter:blur(12px);
-  border-bottom:1px solid var(--line);padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
-  display:flex;align-items:center;justify-content:space-between;gap:10px}
-.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:1.05rem;letter-spacing:-.3px}
+  border-bottom:1px solid var(--line);padding:calc(10px + env(safe-area-inset-top)) 0 10px}
+.hwrap{max-width:560px;margin:0 auto;padding:0 16px;display:flex;align-items:center;
+  justify-content:space-between;gap:8px}
+.hactions{flex:0 0 auto;display:flex;align-items:center;gap:5px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:1.05rem;letter-spacing:-.3px;
+  min-width:0;flex:1 1 auto}
+.brand>div{min-width:0}
+.brand .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 .brand .logo{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#FF7A45,#FF5A1F);
   display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.1rem;box-shadow:0 3px 8px rgba(255,90,31,.35)}
 .brand small{display:block;font-size:.62rem;font-weight:600;color:var(--muted);letter-spacing:.5px;margin-top:-2px}
 .hbtn{background:var(--accent-soft);color:var(--accent);border:none;border-radius:10px;
-  padding:8px 12px;font-size:.78rem;font-weight:700;cursor:pointer}
-.bell{position:relative;background:none;border:none;font-size:1.3rem;cursor:pointer;padding:2px 4px}
+  padding:7px 10px;font-size:.76rem;font-weight:700;cursor:pointer;white-space:nowrap;flex:0 0 auto}
+.bell{position:relative;background:none;border:none;font-size:1.2rem;cursor:pointer;padding:2px 3px;flex:0 0 auto}
 .bell .dot{position:absolute;top:0;right:2px;min-width:16px;height:16px;background:var(--accent);
   color:#fff;border-radius:99px;font-size:.62rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px}
 main{max-width:560px;margin:0 auto;padding:16px 16px 104px}
@@ -66,8 +73,16 @@ h2{font-size:1.08rem;font-weight:800;margin-bottom:4px;letter-spacing:-.2px}
 .sub{font-size:.86rem;color:var(--muted);line-height:1.5}
 label{font-size:.85rem;color:var(--muted);font-weight:600;display:block;margin:14px 0 6px}
 input,textarea,select{width:100%;border:1.5px solid var(--line);border-radius:12px;
-  padding:14px;font-size:1.02rem;font-family:inherit;color:var(--ink);background:#fff;outline:none;transition:border .15s}
+  padding:14px;font-size:1.02rem;font-family:inherit;color:#16181D;background:#fff;outline:none;transition:border .15s}
 input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+/* ô nhập link sản phẩm — nổi bật */
+#srcLink{font-size:1.12rem;padding:18px 16px;border:2px solid var(--accent);font-weight:600;
+  box-shadow:0 0 0 4px rgba(255,90,31,.14);background:#fff}
+#srcLink::placeholder{font-weight:500;color:#8A9099}
+/* ô link phản hồi — bấm mở thẳng app Shopee/TikTok */
+.linkopen{display:block;cursor:pointer;text-decoration:none}
+.linkopen:active{opacity:.75}
+.linkopen .go{display:inline-block;margin-top:6px;font-size:.74rem;font-weight:800;color:var(--ok);text-transform:uppercase;letter-spacing:.4px}
 textarea{resize:vertical;min-height:80px;line-height:1.5}
 .row{display:flex;gap:9px;margin-top:13px;flex-wrap:wrap}
 button{border:none;border-radius:12px;padding:14px 16px;font-size:1.02rem;font-weight:700;
@@ -85,8 +100,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .steps{display:flex;gap:8px;margin:12px 0}
 .step{flex:1;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 8px;text-align:center}
 .step .n{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;font-size:.8rem;
-  display:flex;align-items:center;justify-content:center;margin:0 auto 5px}
-.step .t{font-size:.72rem;color:var(--muted);line-height:1.35;font-weight:600}
+  display:flex;align-items:center;justify-content:center;margin:0 auto 4px}
+.step .who{font-size:.58rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
+.step .who.wa{color:var(--warn)}
+.step .t{font-size:.72rem;color:var(--muted);line-height:1.3;font-weight:600}
 /* platform pills */
 .pills{display:flex;gap:8px;margin-top:8px}
 .pill{flex:1;border:1.5px solid var(--line);border-radius:12px;padding:11px;text-align:center;font-weight:700;
@@ -130,8 +147,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .stat.hl{background:var(--accent-soft);border-color:transparent}.stat.hl .v{color:var(--accent)}
 .stat.ok{background:var(--ok-soft);border-color:transparent}.stat.ok .v{color:var(--ok)}
 /* nav */
-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.95);backdrop-filter:blur(12px);
-  border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:50}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--glass);backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:50}
+.nwrap{max-width:560px;margin:0 auto;display:flex}
 nav button{flex:1;background:none;color:var(--muted);font-size:.68rem;font-weight:700;padding:9px 3px;
   border-radius:0;display:flex;flex-direction:column;gap:3px;align-items:center;min-width:0}
 nav button.active{color:var(--accent)}
@@ -190,12 +208,14 @@ nav .ic{font-size:1.35rem}
 <!-- ================= APP ================= -->
 <div id="viewApp" class="hide">
 <header>
-  <div class="brand"><div class="logo">🛰️</div><div>AntiGravity<small>ĐỔI LINK · HOA HỒNG</small></div></div>
-  <div style="display:flex;align-items:center;gap:6px">
-    <button class="bell" id="notifBtn" onclick="openNotifs()" title="Thông báo">🔔<span class="dot hide" id="notifDot">0</span></button>
-    <button class="bell" id="themeBtn" onclick="toggleTheme()" title="Giao diện sáng/tối">🌙</button>
-    <button class="bell" onclick="showTab('tabWallet')" title="Ví">👛</button>
-    <button class="hbtn" onclick="logout()">Thoát</button>
+  <div class="hwrap">
+    <div class="brand"><div class="logo">🛰️</div><div><span class="nm">AntiGravity</span><small>ĐỔI LINK · HOA HỒNG</small></div></div>
+    <div class="hactions">
+      <button class="bell" id="notifBtn" onclick="openNotifs()" title="Thông báo">🔔<span class="dot hide" id="notifDot">0</span></button>
+      <button class="bell" id="themeBtn" onclick="toggleTheme()" title="Giao diện sáng/tối">🌙</button>
+      <button class="bell" onclick="showTab('tabWallet')" title="Ví">👛</button>
+      <button class="hbtn" onclick="logout()">Thoát</button>
+    </div>
   </div>
 </header>
 <main>
@@ -220,20 +240,20 @@ nav .ic{font-size:1.35rem}
     </div>
   </div>
   <div class="card" style="border-left:4px solid var(--accent)">
-    <div style="font-weight:800;margin-bottom:7px">💡 Lưu ý trước khi gửi link</div>
-    <div style="font-size:.9rem;line-height:1.7">
-      <div style="color:var(--ok)">✅ <b>CÓ hoàn tiền:</b> hàng có <b>Freeship Xtra / Hoàn Xu</b> (Shopee) · có <b>"Chia sẻ liên kết"</b> (TikTok)</div>
-      <div style="color:var(--warn);margin-top:5px">❌ <b>KHÔNG có:</b> sữa, bỉm, thẻ cào, nạp điện thoại, hàng giá gốc, hàng thường không gắn liên kết</div>
+    <div style="font-weight:800;margin-bottom:6px">💡 Chọn hàng CÓ hoàn tiền</div>
+    <div style="font-size:.9rem;line-height:1.55">
+      <div style="color:var(--ok)">✅ Shopee: <b>Freeship Xtra / Hoàn Xu</b> · TikTok: <b>"Chia sẻ liên kết"</b></div>
+      <div style="color:var(--warn);margin-top:4px">❌ Không: sữa, bỉm, thẻ cào, nạp ĐT, hàng giá gốc</div>
     </div>
-    <div class="hint" style="margin-top:9px">📌 <b>Cách lấy link:</b> mở app Shopee/TikTok → bấm <b>Chia sẻ</b> → <b>Sao chép link</b> → dán vào ô bên dưới.</div>
+    <div class="hint" style="margin-top:8px">📌 Mở app → <b>Chia sẻ</b> → <b>Sao chép link</b> → dán bên dưới.</div>
   </div>
   <div class="card">
     <h2>🔗 Gửi link cần đổi</h2>
-    <p class="sub">Dán link sản phẩm Shopee hoặc TikTok Shop. Bộ phận kỹ thuật sẽ tạo link hoa hồng và gửi lại cho bạn.</p>
+    <p class="sub">Bạn dán link — kỹ thuật tạo link hoa hồng rồi gửi lại bạn.</p>
     <div class="steps">
-      <div class="step"><div class="n">1</div><div class="t">Dán link<br>sản phẩm</div></div>
-      <div class="step"><div class="n">2</div><div class="t">Gửi<br>yêu cầu</div></div>
-      <div class="step"><div class="n">3</div><div class="t">Nhận link<br>hoa hồng</div></div>
+      <div class="step"><div class="n">1</div><div class="who">Bạn</div><div class="t">Dán link</div></div>
+      <div class="step"><div class="n">2</div><div class="who">Bạn</div><div class="t">Gửi yêu cầu</div></div>
+      <div class="step"><div class="n">3</div><div class="who wa">Kỹ thuật</div><div class="t">Gửi link về</div></div>
     </div>
     <label>Nền tảng</label>
     <div class="pills">
@@ -377,12 +397,12 @@ nav .ic{font-size:1.35rem}
 
 </main>
 
-<nav>
+<nav><div class="nwrap">
   <button class="active" id="nav-tabHome" onclick="showTab('tabHome')"><span class="ic">🚀</span>Trang chủ</button>
   <button id="nav-tabRequests" onclick="showTab('tabRequests')"><span class="ic">📋</span>Yêu cầu</button>
   <button id="nav-tabWallet" onclick="showTab('tabWallet')"><span class="ic">👛</span>Ví</button>
   <button id="nav-tabAdmin" class="hide" onclick="showTab('tabAdmin')"><span class="ic">🛠</span>Admin</button>
-</nav>
+</div></nav>
 </div>
 
 <div id="toast"></div>
@@ -698,7 +718,7 @@ function renderReq(box,rows){var el=document.getElementById(box);
       +reqBadge(it.status)
       +(it.status==='completed'&&it.aff_url?'<button class="sbtn" onclick="copyText(decodeURIComponent(\''+encodeURIComponent(it.aff_url)+'\'),\'Đã copy link\')">Copy</button>':'')
       +'</div>'
-      +(it.status==='completed'&&it.aff_url?'<div class="linkbox" style="margin-top:8px"><b>Link hoa hồng — gửi khách</b>'+esc(it.aff_url)+'</div>':'')
+      +(it.status==='completed'&&it.aff_url?'<a class="linkbox linkopen" href="'+esc(it.aff_url)+'" target="_blank" rel="noopener" style="margin-top:8px"><b>Link hoa hồng — gửi khách</b>'+esc(it.aff_url)+'<span class="go">👉 Bấm để mở sản phẩm trong app</span></a>':'')
       +(it.status==='rejected'?'<div style="background:var(--warn-soft);color:var(--warn);border-radius:11px;padding:11px 13px;margin-top:8px;font-size:.86rem;line-height:1.5">💡 '+esc(it.note||'Yêu cầu chưa được duyệt. Bạn thử gửi link khác nhé!')+'<div class="row" style="margin-top:8px"><button class="btn-ghost" style="font-size:.86rem" onclick="goSubmit()">🔄 Gửi link khác</button></div></div>':'')
       +claimUI
       +'</div>';}
