@@ -12,9 +12,9 @@ const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nxvcsotzybjxykadbxbr.s
 const ANON = process.env.SUPABASE_ANON || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54dmNzb3R6eWJqeHlrYWRieGJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3NDg5MzIsImV4cCI6MjA5OTMyNDkzMn0.JtKX-tQIoI3NaGh6aul0XC3nSLOMgSe26aS9DAvmo_4';
 const SR = process.env.SUPABASE_SERVICE_ROLE || '';
 
-// CÔNG THỨC ẨN — không hiển thị cho khách. Khách chỉ thấy số tiền đã cộng.
-// Tỷ lệ hoa hồng chia cho khách (0.5 = khách nhận 50%). Đổi tại đây / qua env.
-const COMMISSION_SHARE = parseFloat(process.env.COMMISSION_SHARE || '0.5');
+// Tỷ lệ hoa hồng cộng cho khách. 1 = khách nhận 100% hoa hồng từ file nạp.
+// (Đổi qua env COMMISSION_SHARE nếu muốn giữ lại một phần.)
+const COMMISSION_SHARE = parseFloat(process.env.COMMISSION_SHARE || '1');
 // Số ngày "giam" trước khi cho rút. 0 = cộng THẲNG vào số dư ngay khi đối soát.
 const HOLD_DAYS = parseInt(process.env.HOLD_DAYS || '0', 10);
 
