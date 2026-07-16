@@ -327,6 +327,18 @@ nav .ic{font-size:1.35rem}
 
 <!-- TAB: YÊU CẦU -->
 <section id="tabRequests" class="hide">
+  <div class="card" style="border:2px solid var(--accent)">
+    <h2>🧾 Đã mua hàng? Ghi nhận để nhận hoa hồng</h2>
+    <p class="sub">Dán <b>mã đơn</b> (hoặc tin xác nhận / link đơn) của <b>bất kỳ</b> đơn bạn đã mua — không cần chọn đúng sản phẩm. App tự tách mã giúp bạn.</p>
+    <input type="text" id="claimGlobal" placeholder="Dán mã đơn / tin nhắn / link đơn vào đây" style="margin-top:10px">
+    <div class="row" style="margin-top:8px">
+      <button class="btn-ghost" style="flex:0 0 auto" onclick="pasteClaimGlobal()">📋 Dán</button>
+      <button class="btn-primary" onclick="claimOrderGlobal()">🧾 Ghi nhận nhận hoa hồng</button>
+    </div>
+    <div id="claimGlobalMsg" class="claimmsg hide"></div>
+    <div class="hint" style="margin-top:8px">💡 Đơn <b>Shopee</b> thường tự cộng qua link — khỏi nhập. Đơn <b>TikTok</b>: dán mã đơn vào đây.</div>
+    <div id="myClaimsList"></div>
+  </div>
   <div class="card">
     <h2>📊 Thống kê chuyển đổi</h2>
     <p class="sub">Tổng quan nhanh lịch sử đổi link của bạn.</p>
@@ -438,7 +450,7 @@ nav .ic{font-size:1.35rem}
 
   <div class="card agrp hide" data-asec="rut">
     <h2>💵 Duyệt rút tiền</h2>
-    <p class="sub">📲 QR → app ngân hàng quét chuyển → "Đã chuyển" để trừ số dư.</p>
+    <p class="sub">Bấm <b>💾 Lưu QR</b> → mở app ngân hàng → <b>Quét QR → Chọn ảnh từ thư viện</b> → chuyển → bấm <b>"Đã chuyển"</b> để trừ số dư.</p>
     <div id="admWithdrawals" style="margin-top:8px"><div class="empty">Không có yêu cầu chờ.</div></div>
   </div>
 
@@ -735,6 +747,7 @@ async function loadRequests(){
   var rows=r.data||[];lastReqRows=rows;
   renderReq('reqList',rows);
   renderReqStats(rows);
+  renderMyClaims();
   refreshNotif();
 }
 /* ---------- TRUNG TÂM THÔNG BÁO ---------- */
@@ -823,20 +836,6 @@ function renderReq(box,rows){var el=document.getElementById(box);
   if(!rows||!rows.length){el.innerHTML='<div class="empty">Chưa có yêu cầu nào 🚀</div>';return;}
   var h='';for(var i=0;i<rows.length;i++){var it=rows[i];
     var plat=PLATFORMS[it.platform]?PLATFORMS[it.platform].label:it.platform;
-    var claims=myClaims.filter(function(c){return c.request_id===it.id;});
-    var cH='';for(var k=0;k<claims.length;k++){cH+='<div class="t2">🧾 '+esc(claims[k].order_id)+' — '
-      +(claims[k].matched?'<b style="color:var(--ok)">đã cộng ✓</b>':'⏳ chờ đối soát')+'</div>';}
-    var claimed=claims.some(function(c){return c.matched;});
-    var claimUI = (it.status==='completed'&&!claimed)
-      ? cH+'<div style="margin-top:8px">'
-        +'<input id="claim'+it.id+'" placeholder="Đã mua? Dán mã đơn / tin nhắn / link đơn — app tự tách mã" style="font-size:.92rem;padding:11px">'
-        +'<div class="row" style="margin-top:6px">'
-          +'<button class="btn-ghost" style="flex:0 0 auto;font-size:.9rem" onclick="pasteClaim('+it.id+')">📋 Dán</button>'
-          +'<button class="btn-primary" style="font-size:.92rem" onclick="claimOrder('+it.id+')">🧾 Ghi nhận để nhận hoa hồng</button></div>'
-        +'<div id="claimMsg'+it.id+'" class="claimmsg hide"></div>'
-        +'<div class="hint" style="margin-top:6px">💡 Đơn <b>Shopee</b> tự cộng qua link — thường không cần nhập. Đơn <b>TikTok</b>: dán mã đơn hoặc tin xác nhận, app tự tách mã giúp bạn.</div>'
-        +'</div>'
-      : cH;
     h+='<div class="item" style="flex-direction:column;align-items:stretch">'
       +'<div style="display:flex;gap:10px;align-items:center">'
       +'<div class="main"><div class="t1">'+esc(it.code)+' · '+esc(plat)+'</div>'
@@ -846,7 +845,6 @@ function renderReq(box,rows){var el=document.getElementById(box);
       +'</div>'
       +(it.status==='completed'&&it.aff_url?'<a class="linkbox linkopen" href="'+esc(it.aff_url)+'" target="_blank" rel="noopener" style="margin-top:8px"><b>Link hoa hồng — gửi khách</b>'+esc(it.aff_url)+'<span class="go">👉 Bấm để mở sản phẩm trong app</span></a>':'')
       +(it.status==='rejected'?'<div style="background:var(--warn-soft);color:var(--warn);border-radius:11px;padding:11px 13px;margin-top:8px;font-size:.86rem;line-height:1.5">💡 '+esc(it.note||'Yêu cầu chưa được duyệt. Bạn thử gửi link khác nhé!')+'<div class="row" style="margin-top:8px"><button class="btn-ghost" style="font-size:.86rem" onclick="goSubmit()">🔄 Gửi link khác</button></div></div>':'')
-      +claimUI
       +'</div>';}
   el.innerHTML=h;}
 // Tự TÁCH mã đơn từ nội dung khách dán (mã đơn / tin nhắn xác nhận / link đơn).
@@ -860,39 +858,49 @@ function extractOrderId(raw){
   cand.sort(function(a,b){return b.length-a.length;});
   return cand.length?cand[0]:'';
 }
-function pasteClaim(id){
-  var el=document.getElementById('claim'+id);if(!el)return;
+// ---- GHI NHẬN ĐƠN: 1 ô DUY NHẤT, dán bất kỳ đơn nào (không cần chọn đúng sản phẩm) ----
+function setGMsg(type,text){var e=document.getElementById('claimGlobalMsg');if(!e)return;
+  e.className='claimmsg '+type;e.textContent=text;e.classList.remove('hide');}
+function pasteClaimGlobal(){
+  var el=document.getElementById('claimGlobal');if(!el)return;
   if(navigator.clipboard&&navigator.clipboard.readText){
     navigator.clipboard.readText().then(function(t){t=(t||'').trim();
       if(!t){toast('Bộ nhớ tạm trống');return;}
-      el.value=t;claimOrder(id);
+      el.value=t;claimOrderGlobal();
     }).catch(function(){toast('Bấm giữ vào ô rồi Dán, sau đó bấm Ghi nhận');el.focus();});
   }else{toast('Bấm giữ vào ô rồi Dán, sau đó bấm Ghi nhận');el.focus();}
 }
-function setClaimMsg(id,type,text){var e=document.getElementById('claimMsg'+id);if(!e)return;
-  e.className='claimmsg '+type;e.textContent=text;e.classList.remove('hide');}
-async function claimOrder(reqId){
-  var el=document.getElementById('claim'+reqId);var raw=(el&&el.value||'').trim();
-  if(!raw){setClaimMsg(reqId,'warn','😊 Dán mã đơn hoặc tin xác nhận đơn vào đã nhé.');return;}
+async function claimOrderGlobal(){
+  var el=document.getElementById('claimGlobal');var raw=(el&&el.value||'').trim();
+  if(!raw){setGMsg('warn','😊 Dán mã đơn hoặc tin xác nhận đơn vào đã nhé.');return;}
   var code=extractOrderId(raw);
-  if(!code){setClaimMsg(reqId,'warn','😅 Chưa thấy mã đơn trong nội dung — dán lại mã đơn hoặc tin xác nhận đơn giúp mình.');return;}
-  // TRÙNG: chính bạn đã ghi nhận mã này rồi → cảnh báo, không nhập lại
+  if(!code){setGMsg('warn','😅 Chưa thấy mã đơn trong nội dung — dán lại mã đơn hoặc tin xác nhận đơn giúp mình.');return;}
   var mine=myClaims.filter(function(c){return String(c.order_id).toUpperCase()===code;})[0];
   if(mine){if(el)el.value='';
-    setClaimMsg(reqId,'warn','⚠️ Mã đơn '+code+' bạn đã ghi nhận rồi'+(mine.matched?' và đã được cộng hoa hồng ✓':' — đang chờ đối soát ⏳')+'. Mỗi mã chỉ ghi 1 lần, không cần nhập lại.');
+    setGMsg('warn','⚠️ Mã đơn '+code+' bạn đã ghi nhận rồi'+(mine.matched?' và đã được cộng hoa hồng ✓':' — đang chờ đối soát ⏳')+'. Mỗi mã chỉ ghi 1 lần.');
     return;}
-  var r=await sb.rpc('ag_claim_order',{p_order_id:code,p_request_id:reqId});
+  var r=await sb.rpc('ag_claim_order',{p_order_id:code});   // không cần request_id — khớp theo mã đơn về đúng khách
   if(r.error){var m=r.error.message||'',mn=noAccent(m).toLowerCase();
     if(/tai khoan khac|khach khac|thuoc ve khach|da duoc|duplicate|unique|ma ag/.test(mn))
-      setClaimMsg(reqId,'err','🚫 Mã đơn '+code+' đã được người khác/mã AG khác ghi nhận trước. Mỗi mã đơn chỉ nhận hoa hồng 1 lần — nếu đúng là đơn của bạn, nhắn Zalo để được kiểm tra.');
+      setGMsg('err','🚫 Mã đơn '+code+' đã được người khác/mã AG khác ghi nhận trước. Nếu đúng là đơn của bạn, nhắn Zalo để kiểm tra.');
     else if(/qua nhieu|too many|gioi han|\blimit\b/.test(mn))
-      setClaimMsg(reqId,'err','🚦 Bạn đang ghi nhận quá nhiều mã đơn chưa khớp. Chờ đối soát rồi thử lại — chỉ nhập mã đơn thật của chính bạn nhé.');
-    else setClaimMsg(reqId,'err','Lỗi: '+m);
+      setGMsg('err','🚦 Bạn đang ghi nhận quá nhiều mã đơn chưa khớp. Chờ đối soát rồi thử lại — chỉ nhập mã đơn thật của bạn nhé.');
+    else setGMsg('err','Lỗi: '+m);
     return;}
   if(el)el.value='';
-  setClaimMsg(reqId,'ok','✅ Đã ghi nhận mã đơn '+code+'! Hoa hồng sẽ tự cộng khi đối soát xong.');
+  setGMsg('ok','✅ Đã ghi nhận mã đơn '+code+'! Hoa hồng sẽ tự cộng khi đối soát xong.');
   toast('✅ Đã ghi nhận mã đơn '+code+'!');
   loadRequests();loadProfile();
+}
+function renderMyClaims(){
+  var box=document.getElementById('myClaimsList');if(!box)return;
+  if(!myClaims.length){box.innerHTML='';return;}
+  var h='<div style="font-size:.78rem;font-weight:800;color:var(--muted);margin:12px 0 4px">ĐƠN ĐÃ GHI NHẬN</div>';
+  for(var i=0;i<Math.min(myClaims.length,30);i++){var c=myClaims[i];
+    h+='<div class="t2" style="padding:5px 2px;display:flex;justify-content:space-between;gap:8px">'
+      +'<span>🧾 '+esc(c.order_id)+'</span>'
+      +(c.matched?'<b style="color:var(--ok)">đã cộng ✓</b>':'<span style="color:var(--warn)">⏳ chờ đối soát</span>')+'</div>';}
+  box.innerHTML=h;
 }
 
 /* ---------- VÍ / RÚT ---------- */
@@ -1071,8 +1079,8 @@ function renderAdmWithdrawals(rows){var box=document.getElementById('admWithdraw
         +'<div class="t2">'+esc(it.bank_info||'')+'</div></div></div>'
       +(qr?'<div style="text-align:center;margin-top:10px"><img src="'+qr+'" style="max-width:210px;width:100%;border-radius:12px;border:1px solid var(--line)"></div>':'')
       +(qr?'<div class="row" style="margin-top:8px">'
-        +'<button class="btn-primary" onclick="openBankApp()">📲 Mở MB Bank</button>'
-        +'<button class="btn-line" style="flex:0 0 auto" onclick="saveQR(\''+it.bank_code+'\',\''+it.account_no+'\','+it.amount+',\''+encodeURIComponent(it.account_name||'')+'\',\''+phone+'\')">💾 Lưu QR</button>'
+        +'<button class="btn-primary" onclick="saveQR(\''+it.bank_code+'\',\''+it.account_no+'\','+it.amount+',\''+encodeURIComponent(it.account_name||'')+'\',\''+phone+'\')">💾 Lưu QR để chuyển</button>'
+        +'<button class="btn-line" style="flex:0 0 auto" onclick="openBankApp()">📲 Mở NH</button>'
         +'<button class="btn-line" style="flex:0 0 auto" onclick="copyText(\''+it.account_no+'\',\'Đã copy số TK\')">📋 STK</button></div>':'')
       +'<div class="row" style="margin-top:8px">'
         +'<button class="btn-ok" onclick="admApprove(\'approve_withdrawal\',\'withdrawal_id\','+it.id+')">✓ Đã chuyển — trừ số dư</button>'
