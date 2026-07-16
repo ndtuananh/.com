@@ -324,6 +324,9 @@ returns void language sql security definer set search_path = public as $$
 $$;
 
 -- Duyệt rút tiền: trừ số dư khả dụng, cộng "đã chi", ghi sổ quỹ.
+-- lý do từ chối rút (khách xem được)
+alter table withdrawals add column if not exists note text;
+
 create or replace function approve_withdrawal(withdrawal_id bigint)
 returns void language plpgsql security definer set search_path = public as $$
 declare w withdrawals; nbal bigint;
@@ -331,12 +334,13 @@ begin
   if not is_admin() then raise exception 'Chỉ admin'; end if;
   select * into w from withdrawals where id = withdrawal_id and status='pending' for update;
   if w is null then raise exception 'Yêu cầu không tồn tại hoặc đã xử lý'; end if;
-  if (select balance from profiles where id = w.user_id) < w.amount then
-    raise exception 'Số dư không đủ';
-  end if;
-  update withdrawals set status='approved', paid_at=now() where id = withdrawal_id;
+  -- TRỪ SỐ DƯ ATOMIC + KIỂM TRA trong CÙNG 1 lệnh (chống race 2 lệnh duyệt song song gây âm quỹ):
+  -- chỉ trừ khi balance >= amount; nếu không có dòng trả về => số dư không đủ.
   update profiles set balance = balance - w.amount, ag_paid = ag_paid + w.amount
-    where id = w.user_id returning balance into nbal;
+    where id = w.user_id and balance >= w.amount
+    returning balance into nbal;
+  if nbal is null then raise exception 'Số dư không đủ'; end if;
+  update withdrawals set status='approved', paid_at=now() where id = withdrawal_id;
   insert into balance_log(user_id,change,balance_after,reason,ref)
     values (w.user_id, -w.amount, nbal, 'withdraw', 'RUT-'||withdrawal_id);
   insert into audit_logs(actor,action,target,detail)
@@ -347,8 +351,30 @@ create or replace function reject_withdrawal(withdrawal_id bigint, p_note text)
 returns void language plpgsql security definer set search_path = public as $$
 begin
   if not is_admin() then raise exception 'Chỉ admin'; end if;
-  update withdrawals set status='rejected', paid_at=now() where id=withdrawal_id and status='pending';
+  update withdrawals set status='rejected', note=p_note, paid_at=now()
+    where id=withdrawal_id and status='pending';
 end $$;
+
+-- CHỐNG CHI VƯỢT: khi khách TẠO đơn rút, tổng các đơn ĐANG CHỜ + đơn mới không được vượt số dư.
+-- Đồng thời ép user_id = người đăng nhập, status='pending' (không cho giả mạo qua API).
+create or replace function ag_check_withdrawal()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare v_bal bigint; v_pending bigint;
+begin
+  new.user_id := auth.uid();
+  new.status := 'pending'; new.paid_at := null; new.note := null;
+  if new.amount is null or new.amount < 20000 then raise exception 'Rut toi thieu 20.000d'; end if;
+  select balance into v_bal from profiles where id = new.user_id;
+  select coalesce(sum(amount),0) into v_pending from withdrawals
+    where user_id = new.user_id and status = 'pending';
+  if v_pending + new.amount > coalesce(v_bal,0) then
+    raise exception 'So du kha dung khong du (da tru cac yeu cau rut dang cho duyet)';
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_ag_check_withdrawal on withdrawals;
+create trigger trg_ag_check_withdrawal before insert on withdrawals
+  for each row execute function ag_check_withdrawal();
 
 -- ============================================================================
 -- ĐỐI SOÁT SET-BASED (chạy 1 lệnh cho MỌI đơn — chịu tải triệu đơn)

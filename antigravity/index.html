@@ -467,6 +467,14 @@ nav .ic{font-size:1.35rem}
   </div>
 </div>
 
+<!-- CHỌN LÝ DO TỪ CHỐI RÚT (admin) -->
+<div id="rejectOv" class="ov hide" onclick="closeReject()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-h"><b>❌ Lý do từ chối rút tiền</b><button class="xbtn" onclick="closeReject()">✕</button></div>
+    <div id="rejectList" class="sheet-b"></div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -730,7 +738,7 @@ async function loadRequests(){
   refreshNotif();
 }
 /* ---------- TRUNG TÂM THÔNG BÁO ---------- */
-var lastReqRows=[], lastLedger=[];
+var lastReqRows=[], lastLedger=[], lastWithdrawals=[];
 function notifReadAt(){try{return +localStorage.getItem('agNotifRead_'+(me&&me.id))||0;}catch(e){return 0;}}
 function setNotifRead(t){try{localStorage.setItem('agNotifRead_'+(me&&me.id),String(t));}catch(e){}}
 function relTime(iso){if(!iso)return '';var t=new Date(iso).getTime(),s=(Date.now()-t)/1000;
@@ -749,6 +757,12 @@ function buildNotifs(){
       t1:'+'+fmt(l.change)+' vào ví',t2:LEDGER_LABEL[l.reason]||'Cộng ví',go:'wallet'});
     else if(l.reason==='reverse')out.push({ts:l.created_at,type:'rev',ic:'↩️',
       t1:'Thu hồi '+fmt(-l.change),t2:'Đơn bị hủy/hoàn',go:'wallet'});
+  });
+  (lastWithdrawals||[]).forEach(function(w){
+    if(w.status==='approved')out.push({ts:w.paid_at||w.created_at,type:'wd_ok',ic:'💸',
+      t1:'Đã chuyển '+fmt(w.amount)+' về ngân hàng',t2:'Rút tiền thành công',go:'wallet'});
+    else if(w.status==='rejected')out.push({ts:w.paid_at||w.created_at,type:'wd_rej',ic:'⚠️',
+      t1:'Yêu cầu rút '+fmt(w.amount)+' bị từ chối',t2:(w.note||'Xem lý do ở tab Ví'),go:'wallet'});
   });
   out.sort(function(a,b){return new Date(b.ts)-new Date(a.ts);});
   return out.slice(0,40);
@@ -907,13 +921,15 @@ async function createWithdrawal(){
   toast('✅ Đã nhận yêu cầu rút!');document.getElementById('wdAmount').value='';loadWithdrawals();
 }
 async function loadWithdrawals(){var r=await sb.from('withdrawals').select('*').eq('user_id',me.id).order('created_at',{ascending:false}).limit(15);
-  var box=document.getElementById('wdList'),rows=r.data||[];if(!rows.length){box.innerHTML='';return;}
+  var box=document.getElementById('wdList'),rows=r.data||[];lastWithdrawals=rows;refreshNotif();
+  if(!rows.length){box.innerHTML='';return;}
   var h='<div style="font-weight:800;font-size:.9rem;margin:6px 0 2px">Lịch sử rút tiền</div>';for(var i=0;i<rows.length;i++){var it=rows[i];
     var bd=it.status==='approved'?'<span class="badge b-ok">✓ Đã chuyển</span>':it.status==='rejected'?'<span class="badge b-rej">Từ chối</span>':'<span class="badge b-pending">Đang xử lý</span>';
     h+='<div class="item" style="align-items:flex-start"><div class="main"><div class="t1">💸 Rút '+fmt(it.amount)+'</div>'
       +'<div class="t2" style="font-variant-numeric:tabular-nums">🕒 '+fmtDTS(it.created_at)+'</div>'
       +(it.bank_info?'<div class="t2">🏦 '+esc(it.bank_info)+'</div>':'')
       +(it.status==='approved'&&it.paid_at?'<div class="t2" style="color:var(--ok)">✅ Đã chuyển: '+fmtDTS(it.paid_at)+'</div>':'')
+      +(it.status==='rejected'?'<div style="background:#FCE8EA;color:var(--danger);border-radius:10px;padding:9px 11px;margin-top:6px;font-size:.84rem;line-height:1.45">❌ <b>Lý do:</b> '+esc(it.note||'Chưa đủ điều kiện — vui lòng liên hệ Zalo hỗ trợ.')+'</div>':'')
       +'</div>'+bd+'</div>';}
   box.innerHTML=h;}
 var LEDGER_LABEL={cashback:'💵 Hoa hồng đơn hàng',reverse:'↩️ Thu hồi (đơn hủy/hoàn)',withdraw:'💸 Rút tiền',
@@ -1087,8 +1103,34 @@ function saveQR(bank, acc, amount, nameEnc, phone){
 function toggleQR(id){var e=document.getElementById('qr'+id);if(e)e.classList.toggle('hide');}
 async function admApprove(rpc,param,id){var a={};a[param]=id;var r=await sb.rpc(rpc,a);
   if(r.error){toast('Lỗi: '+r.error.message);return;}toast('✓ Đã duyệt');loadAdmin();loadProfile();}
-async function admReject(id){var note=prompt('Lý do từ chối rút:','');if(note===null)return;
-  var r=await sb.rpc('reject_withdrawal',{withdrawal_id:id,p_note:note});if(r.error){toast('Lỗi: '+r.error.message);return;}toast('Đã từ chối');loadAdmin();}
+// LÝ DO TỪ CHỐI RÚT — chọn bằng nút cho admin (khách sẽ thấy chi tiết)
+var WD_REASONS=[
+  'Sai số tài khoản hoặc tên chủ tài khoản — vui lòng kiểm tra & tạo lại yêu cầu.',
+  'Ngân hàng đã chọn không khớp với số tài khoản.',
+  'Chưa đủ điều kiện rút (số dư/hoa hồng chưa hợp lệ).',
+  'Đơn nghi ngờ gian lận — cần xác minh, vui lòng liên hệ Zalo hỗ trợ.',
+  'Yêu cầu bị trùng / đã được xử lý trước đó.',
+  'Thông tin nhận tiền chưa chính xác — vui lòng cập nhật và thử lại.',
+  'Khác (nhập lý do)…'
+];
+var rejectWdId=null;
+function admReject(id){
+  rejectWdId=id;
+  var box=document.getElementById('rejectList');
+  box.innerHTML=WD_REASONS.map(function(r,i){
+    return '<button class="btn-line" style="width:100%;min-width:0;text-align:left;margin-bottom:8px;line-height:1.4" onclick="doRejectWd('+i+')">'+esc(r)+'</button>';
+  }).join('');
+  document.getElementById('rejectOv').classList.remove('hide');
+}
+function closeReject(){var o=document.getElementById('rejectOv');if(o)o.classList.add('hide');}
+async function doRejectWd(i){
+  var reason=WD_REASONS[i];
+  if(i===WD_REASONS.length-1){ var c=prompt('Nhập lý do từ chối (khách sẽ thấy):',''); if(c===null)return; reason=(c||'').trim()||'Yêu cầu không hợp lệ.'; }
+  closeReject();
+  var r=await sb.rpc('reject_withdrawal',{withdrawal_id:rejectWdId,p_note:reason});
+  if(r.error){toast('Lỗi: '+r.error.message);return;}
+  toast('✓ Đã từ chối — lý do đã gửi cho khách');loadAdmin();
+}
 
 function renderAdmOrders(rows){var box=document.getElementById('admOrders');
   if(!rows.length){box.innerHTML='';return;}
