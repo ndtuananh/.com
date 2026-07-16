@@ -550,22 +550,57 @@ end $$;
 -- Khách nhận 1 mã đơn. Trả về mã đơn nếu ok. Tự truy hồi cộng bù nếu đơn đã có.
 create or replace function ag_claim_order(p_order_id text, p_request_id bigint default null)
 returns text language plpgsql security definer set search_path = public as $$
-declare v_uid uuid := auth.uid(); v_owner uuid;
+declare
+  v_uid uuid := auth.uid();
+  v_owner uuid;        -- chủ claim hiện tại (nếu có)
+  v_ord_owner uuid;    -- chủ đơn trong ag_orders (thường do mã AG gán — chống giả)
+  v_pending int;       -- số claim CHƯA khớp đang treo
+  v_today int;         -- số claim trong 24h
 begin
   if v_uid is null then raise exception 'Chưa đăng nhập'; end if;
   p_order_id := upper(regexp_replace(coalesce(p_order_id,''), '\s', '', 'g'));
-  if length(p_order_id) < 6 then raise exception 'Mã đơn không hợp lệ'; end if;
+  -- CHỐNG GIAN LẬN 0: định dạng mã đơn hợp lệ (chỉ chữ+số, 6–32 ký tự)
+  if p_order_id !~ '^[A-Z0-9]{6,32}$' then raise exception 'Ma don khong hop le'; end if;
+
+  -- CHỐNG GIAN LẬN 1: mã đơn đã được TÀI KHOẢN KHÁC ghi nhận trước → chặn cướp
   select user_id into v_owner from ag_claims where order_id = p_order_id;
   if v_owner is not null and v_owner <> v_uid then
-    raise exception 'Mã đơn này đã được tài khoản khác ghi nhận';
+    raise exception 'Ma don da duoc tai khoan khac ghi nhan';
   end if;
+
+  -- CHỐNG GIAN LẬN 2: đơn đã thuộc về KHÁCH KHÁC qua mã AG (Sub_id, không thể giả) → không cho claim đè
+  select user_id into v_ord_owner from ag_orders where order_id = p_order_id;
+  if v_ord_owner is not null and v_ord_owner <> v_uid then
+    raise exception 'Ma don da thuoc ve khach khac qua ma AG';
+  end if;
+
+  -- CHỐNG GIAN LẬN 3: chặn dò mã hàng loạt — tối đa 20 claim CHƯA khớp đang treo
+  select count(*) into v_pending from ag_claims
+    where user_id = v_uid and matched = false;
+  if v_pending >= 20 then
+    raise exception 'Ban co qua nhieu ma don chua khop (limit) — cho doi soat roi thu lai';
+  end if;
+
+  -- CHỐNG GIAN LẬN 4: giới hạn tần suất — tối đa 40 claim / 24 giờ
+  select count(*) into v_today from ag_claims
+    where user_id = v_uid and created_at > now() - interval '24 hours';
+  if v_today >= 40 then
+    raise exception 'Ban da ghi nhan qua nhieu ma don hom nay (limit) — thu lai sau';
+  end if;
+
+  -- CHỐNG GIAN LẬN 5: request (nếu truyền) phải là của chính khách
+  if p_request_id is not null and not exists(
+       select 1 from ag_requests where id = p_request_id and user_id = v_uid) then
+    raise exception 'Yeu cau khong hop le';
+  end if;
+
   insert into ag_claims(user_id, request_id, order_id, platform)
     values (v_uid, p_request_id, p_order_id,
             (select platform from ag_requests where id = p_request_id))
     on conflict (order_id) do update set request_id = coalesce(excluded.request_id, ag_claims.request_id);
-  -- gán khách cho đơn đã nạp trước đó (nếu có) rồi cộng bù ngay
+  -- gán khách cho đơn đã nạp trước đó (chỉ khi đơn chưa có chủ) rồi cộng bù ngay
   update ag_orders set user_id = v_uid
-    where order_id = p_order_id and (user_id is null or user_id = v_uid);
+    where order_id = p_order_id and user_id is null;
   perform ag_credit_one(p_order_id);
   perform ag_referral_bonus();
   return p_order_id;
