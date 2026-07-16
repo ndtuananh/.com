@@ -147,7 +147,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .btn-dark{background:var(--ink);color:#fff}
 .btn-ghost{background:var(--accent-soft);color:var(--accent)}
 .btn-ok{background:var(--ok);color:#fff}
-.btn-line{background:#fff;border:1.5px solid var(--line);color:var(--ink)}
+.btn-line{background:#fff;border:1.5px solid var(--line);color:#16181D}
 .sbtn{flex:0 0 auto;min-width:0;padding:9px 13px;font-size:.85rem;border-radius:10px;background:var(--accent-soft);color:var(--accent);font-weight:700}
 .hint{font-size:.85rem;color:var(--muted);margin-top:9px;line-height:1.55}
 /* steps */
@@ -950,7 +950,7 @@ function renderReq(box,rows){var el=document.getElementById(box);
   if(rows.length>SHOW){
     var more='';for(var j=SHOW;j<rows.length;j++)more+=reqItemHTML(rows[j]);
     h+='<div id="reqMore" class="hide">'+more+'</div>'
-      +'<div class="row" style="margin-top:8px"><button class="btn-line" id="reqMoreBtn" onclick="toggleReqMore()">Xem tất cả ('+rows.length+') ▾</button></div>';
+      +'<div class="row" style="margin-top:8px"><button class="btn-line" id="reqMoreBtn" style="background:#fff;color:#16181D;font-weight:800;border:1.5px solid var(--accent)" onclick="toggleReqMore()">Xem tất cả ('+rows.length+') ▾</button></div>';
   }
   el.innerHTML=h;}
 function toggleReqMore(){var m=document.getElementById('reqMore'),b=document.getElementById('reqMoreBtn');
