@@ -94,6 +94,13 @@ header{position:sticky;top:0;z-index:40;background:var(--glass);backdrop-filter:
 .gstep .gn{width:28px;height:28px;flex:0 0 auto;border-radius:50%;background:var(--accent);color:#fff;
   font-weight:800;display:flex;align-items:center;justify-content:center}
 .gvid{width:100%;border-radius:12px;background:#000;margin-top:10px;display:block;max-height:78vh}
+/* 2 cột cạnh nhau, chia đôi theo chiều dọc */
+.gcols{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.gcol{min-width:0}
+.gcol+.gcol{border-left:1px solid var(--line);padding-left:12px}
+.gcol-h{font-weight:800;font-size:.84rem;margin-bottom:6px}
+.gcol .gvid{margin-top:0;border-radius:10px}
+.gcol-cap{font-size:.76rem;color:var(--muted);line-height:1.4;margin-top:6px}
 /* thanh cài đặt PWA (Android/iOS) */
 .installbar{display:flex;align-items:center;gap:11px;background:var(--accent-soft);
   border:1px solid var(--accent);border-radius:14px;padding:11px 13px;margin-bottom:13px}
@@ -414,21 +421,33 @@ nav .ic{font-size:1.35rem}
   </div>
   <div class="card">
     <div class="gstep"><span class="gn">1</span><b>Lấy link sản phẩm</b></div>
-    <div style="margin-top:12px">
-      <div style="font-weight:800;color:#EE4D2D;margin-bottom:6px">🛒 Dành cho Shopee</div>
-      <video class="gvid" controls playsinline preload="metadata" src="/videos/buoc1-shopee.mp4"></video>
-      <p class="sub" style="margin-top:6px">Mở app <b>Shopee</b> → vào sản phẩm → <b>Chia sẻ → Sao chép liên kết</b> → về AntiGravity tab <b>Trang chủ</b> dán vào ô “Link sản phẩm”.</p>
-    </div>
-    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
-      <div style="font-weight:800;color:#3BA0FF;margin-bottom:6px">🎵 Dành cho TikTok Shop</div>
-      <video class="gvid" controls playsinline preload="metadata" src="/videos/buoc1-lay-link.mp4"></video>
-      <p class="sub" style="margin-top:6px">Mở app <b>TikTok</b> → vào sản phẩm → <b>Chia sẻ → Sao chép liên kết</b> → về AntiGravity tab <b>Trang chủ</b> dán vào ô “Link sản phẩm”.</p>
+    <div class="gcols">
+      <div class="gcol">
+        <div class="gcol-h" style="color:#EE4D2D">🛒 Shopee</div>
+        <video class="gvid" controls playsinline preload="metadata" src="/videos/buoc1-shopee.mp4"></video>
+        <p class="gcol-cap">Mở Shopee → sản phẩm → <b>Chia sẻ → Sao chép liên kết</b> → dán ở Trang chủ.</p>
+      </div>
+      <div class="gcol">
+        <div class="gcol-h" style="color:#3BA0FF">🎵 TikTok</div>
+        <video class="gvid" controls playsinline preload="metadata" src="/videos/buoc1-lay-link.mp4"></video>
+        <p class="gcol-cap">Mở TikTok → sản phẩm → <b>Chia sẻ → Sao chép liên kết</b> → dán ở Trang chủ.</p>
+      </div>
     </div>
   </div>
   <div class="card">
     <div class="gstep"><span class="gn">2</span><b>Dán mã đơn hàng thành công</b></div>
-    <video class="gvid" controls playsinline preload="metadata" src="/videos/buoc2-ma-don.mp4"></video>
-    <p class="sub" style="margin-top:8px">Sau khi <b>mua hàng</b>, mở tab <b>Yêu cầu</b> → ô <b>“Ghi nhận đơn”</b> → dán <b>mã đơn</b> (hoặc tin xác nhận) → hoa hồng tự cộng khi đối soát.</p>
+    <div class="gcols">
+      <div class="gcol">
+        <div class="gcol-h" style="color:#EE4D2D">🛒 Shopee</div>
+        <video class="gvid" controls playsinline preload="metadata" src="/videos/buoc2-shopee.mp4"></video>
+        <p class="gcol-cap">Sau khi mua, vào tab <b>Yêu cầu</b> → ô <b>Ghi nhận đơn</b> → dán mã đơn Shopee.</p>
+      </div>
+      <div class="gcol">
+        <div class="gcol-h" style="color:#3BA0FF">🎵 TikTok</div>
+        <video class="gvid" controls playsinline preload="metadata" src="/videos/buoc2-tiktok.mp4"></video>
+        <p class="gcol-cap">Sau khi mua, vào tab <b>Yêu cầu</b> → ô <b>Ghi nhận đơn</b> → dán mã đơn TikTok.</p>
+      </div>
+    </div>
   </div>
   <div class="card">
     <div class="gstep"><span class="gn">3</span><b>Rút tiền</b></div>
