@@ -536,13 +536,30 @@ function autoPlat(u){for(var k in PLATFORMS){if(PLATFORMS[k].match.test(u)){pick
 function pickPlat(k){curPlat=k;var ps=document.querySelectorAll('.pill');
   for(var i=0;i<ps.length;i++)ps[i].classList.toggle('active',ps[i].getAttribute('data-plat')===k);}
 
-var BANKS=[['VCB','Vietcombank'],['MB','MB Bank'],['TCB','Techcombank'],['ICB','VietinBank'],['BIDV','BIDV'],
-  ['VBA','Agribank'],['ACB','ACB'],['VPB','VPBank'],['STB','Sacombank'],['TPB','TPBank'],['HDB','HDBank'],
-  ['VIB','VIB'],['SHB','SHB'],['MSB','MSB'],['OCB','OCB'],['SEAB','SeABank'],['EIB','Eximbank'],['LPB','LPBank'],
-  ['NAB','Nam A Bank'],['SCB','SCB'],['PVCB','PVcomBank'],['BAB','Bac A Bank'],['CAKE','Cake by VPBank'],['TIMO','Timo']];
+// [mã, tên, BIN Napas] — dùng BIN cho QR (chuẩn nhất, chạy đúng mọi ngân hàng). Đủ NH nội địa VN.
+var BANKS=[
+  ['VCB','Vietcombank','970436'],['MB','MB Bank','970422'],['TCB','Techcombank','970407'],
+  ['ICB','VietinBank','970415'],['BIDV','BIDV','970418'],['VBA','Agribank','970405'],
+  ['ACB','ACB','970416'],['VPB','VPBank','970432'],['STB','Sacombank','970403'],
+  ['TPB','TPBank','970423'],['HDB','HDBank','970437'],['VIB','VIB','970441'],
+  ['SHB','SHB','970443'],['MSB','MSB','970426'],['OCB','OCB','970448'],
+  ['SEAB','SeABank','970440'],['EIB','Eximbank','970431'],['LPB','LPBank','970449'],
+  ['NAB','Nam A Bank','970428'],['SCB','SCB','970429'],['PVCB','PVcomBank','970412'],
+  ['BAB','Bac A Bank','970409'],['SGICB','SaigonBank','970400'],['VCCB','BVBank (Bản Việt)','970454'],
+  ['NCB','NCB','970419'],['ABB','ABBANK','970425'],['VAB','VietABank','970427'],
+  ['PGB','PGBank','970430'],['VIETBANK','VietBank','970433'],['BVB','BaoViet Bank','970438'],
+  ['KLB','KienlongBank','970452'],['COOPBANK','Co-opBank','970446'],['OCEANBANK','OceanBank','970414'],
+  ['GPB','GPBank','970408'],['VRB','Việt-Nga (VRB)','970421'],['SHBVN','Shinhan Bank','970424'],
+  ['HLB','Hong Leong','970442'],['WVN','Woori Bank','970457'],['UOB','UOB','970458'],
+  ['SCVN','Standard Chartered','970410'],['PBVN','Public Bank','970439'],['IBKHCM','IBK - HCM','970456'],
+  ['IBKHN','IBK - HN','970455'],['KBHCM','Kookmin - HCM','970463'],['KBHN','Kookmin - HN','970462'],
+  ['CIMB','CIMB','422589'],['DBS','DBS','796500'],['HSBC','HSBC','458761'],
+  ['CAKE','Cake by VPBank','546034'],['UBANK','Ubank by VPBank','546035'],['TIMO','Timo','963388'],
+  ['VTLMONEY','Viettel Money','971011'],['VNPTMONEY','VNPT Money','971005']];
 function bankName(c){for(var i=0;i<BANKS.length;i++)if(BANKS[i][0]===c)return BANKS[i][1];return c;}
+function bankBin(c){for(var i=0;i<BANKS.length;i++)if(BANKS[i][0]===c)return BANKS[i][2]||c;return c;}
 function noAccent(s){return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D');}
-function vietQR(bank,acc,amt,name,info){return 'https://img.vietqr.io/image/'+bank+'-'+acc+'-compact2.png?amount='+amt
+function vietQR(bank,acc,amt,name,info){return 'https://img.vietqr.io/image/'+bankBin(bank)+'-'+acc+'-compact2.png?amount='+amt
   +'&addInfo='+encodeURIComponent(noAccent(info))+'&accountName='+encodeURIComponent(noAccent(name));}
 // MẪU tin nhắn gửi khách (admin copy dán thủ công qua Zalo)
 function custMsg(code,url){return '🎁 '+ZALO_NAME+'\n'
