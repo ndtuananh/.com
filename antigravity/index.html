@@ -422,6 +422,13 @@ nav .ic{font-size:1.35rem}
     <div id="statsBox" style="margin-top:12px"><div class="empty">Đang tải…</div></div>
   </div>
   <div class="card agrp" data-asec="tq">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h2 style="margin:0">💰 Cân đối tài chính</h2>
+      <button class="sbtn" onclick="loadFinance()">🔄</button>
+    </div>
+    <div id="financeBox" style="margin-top:12px"><div class="empty">Đang tải…</div></div>
+  </div>
+  <div class="card agrp" data-asec="tq">
     <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">🏆 Bảng xếp hạng</h2>
       <button class="sbtn" onclick="loadTop()">🔄</button></div>
     <div id="topBox" style="margin-top:10px"><div class="empty">Bấm 🔄 để xem.</div></div>
@@ -999,7 +1006,88 @@ async function loadAdmin(force){
   renderAdmWithdrawals(w.data||[]);
   var o=await sb.from('ag_orders').select('*').order('imported_at',{ascending:false}).limit(30);
   renderAdmOrders(o.data||[]);
-  loadTop();loadCRM();
+  loadTop();loadCRM();loadFinance();
+}
+/* ---------- CÂN ĐỐI TÀI CHÍNH + BIỂU ĐỒ (admin) ---------- */
+var PCOLOR={shopee:'#EE4D2D',tiktok:'#3BA0FF'},PLABEL={shopee:'Shopee',tiktok:'TikTok'};
+async function loadFinance(){
+  var box=document.getElementById('financeBox');if(!box)return;
+  try{
+    var o=await sb.from('ag_orders').select('platform,commission,user_commission,order_time,imported_at').eq('wallet_state','available').limit(20000);
+    var bl=await sb.from('balance_log').select('reason,change').in('reason',['welcome','referral','adjust']).limit(20000);
+    var wd=await sb.from('withdrawals').select('amount,status').limit(20000);
+    var pr=await sb.from('profiles').select('balance').limit(20000);
+    var plat={shopee:{don:0,dt:0,tk:0},tiktok:{don:0,dt:0,tk:0}},series={};
+    (o.data||[]).forEach(function(r){
+      var p=/tiktok/i.test(r.platform||'')?'tiktok':'shopee';
+      plat[p].don++;plat[p].dt+=(+r.commission||0);plat[p].tk+=(+r.user_commission||0);
+      var d=String(r.order_time||r.imported_at||'').slice(0,10);
+      if(d){if(!series[d])series[d]={dt:0,lai:0};series[d].dt+=(+r.commission||0);series[d].lai+=((+r.commission||0)-(+r.user_commission||0));}
+    });
+    var doanhthu=plat.shopee.dt+plat.tiktok.dt, trakhach=plat.shopee.tk+plat.tiktok.tk, laigop=doanhthu-trakhach;
+    var welcome=0,referral=0,adjust=0;
+    (bl.data||[]).forEach(function(x){var v=+x.change||0;if(x.reason==='welcome')welcome+=v;else if(x.reason==='referral')referral+=v;else if(x.reason==='adjust')adjust+=v;});
+    var lairong=laigop-welcome-referral-adjust;
+    var congno=(pr.data||[]).reduce(function(s,x){return s+(+x.balance||0);},0);
+    var dachi=0,chorut=0;(wd.data||[]).forEach(function(x){if(x.status==='approved')dachi+=+x.amount;else if(x.status==='pending')chorut+=+x.amount;});
+    renderFinance({plat:plat,doanhthu:doanhthu,trakhach:trakhach,laigop:laigop,welcome:welcome,referral:referral,adjust:adjust,lairong:lairong,congno:congno,dachi:dachi,chorut:chorut,series:series,ndon:(o.data||[]).length});
+  }catch(e){box.innerHTML='<div class="empty">Không tải được số liệu.</div>';}
+}
+function fdonut(parts){
+  var total=parts.reduce(function(s,p){return s+p.value;},0)||1,r=42,c=2*Math.PI*r,off=0,segs='';
+  parts.forEach(function(p){var len=(p.value/total)*c;
+    segs+='<circle cx="60" cy="60" r="'+r+'" fill="none" stroke="'+p.color+'" stroke-width="15" stroke-dasharray="'+len.toFixed(2)+' '+(c-len).toFixed(2)+'" stroke-dashoffset="'+(-off).toFixed(2)+'" transform="rotate(-90 60 60)" stroke-linecap="butt"/>';off+=len;});
+  return '<svg viewBox="0 0 120 120" width="112" height="112" style="flex:0 0 auto">'+segs
+    +'<text x="60" y="56" text-anchor="middle" font-size="10" fill="var(--muted)">Doanh thu</text>'
+    +'<text x="60" y="72" text-anchor="middle" font-size="12" font-weight="800" fill="var(--ink)">'+fmt(total)+'</text></svg>';
+}
+function fkpi(v,l,cls){return '<div class="stat'+(cls?' '+cls:'')+'"><div class="v" style="font-size:1.15rem">'+fmt(v)+'</div><div class="l">'+l+'</div></div>';}
+function renderFinance(a){
+  var box=document.getElementById('financeBox');
+  // KPI
+  var h='<div class="stats" style="grid-template-columns:1fr 1fr">'
+    +fkpi(a.doanhthu,'Doanh thu (hoa hồng)','hl')
+    +fkpi(a.trakhach,'Trả khách (50%)')
+    +fkpi(a.laigop,'Lãi gộp (giữ 50%)','ok')
+    +fkpi(a.lairong,'Lãi ròng (sau thưởng)',a.lairong>=0?'ok':'')+'</div>';
+  // Donut chia sàn + chú thích
+  var parts=[{label:'Shopee',value:a.plat.shopee.dt,color:PCOLOR.shopee},{label:'TikTok',value:a.plat.tiktok.dt,color:PCOLOR.tiktok}];
+  var tot=a.doanhthu||1;
+  h+='<div style="display:flex;gap:14px;align-items:center;margin-top:14px;flex-wrap:wrap">'+fdonut(parts)
+    +'<div style="flex:1;min-width:150px">';
+  ['shopee','tiktok'].forEach(function(k){var p=a.plat[k],pct=Math.round(p.dt/tot*100);
+    h+='<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.86rem;font-weight:700">'
+      +'<span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:'+PCOLOR[k]+';margin-right:6px"></i>'+PLABEL[k]+' · '+p.don+' đơn</span><span>'+pct+'%</span></div>'
+      +'<div style="height:8px;background:var(--paper);border-radius:99px;overflow:hidden;margin-top:4px"><div style="height:100%;width:'+pct+'%;background:'+PCOLOR[k]+';border-radius:99px"></div></div>'
+      +'<div class="t2" style="margin-top:2px">DT '+fmt(p.dt)+' · trả khách '+fmt(p.tk)+' · <b style="color:var(--ok)">lãi '+fmt(p.dt-p.tk)+'</b></div></div>';});
+  h+='</div></div>';
+  // Bảng cân đối
+  function row(l,v,col){return '<div style="display:flex;justify-content:space-between;padding:8px 2px;border-top:1px solid var(--line);font-size:.9rem"><span>'+l+'</span><b style="color:'+(col||'var(--ink)')+'">'+fmt(v)+'</b></div>';}
+  h+='<div style="margin-top:14px;font-weight:800;font-size:.9rem">📒 Cân đối</div>'
+    +row('Doanh thu hoa hồng ('+a.ndon+' đơn)',a.doanhthu,'var(--ok)')
+    +row('− Trả khách (50%)',-a.trakhach,'var(--accent)')
+    +row('= Lãi gộp',a.laigop,'var(--ok)')
+    +row('− Thưởng chào mừng',-a.welcome,'var(--accent)')
+    +row('− Thưởng giới thiệu',-a.referral,'var(--accent)')
+    +(a.adjust?row('− Điều chỉnh tay',-a.adjust,'var(--accent)'):'')
+    +'<div style="display:flex;justify-content:space-between;padding:10px 2px;border-top:2px solid var(--accent);font-size:1rem"><b>= LÃI RÒNG</b><b style="color:'+(a.lairong>=0?'var(--ok)':'var(--danger)')+'">'+fmt(a.lairong)+'</b></div>';
+  // Dòng tiền / công nợ
+  h+='<div style="margin-top:12px;font-weight:800;font-size:.9rem">💵 Dòng tiền & công nợ</div>'
+    +row('Công nợ ví khách (chưa rút)',a.congno,'var(--warn)')
+    +row('Đã chi trả (rút thành công)',a.dachi)
+    +row('Đang chờ duyệt rút',a.chorut,'var(--warn)');
+  // Biểu đồ doanh thu theo ngày (14 ngày gần nhất)
+  var days=Object.keys(a.series).sort().slice(-14);
+  if(days.length){var mx=Math.max.apply(null,days.map(function(d){return a.series[d].dt;}))||1;
+    h+='<div style="margin-top:14px;font-weight:800;font-size:.9rem">📈 Doanh thu theo ngày (14 ngày)</div>'
+      +'<div style="display:flex;align-items:flex-end;gap:3px;height:90px;margin-top:8px;padding:0 2px">';
+    days.forEach(function(d){var v=a.series[d].dt,lai=a.series[d].lai,hp=Math.max(3,Math.round(v/mx*84));
+      h+='<div title="'+d+': '+fmt(v)+'" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%">'
+        +'<div style="height:'+hp+'px;background:linear-gradient(180deg,var(--accent2),#2563eb);border-radius:4px 4px 0 0;position:relative">'
+        +'<div style="position:absolute;bottom:0;left:0;right:0;height:'+Math.round(lai/(v||1)*hp)+'px;background:var(--ok);border-radius:0 0 4px 4px;opacity:.55"></div></div></div>';});
+    h+='</div><div class="t2" style="margin-top:4px;text-align:center">Cột: doanh thu · phần xanh lá: lãi giữ lại</div>';
+  }
+  box.innerHTML=h;
 }
 function renderAdmDone(rows){var box=document.getElementById('admDone');
   if(!rows.length){box.innerHTML='<div class="empty">Chưa có link nào xử lý.</div>';return;}
