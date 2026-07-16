@@ -384,7 +384,7 @@ create trigger trg_ag_check_withdrawal before insert on withdrawals
 -- ============================================================================
 create or replace function ag_reconcile(p_hold_days int default 7)
 returns json language plpgsql security definer set search_path = public as $$
-declare v_to_pending bigint := 0; v_to_avail bigint := 0; v_reversed bigint := 0;
+declare v_to_pending bigint := 0; v_to_avail bigint := 0; v_reversed bigint := 0; r record;
 begin
   -- (1) approved + chưa vào ví  ->  PENDING
   with moved as (
@@ -440,6 +440,24 @@ begin
     where o.wallet_state = 'reversed' and o.status = 'rejected' and o.user_id is not null
       and coalesce(o.user_commission,0) > 0
       and not exists (select 1 from balance_log b where b.ref = o.order_id and b.reason = 'reverse');
+
+  -- (5) TỰ ĐỒNG BỘ 50%: nếu số hoa hồng ĐÃ CỘNG khác user_commission hiện tại
+  --     (do đổi tỷ lệ / nạp lại báo cáo), điều chỉnh chênh lệch vào ví + sửa bút toán
+  --     để ví LUÔN khớp đúng công thức (không còn cảnh admin 50% mà khách nhận 100%).
+  for r in
+    select b.id as log_id, o.user_id, o.user_commission as tgt, b.change as cred
+    from ag_orders o
+    join balance_log b on b.ref = o.order_id and b.reason = 'cashback'
+    where o.wallet_state = 'available' and o.user_commission is not null
+      and o.user_commission <> b.change
+  loop
+    update profiles set balance = balance + (r.tgt - r.cred),
+                        ag_total = greatest(ag_total + (r.tgt - r.cred), 0)
+      where id = r.user_id;
+    update balance_log set change = r.tgt,
+           balance_after = (select balance from profiles where id = r.user_id)
+      where id = r.log_id;
+  end loop;
 
   -- đánh dấu mã đơn khách đã nhận là "đã đối soát" khi đơn đã vào ví
   update ag_claims c set matched = true from ag_orders o
