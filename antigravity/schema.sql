@@ -431,7 +431,8 @@ returns void language plpgsql security definer set search_path = public as $$
 declare r record; nbal bigint;
 begin
   for r in
-    select p.referred_by as ref_uid, p.id as referee
+    select p.referred_by as ref_uid, p.id as referee,
+           'refph:'||coalesce(nullif(regexp_replace(p.phone,'\D','','g'),''), p.id::text) as rkey
     from profiles p
     where p.referred_by is not null
       -- CHỐNG GIAN LẬN + KHÔNG LỖ: chỉ thưởng khi người được mời có hoa hồng THỰC NHẬN
@@ -439,14 +440,18 @@ begin
       -- (đã trừ đơn hoàn) thay vì tổng cashback gộp → mua rồi trả hàng KHÔNG lấy được thưởng.
       and coalesce((select sum(o.user_commission) from ag_orders o
                     where o.user_id = p.id and o.wallet_state = 'available'), 0) >= 5000
-      and not exists (select 1 from balance_log b where b.reason='referral' and b.ref='refbonus:'||p.id::text)
+      -- CHỐNG GIAN LẬN: 1 SỐ ĐIỆN THOẠI chỉ tạo thưởng giới thiệu DUY NHẤT 1 lần (khoá theo phone,
+      -- nên xoá & tạo lại tài khoản cùng số cũng KHÔNG farm được). Vẫn nhận diện key cũ theo id.
+      and not exists (select 1 from balance_log b where b.reason='referral'
+            and (b.ref = 'refph:'||coalesce(nullif(regexp_replace(p.phone,'\D','','g'),''), p.id::text)
+                 or b.ref = 'refbonus:'||p.id::text))
       -- trần 100 lượt/người giới thiệu (tối đa 500k) → bao ngân sách
       and (select count(*) from balance_log b3 where b3.user_id = p.referred_by and b3.reason='referral') < 100
   loop
     update profiles set balance = balance + 5000, ag_total = ag_total + 5000
       where id = r.ref_uid returning balance into nbal;
     insert into balance_log(user_id, change, balance_after, reason, ref)
-      values (r.ref_uid, 5000, nbal, 'referral', 'refbonus:'||r.referee::text);
+      values (r.ref_uid, 5000, nbal, 'referral', r.rkey);
   end loop;
 end $$;
 revoke all on function ag_referral_bonus() from public;
