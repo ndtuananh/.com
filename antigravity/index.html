@@ -40,10 +40,12 @@
   }
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html{overflow-x:hidden}
+/* FONT TOÀN APP +~10% (dễ đọc cho người lớn tuổi). Mọi cỡ dùng rem sẽ tự to theo. */
+html{overflow-x:hidden;font-size:17.5px}
+@media (max-width:360px){html{font-size:16px}}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
   background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;
-  overflow-x:hidden;max-width:100%;
+  overflow-x:hidden;max-width:100%;line-height:1.5;
   padding-bottom:env(safe-area-inset-bottom)}
 .hide{display:none!important}
 /* header — thanh full-width, nội dung căn giữa cột 560 để cân với phần thân */
@@ -113,8 +115,8 @@ header{position:sticky;top:0;z-index:40;background:var(--glass);backdrop-filter:
 .installbar .ib-x{flex:0 0 auto;min-width:0;width:auto;background:none;border:none;color:var(--muted);font-size:1rem;padding:4px 6px}
 .hbtn{background:var(--accent-soft);color:var(--accent);border:none;border-radius:10px;
   padding:7px 10px;font-size:.76rem;font-weight:700;cursor:pointer;white-space:nowrap;flex:0 0 auto;min-width:0}
-.bell{position:relative;background:none;border:none;font-size:1.12rem;cursor:pointer;flex:0 0 auto;
-  width:38px;height:38px;min-width:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;padding:0}
+.bell{position:relative;background:none;border:none;font-size:1.2rem;cursor:pointer;flex:0 0 auto;
+  width:44px;height:44px;min-width:44px;min-height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;padding:0}
 .bell:hover,.bell:active{background:var(--paper)}
 .bell .dot{position:absolute;top:0;right:2px;min-width:16px;height:16px;background:var(--accent);
   color:#fff;border-radius:99px;font-size:.62rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px}
@@ -123,11 +125,11 @@ main{max-width:560px;margin:0 auto;padding:16px 16px 104px}
 /* cards */
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
   padding:16px;margin-bottom:13px;box-shadow:var(--shadow)}
-h2{font-size:1.08rem;font-weight:800;margin-bottom:4px;letter-spacing:-.2px}
-.sub{font-size:.86rem;color:var(--muted);line-height:1.5}
-label{font-size:.85rem;color:var(--muted);font-weight:600;display:block;margin:14px 0 6px}
+h2{font-size:1.22rem;font-weight:800;margin-bottom:4px;letter-spacing:-.2px}
+.sub{font-size:.92rem;color:var(--muted);line-height:1.55}
+label{font-size:.9rem;color:var(--muted);font-weight:600;display:block;margin:14px 0 6px}
 input,textarea,select{width:100%;border:1.5px solid var(--line);border-radius:12px;
-  padding:14px;font-size:1.02rem;font-family:inherit;color:#16181D;background:#fff;outline:none;transition:border .15s}
+  padding:14px;min-height:52px;font-size:1.06rem;font-family:inherit;color:#16181D;background:#fff;outline:none;transition:border .15s}
 input:focus,textarea:focus,select:focus{border-color:var(--accent)}
 /* ô nhập link sản phẩm — nổi bật */
 #srcLink{font-size:1.12rem;padding:18px 16px;border:2px solid var(--accent);font-weight:600;
@@ -139,7 +141,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent)}
 .linkopen .go{display:inline-block;margin-top:6px;font-size:.74rem;font-weight:800;color:var(--ok);text-transform:uppercase;letter-spacing:.4px}
 textarea{resize:vertical;min-height:80px;line-height:1.5}
 .row{display:flex;gap:9px;margin-top:13px;flex-wrap:wrap}
-button{border:none;border-radius:12px;padding:14px 16px;font-size:1.02rem;font-weight:700;
+button{border:none;border-radius:12px;padding:14px 16px;font-size:1.06rem;font-weight:700;min-height:52px;
   font-family:inherit;cursor:pointer;flex:1;min-width:120px;transition:transform .05s,opacity .15s}
 button:active{transform:scale(.98)}
 button:disabled{opacity:.5;cursor:not-allowed}
@@ -187,7 +189,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .item .main{flex:1;min-width:0}
 .item .t1{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.95rem}
 .item .t2{font-size:.8rem;color:var(--muted);margin-top:2px;line-height:1.4}
-.badge{flex:0 0 auto;font-size:.72rem;font-weight:800;padding:5px 10px;border-radius:99px}
+.badge{flex:0 0 auto;font-size:.8rem;font-weight:800;padding:6px 11px;border-radius:99px;white-space:nowrap}
 .b-pending{background:var(--warn-soft);color:var(--warn)}
 .b-ok{background:var(--ok-soft);color:var(--ok)}
 .b-rej{background:#FCE8EA;color:var(--danger)}
@@ -200,6 +202,36 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .stat .l{font-size:.7rem;color:var(--muted);margin-top:3px;font-weight:600}
 .stat.hl{background:var(--accent-soft);border-color:transparent}.stat.hl .v{color:var(--accent)}
 .stat.ok{background:var(--ok-soft);border-color:transparent}.stat.ok .v{color:var(--ok)}
+/* spinner khi đang xử lý — chặn bấm nhiều lần */
+.spin{display:inline-block;width:1em;height:1em;border:2px solid currentColor;border-top-color:transparent;
+  border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:7px}
+@keyframes spin{to{transform:rotate(360deg)}}
+button.busy{opacity:.75;pointer-events:none}
+/* thu gọn ghi chú dài -> "Xem thêm" (mặc định 2 dòng) */
+.clampbox{position:relative}
+.clampbox .clampin{overflow:hidden;transition:max-height .2s}
+.clampbox.collapsed .clampin{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.clampbox .clampmore{background:none;border:none;color:var(--accent);font-weight:800;font-size:.9rem;
+  padding:6px 0 0;min-width:0;min-height:0;cursor:pointer;flex:0 0 auto}
+/* công tắc Bật/Tắt (thông báo) */
+.ctog{display:inline-flex;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:3px;flex:0 0 auto}
+.ctog button{background:none;border:none;color:var(--muted);font-size:.82rem;font-weight:800;padding:8px 15px;min-height:0;
+  border-radius:999px;min-width:0;flex:0 0 auto;cursor:pointer;line-height:1;transition:none}
+.ctog button.on{background:var(--ok);color:#fff}
+.ctog button.on.off{background:var(--muted)}
+/* thu gọn từng danh mục thống kê/danh sách — nút Hiện/Ẩn */
+.chd{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.chd h2{margin:0}
+.chd .mh{font-size:.86rem;font-weight:800;color:var(--muted);letter-spacing:.3px;text-transform:uppercase}
+.htog{display:inline-flex;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:3px;flex:0 0 auto}
+.htog button{background:none;border:none;color:var(--muted);font-size:.82rem;font-weight:800;padding:8px 15px;min-height:0;
+  border-radius:999px;min-width:0;flex:0 0 auto;cursor:pointer;line-height:1;transition:none}
+.htog button.on{background:var(--accent);color:#fff}
+.colbody.hide{display:none!important}
+/* làm nổi bật yêu cầu vừa được mở từ thông báo */
+.flash{animation:flashhl 2.4s ease}
+@keyframes flashhl{0%,100%{box-shadow:none}15%,60%{box-shadow:0 0 0 3px var(--accent),0 8px 22px rgba(255,90,31,.35)}}
+.linkopen.pop{border:2px solid var(--ok);box-shadow:0 0 0 4px rgba(18,161,80,.16)}
 /* nav */
 nav{position:fixed;bottom:0;left:0;right:0;background:var(--glass);backdrop-filter:blur(12px);
   border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:50}
@@ -209,11 +241,12 @@ nav button{flex:1;background:none;color:var(--muted);font-size:.68rem;font-weigh
 nav button.active{color:var(--accent)}
 nav .ic{font-size:1.35rem}
 /* toast */
-#toast{position:fixed;left:50%;bottom:calc(74px + env(safe-area-inset-bottom));
-  transform:translateX(-50%) translateY(90px);background:#16181D;color:#fff;padding:12px 20px;
-  border-radius:99px;font-size:.86rem;font-weight:600;opacity:0;transition:all .28s;pointer-events:none;
-  z-index:99;max-width:92vw;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));
+  transform:translateX(-50%) translateY(90px);background:#16181D;color:#fff;padding:14px 22px;
+  border-radius:16px;font-size:.98rem;font-weight:700;line-height:1.4;opacity:0;transition:all .28s;pointer-events:none;
+  z-index:99;max-width:92vw;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.25)}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+#toast.ok{background:#0E8B45}#toast.err{background:#C0273A}
 /* auth */
 .auth-wrap{max-width:420px;margin:6vh auto;padding:0 18px}
 .auth-logo{text-align:center;margin-bottom:22px}
@@ -236,7 +269,7 @@ nav .ic{font-size:1.35rem}
     <h1>AntiGravity</h1>
     <p>Đổi link affiliate · Đối soát · Ví hoa hồng</p>
   </div>
-  <div class="card">
+  <div class="card" id="loginCard">
     <div class="segmented">
       <button class="active" id="segLogin" onclick="setAuthMode('login')">Đăng nhập</button>
       <button id="segReg" onclick="setAuthMode('reg')">Đăng ký</button>
@@ -256,6 +289,20 @@ nav .ic{font-size:1.35rem}
     </label>
     <div class="row"><button class="btn-primary" id="authSubmit" onclick="doAuth()">Đăng nhập</button></div>
     <p class="hint" id="authHint" style="text-align:center">Nhập SĐT + mật khẩu rồi bấm Đăng nhập.</p>
+    <div id="forgotWrap" style="text-align:center;margin-top:10px">
+      <button type="button" onclick="showForgot()" style="background:none;border:none;color:var(--accent);font-weight:800;font-size:.95rem;min-height:0;padding:6px;cursor:pointer">🔑 Quên mật khẩu?</button>
+    </div>
+  </div>
+
+  <!-- QUÊN MẬT KHẨU (đặt lại qua admin — bảo mật cho ví) -->
+  <div id="forgotBox" class="card hide">
+    <div style="font-weight:800;font-size:1.06rem;margin-bottom:4px">🔑 Quên mật khẩu?</div>
+    <p class="sub">Để bảo vệ ví của bạn, việc đặt lại mật khẩu cần <b>xác minh qua Zalo</b> với đội hỗ trợ. Nhập SĐT đã đăng ký rồi gửi yêu cầu nhé.</p>
+    <label>Số điện thoại đã đăng ký</label>
+    <input type="text" id="forgotPhone" placeholder="09xxxxxxxx" inputmode="tel" autocomplete="tel">
+    <div class="row"><button class="btn-primary" onclick="forgotViaZalo()">💬 Gửi yêu cầu qua Zalo</button></div>
+    <div class="row" style="margin-top:6px"><button class="btn-line" onclick="hideForgot()">← Quay lại đăng nhập</button></div>
+    <p class="hint">Sau khi xác minh, đội hỗ trợ cấp <b>mật khẩu tạm</b>. Bạn đăng nhập rồi <b>đổi mật khẩu mới</b> ngay là xong. 🔒</p>
   </div>
 </div>
 
@@ -283,9 +330,9 @@ nav .ic{font-size:1.35rem}
 
 <!-- TAB: TRANG CHỦ / GỬI YÊU CẦU -->
 <section id="tabHome">
-  <div class="card hide" id="readyBanner" onclick="openNotifs()" style="background:linear-gradient(135deg,#12A150,#0E8B45);color:#fff;border:none;cursor:pointer;box-shadow:0 8px 22px rgba(18,161,80,.3)">
+  <div class="card hide" id="readyBanner" onclick="focusLatestReady()" style="background:linear-gradient(135deg,#12A150,#0E8B45);color:#fff;border:none;cursor:pointer;box-shadow:0 8px 22px rgba(18,161,80,.3)">
     <div style="font-weight:800;font-size:1.06rem">🎉 <span id="readyText">Link của bạn đã sẵn sàng!</span></div>
-    <div style="font-size:.86rem;opacity:.95;margin-top:4px">Bấm xem thông báo & lấy link gửi khách ngay 👉</div>
+    <div style="font-size:.86rem;opacity:.95;margin-top:4px">Bấm để mở sản phẩm mua & nhận hoàn tiền ngay 👉</div>
   </div>
   <div class="card">
     <h2>🔗 Gửi link cần đổi</h2>
@@ -309,7 +356,7 @@ nav .ic{font-size:1.35rem}
     </div>
     <div id="submitResult" class="hide">
       <div class="reqcode"><div><div class="s">MÃ YÊU CẦU CỦA BẠN</div><div class="c" id="newCode">AG000000</div></div>
-        <span class="badge b-pending">Đang xử lý</span></div>
+        <span class="badge b-pending">⏳ Đang xử lý</span></div>
       <p class="hint">✅ Đã gửi! Bọn mình sẽ tạo link và gửi bạn ngay khi xong. Xem trạng thái ở tab <b>Yêu cầu</b>.</p>
       <p class="hint" style="margin-top:8px">📋 Xem tất cả yêu cầu & trạng thái link ở tab <b>Yêu cầu</b> · cần hỗ trợ nhanh thì kết bạn Zalo ở tab <b>Hướng dẫn</b>.</p>
     </div>
@@ -322,10 +369,11 @@ nav .ic{font-size:1.35rem}
     </div>
     <div class="hint" style="margin-top:8px">📌 Mở app → <b>Chia sẻ</b> → <b>Sao chép link</b> → dán ở trên.</div>
   </div>
-  <div class="card" style="background:var(--accent-soft);border:1px solid var(--accent);border-radius:16px">
-    <div style="font-size:.92rem;line-height:1.65">
+  <div class="card clampbox collapsed" style="background:var(--accent-soft);border:1px solid var(--accent);border-radius:16px">
+    <div class="clampin" style="font-size:.95rem;line-height:1.65">
       <b>💛 Ghi chú nhỏ nè:</b> Một vài sản phẩm/shop <b>không bật hoàn tiền</b> nên mình chưa đổi link được — <b>không phải lỗi của bạn đâu nha</b> 🥺. Bạn chọn món tương tự <b>có hoàn tiền</b> là lại nhận hoa hồng đều đều thôi 🥰 Cảm ơn bạn đã thương &amp; đồng hành nhé! 🤝
     </div>
+    <button class="clampmore" type="button" onclick="toggleClamp(this)">Xem thêm ▾</button>
   </div>
 </section>
 
@@ -337,21 +385,31 @@ nav .ic{font-size:1.35rem}
     <input type="text" id="claimGlobal" placeholder="Dán mã đơn / tin nhắn / link đơn vào đây" style="margin-top:10px">
     <div class="row" style="margin-top:8px">
       <button class="btn-ghost" style="flex:0 0 auto" onclick="pasteClaimGlobal()">📋 Dán</button>
-      <button class="btn-primary" onclick="claimOrderGlobal()">🧾 Ghi nhận nhận hoa hồng</button>
+      <button class="btn-primary" id="claimBtn" onclick="claimOrderGlobal()">🧾 Ghi nhận nhận hoa hồng</button>
     </div>
     <div id="claimGlobalMsg" class="claimmsg hide"></div>
     <div class="hint" style="margin-top:8px">💡 Đơn <b>Shopee</b> thường tự cộng qua link — khỏi nhập. Đơn <b>TikTok</b>: dán mã đơn vào đây.</div>
-    <div id="myClaimsList"></div>
+    <div id="myClaimsWrap" class="hide" style="margin-top:12px">
+      <div class="chd"><div class="mh">🧾 Đơn đã ghi nhận</div>
+        <div class="htog" data-for="myClaimsBody"><button type="button" onclick="colSet('myClaimsBody',false)">Hiện</button><button type="button" onclick="colSet('myClaimsBody',true)">Ẩn</button></div></div>
+      <div id="myClaimsBody" class="colbody"><div id="myClaimsList"></div></div>
+    </div>
   </div>
   <div class="card">
-    <h2>📊 Thống kê chuyển đổi</h2>
-    <p class="sub">Tổng quan nhanh lịch sử đổi link của bạn.</p>
-    <div id="reqStats" class="stats" style="margin-top:10px"><div class="empty" style="grid-column:1/-1">Đang tải…</div></div>
+    <div class="chd"><h2>📊 Thống kê chuyển đổi</h2>
+      <div class="htog" data-for="reqStatsBody"><button type="button" onclick="colSet('reqStatsBody',false)">Hiện</button><button type="button" onclick="colSet('reqStatsBody',true)">Ẩn</button></div></div>
+    <div id="reqStatsBody" class="colbody">
+      <p class="sub">Tổng quan nhanh lịch sử đổi link của bạn.</p>
+      <div id="reqStats" class="stats" style="margin-top:10px"><div class="empty" style="grid-column:1/-1">Đang tải…</div></div>
+    </div>
   </div>
   <div class="card">
-    <h2>📋 Tất cả yêu cầu của bạn</h2>
-    <p class="sub">Link đã xong sẽ có nút <b>Mở</b> để bạn vào ứng dụng.</p>
-    <div id="reqList" style="margin-top:6px"><div class="empty">Đang tải…</div></div>
+    <div class="chd"><h2>📋 Tất cả yêu cầu của bạn</h2>
+      <div class="htog" data-for="reqListBody"><button type="button" onclick="colSet('reqListBody',false)">Hiện</button><button type="button" onclick="colSet('reqListBody',true)">Ẩn</button></div></div>
+    <div id="reqListBody" class="colbody">
+      <p class="sub">Link đã xong sẽ có nút <b>Mở</b> để bạn vào ứng dụng.</p>
+      <div id="reqList" style="margin-top:6px"><div class="empty">Đang tải…</div></div>
+    </div>
   </div>
 </section>
 
@@ -385,13 +443,18 @@ nav .ic{font-size:1.35rem}
     <input type="text" id="wdAcc" inputmode="numeric" placeholder="0123456789" autocomplete="off">
     <label>Chủ tài khoản (viết HOA, không dấu)</label>
     <input type="text" id="wdName" placeholder="NGUYEN VAN A" autocomplete="off">
-    <div class="row"><button class="btn-primary" onclick="createWithdrawal()">💸 Tạo yêu cầu rút</button></div>
-    <div id="wdList" style="margin-top:6px"></div>
+    <div class="row"><button class="btn-primary" id="wdBtn" onclick="createWithdrawal()">💸 Tạo yêu cầu rút</button></div>
+    <div id="wdWrap" class="hide" style="margin-top:12px">
+      <div class="chd"><div class="mh">💸 Lịch sử rút tiền</div>
+        <div class="htog" data-for="wdBody"><button type="button" onclick="colSet('wdBody',false)">Hiện</button><button type="button" onclick="colSet('wdBody',true)">Ẩn</button></div></div>
+      <div id="wdBody" class="colbody"><div id="wdList"></div></div>
+    </div>
   </div>
 
   <div class="card">
-    <h2>💰 Lịch sử ví</h2>
-    <div id="ledger"><div class="empty">Chưa có giao dịch nào.</div></div>
+    <div class="chd"><h2>💰 Lịch sử ví</h2>
+      <div class="htog" data-for="ledgerBody"><button type="button" onclick="colSet('ledgerBody',false)">Hiện</button><button type="button" onclick="colSet('ledgerBody',true)">Ẩn</button></div></div>
+    <div id="ledgerBody" class="colbody"><div id="ledger"><div class="empty">Chưa có giao dịch nào.</div></div></div>
   </div>
 
   <div class="card">
@@ -400,6 +463,17 @@ nav .ic{font-size:1.35rem}
     <div class="linkbox" style="color:var(--ink);background:var(--accent-soft)"><b style="color:var(--accent)">Link giới thiệu của bạn</b><span id="refLink">…</span></div>
     <div class="row"><button class="btn-ghost" onclick="copyRef()">📋 Copy link mời bạn</button></div>
     <div class="hint" id="refCount"></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <h2 style="margin:0">🔔 Thông báo</h2>
+      <div class="ctog" id="notifToggle">
+        <button type="button" id="notifOnBtn" onclick="setPush(true)">Bật</button>
+        <button type="button" id="notifOffBtn" onclick="setPush(false)">Tắt</button>
+      </div>
+    </div>
+    <p class="sub" id="notifSubText" style="margin-top:8px">Bật để nhận thông báo ngay khi <b>link sẵn sàng</b>, đơn <b>được cộng hoa hồng</b>, hay <b>rút tiền được duyệt</b> — kể cả khi bạn không mở app.</p>
   </div>
 
   <div class="card">
@@ -472,37 +546,50 @@ nav .ic{font-size:1.35rem}
   </div>
 
   <div class="card agrp" data-asec="tq">
-    <div style="display:flex;justify-content:space-between;align-items:center">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
       <h2 style="margin:0">📈 Tổng quan</h2>
-      <div style="display:flex;gap:6px">
+      <div style="display:flex;gap:6px;align-items:center">
         <button class="sbtn" id="pushBtn" onclick="enablePush()">🔔 Bật báo</button>
         <button class="sbtn" onclick="loadAdmin(true)">🔄</button>
+        <div class="htog" data-for="statsBoxBody"><button type="button" onclick="colSet('statsBoxBody',false)">Hiện</button><button type="button" onclick="colSet('statsBoxBody',true)">Ẩn</button></div>
       </div>
     </div>
-    <div id="statsBox" style="margin-top:12px"><div class="empty">Đang tải…</div></div>
+    <div id="statsBoxBody" class="colbody"><div id="statsBox" style="margin-top:12px"><div class="empty">Đang tải…</div></div></div>
   </div>
   <div class="card agrp" data-asec="tq">
-    <div style="display:flex;justify-content:space-between;align-items:center">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
       <h2 style="margin:0">💰 Cân đối tài chính</h2>
-      <button class="sbtn" onclick="loadFinance()">🔄</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="sbtn" onclick="loadFinance()">🔄</button>
+        <div class="htog" data-for="financeBoxBody"><button type="button" onclick="colSet('financeBoxBody',false)">Hiện</button><button type="button" onclick="colSet('financeBoxBody',true)">Ẩn</button></div>
+      </div>
     </div>
-    <div id="financeBox" style="margin-top:12px"><div class="empty">Đang tải…</div></div>
+    <div id="financeBoxBody" class="colbody"><div id="financeBox" style="margin-top:12px"><div class="empty">Đang tải…</div></div></div>
   </div>
   <div class="card agrp" data-asec="tq">
-    <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">🏆 Bảng xếp hạng</h2>
-      <button class="sbtn" onclick="loadTop()">🔄</button></div>
-    <div id="topBox" style="margin-top:10px"><div class="empty">Bấm 🔄 để xem.</div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><h2 style="margin:0">🏆 Bảng xếp hạng</h2>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="sbtn" onclick="loadTop()">🔄</button>
+        <div class="htog" data-for="topBoxBody"><button type="button" onclick="colSet('topBoxBody',false)">Hiện</button><button type="button" onclick="colSet('topBoxBody',true)">Ẩn</button></div>
+      </div></div>
+    <div id="topBoxBody" class="colbody"><div id="topBox" style="margin-top:10px"><div class="empty">Bấm 🔄 để xem.</div></div></div>
   </div>
 
   <div class="card agrp hide" data-asec="link">
-    <h2>🟠 Link chờ xử lý</h2>
-    <p class="sub">Mở link gốc → tạo link affiliate <b>thủ công</b> → dán vào đây → Hoàn tất. Nhớ gắn <b>Sub ID = mã AG</b> để tự khớp.</p>
-    <div id="admPending" style="margin-top:8px"><div class="empty">Không có yêu cầu chờ.</div></div>
+    <div class="chd"><h2>🟠 Link chờ xử lý</h2>
+      <div class="htog" data-for="admPendingBody"><button type="button" onclick="colSet('admPendingBody',false)">Hiện</button><button type="button" onclick="colSet('admPendingBody',true)">Ẩn</button></div></div>
+    <div id="admPendingBody" class="colbody">
+      <p class="sub">Mở link gốc → tạo link affiliate <b>thủ công</b> → dán vào đây → Hoàn tất. Nhớ gắn <b>Sub ID = mã AG</b> để tự khớp.</p>
+      <div id="admPending" style="margin-top:8px"><div class="empty">Không có yêu cầu chờ.</div></div>
+    </div>
   </div>
   <div class="card agrp hide" data-asec="link">
-    <h2>🟢 Link đã xử lý — gửi khách</h2>
-    <p class="sub"><b>💬 Zalo</b> mở chat gửi link · <b>✉️ SMS</b> · <b>📋 Copy</b>.</p>
-    <div id="admDone" style="margin-top:8px"><div class="empty">Chưa có link nào xử lý.</div></div>
+    <div class="chd"><h2>🟢 Link đã xử lý — gửi khách</h2>
+      <div class="htog" data-for="admDoneBody"><button type="button" onclick="colSet('admDoneBody',false)">Hiện</button><button type="button" onclick="colSet('admDoneBody',true)">Ẩn</button></div></div>
+    <div id="admDoneBody" class="colbody">
+      <p class="sub"><b>💬 Zalo</b> mở chat gửi link · <b>✉️ SMS</b> · <b>📋 Copy</b>.</p>
+      <div id="admDone" style="margin-top:8px"><div class="empty">Chưa có link nào xử lý.</div></div>
+    </div>
   </div>
 
   <div class="card agrp hide" data-asec="ds">
@@ -512,19 +599,27 @@ nav .ic{font-size:1.35rem}
       <input type="file" id="csvFile" accept=".csv,.xlsx,.xls,text/csv" style="padding:11px;font-size:.9rem" onchange="onCsvPick(event)">
     </div>
     <div id="csvPreview"></div>
-    <div id="admOrders" style="margin-top:10px"></div>
+    <div id="admOrdersWrap" class="hide" style="margin-top:12px">
+      <div class="chd"><div class="mh">📦 Đơn đã đối soát gần đây</div>
+        <div class="htog" data-for="admOrdersBody"><button type="button" onclick="colSet('admOrdersBody',false)">Hiện</button><button type="button" onclick="colSet('admOrdersBody',true)">Ẩn</button></div></div>
+      <div id="admOrdersBody" class="colbody"><div id="admOrders"></div></div>
+    </div>
   </div>
 
   <div class="card agrp hide" data-asec="rut">
-    <h2>💵 Duyệt rút tiền</h2>
-    <p class="sub">Bấm <b>💾 Lưu QR</b> → mở app ngân hàng → <b>Quét QR → Chọn ảnh từ thư viện</b> → chuyển → bấm <b>"Đã chuyển"</b> để trừ số dư.</p>
-    <div id="admWithdrawals" style="margin-top:8px"><div class="empty">Không có yêu cầu chờ.</div></div>
+    <div class="chd"><h2>💵 Duyệt rút tiền</h2>
+      <div class="htog" data-for="admWithdrawalsBody"><button type="button" onclick="colSet('admWithdrawalsBody',false)">Hiện</button><button type="button" onclick="colSet('admWithdrawalsBody',true)">Ẩn</button></div></div>
+    <div id="admWithdrawalsBody" class="colbody">
+      <p class="sub">Bấm <b>💾 Lưu QR</b> → mở app ngân hàng → <b>Quét QR → Chọn ảnh từ thư viện</b> → chuyển → bấm <b>"Đã chuyển"</b> để trừ số dư.</p>
+      <div id="admWithdrawals" style="margin-top:8px"><div class="empty">Không có yêu cầu chờ.</div></div>
+    </div>
   </div>
 
   <div class="card agrp hide" data-asec="crm">
-    <h2>👥 Khách hàng (CRM)</h2>
+    <div class="chd"><h2>👥 Khách hàng (CRM)</h2>
+      <div class="htog" data-for="crmBoxBody"><button type="button" onclick="colSet('crmBoxBody',false)">Hiện</button><button type="button" onclick="colSet('crmBoxBody',true)">Ẩn</button></div></div>
     <input type="text" id="crmSearch" placeholder="🔍 Tìm theo SĐT…" oninput="loadCRM()">
-    <div id="crmBox" style="margin-top:8px"><div class="empty">Đang tải…</div></div>
+    <div id="crmBoxBody" class="colbody"><div id="crmBox" style="margin-top:8px"><div class="empty">Đang tải…</div></div></div>
   </div>
 </section>
 
@@ -552,6 +647,19 @@ nav .ic{font-size:1.35rem}
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-h"><b>❌ Lý do từ chối rút tiền</b><button class="xbtn" onclick="closeReject()">✕</button></div>
     <div id="rejectList" class="sheet-b"></div>
+  </div>
+</div>
+
+<!-- BUỘC ĐỔI MẬT KHẨU (sau khi admin cấp mật khẩu tạm) — không đóng được -->
+<div id="forcePwOv" class="ov hide">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-h"><b>🔒 Đặt mật khẩu mới</b></div>
+    <div class="sheet-b">
+      <p class="sub" style="margin-bottom:6px">Bạn đang dùng <b>mật khẩu tạm</b>. Vì an toàn cho ví, hãy đặt <b>mật khẩu mới của riêng bạn</b> để tiếp tục.</p>
+      <label>Mật khẩu mới</label><input type="password" id="fpPass" placeholder="Ít nhất 6 ký tự">
+      <label>Xác nhận mật khẩu mới</label><input type="password" id="fpPass2" placeholder="Nhập lại">
+      <div class="row"><button class="btn-primary" id="fpBtn" onclick="doForcePw()">✅ Đặt mật khẩu & vào app</button></div>
+    </div>
   </div>
 </div>
 
@@ -583,8 +691,28 @@ var me=null, myProfile=null, curPlat='shopee', pendingRows=[], pendingRef='';
 
 /* ---------- tiện ích ---------- */
 var toastTimer;
-function toast(t){var e=document.getElementById('toast');e.textContent=t;e.classList.add('show');
-  clearTimeout(toastTimer);toastTimer=setTimeout(function(){e.classList.remove('show')},2400);}
+// toast xác nhận 2.6s — type 'ok'|'err' để hiện Icon + Màu + Chữ
+function toast(t,type){var e=document.getElementById('toast');e.textContent=t;
+  e.className='';if(type)e.classList.add(type);e.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(function(){e.classList.remove('show')},2600);}
+// nút đang xử lý: spinner + chữ, chặn bấm nhiều lần
+function btnBusy(btn,on,text){if(!btn)return;
+  if(on){if(btn.getAttribute('data-old')===null||btn.getAttribute('data-old')===undefined)btn.setAttribute('data-old',btn.innerHTML);
+    btn.classList.add('busy');btn.disabled=true;btn.innerHTML='<span class="spin"></span>'+(text||'Đang xử lý…');}
+  else{btn.classList.remove('busy');btn.disabled=false;var o=btn.getAttribute('data-old');
+    if(o!=null){btn.innerHTML=o;btn.removeAttribute('data-old');}}}
+// thu gọn / mở rộng ghi chú dài
+function toggleClamp(btn){var box=btn.parentNode;while(box&&!(box.classList&&box.classList.contains('clampbox')))box=box.parentNode;
+  if(!box)return;var col=box.classList.toggle('collapsed');btn.textContent=col?'Xem thêm ▾':'Thu gọn ▴';}
+/* ---- Hiện/Ẩn từng danh mục (lưu lựa chọn theo máy) ---- */
+function colHidden(key){try{return localStorage.getItem('agCol_'+key)==='1';}catch(e){return false;}}
+function colSet(key,hide){try{localStorage.setItem('agCol_'+key,hide?'1':'0');}catch(e){}colApply(key);}
+function colApply(key){
+  var body=document.getElementById(key);if(body)body.classList.toggle('hide',colHidden(key));
+  var tog=document.querySelector('.htog[data-for="'+key+'"]');
+  if(tog){var bs=tog.querySelectorAll('button');if(bs[0])bs[0].classList.toggle('on',!colHidden(key));if(bs[1])bs[1].classList.toggle('on',colHidden(key));}
+}
+function colApplyAll(){var ts=document.querySelectorAll('.htog[data-for]');for(var i=0;i<ts.length;i++)colApply(ts[i].getAttribute('data-for'));}
 function fmt(n){return (n==null?'0':Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.'))+'đ';}
 function num(s){return parseFloat((s||'').replace(/[^\d]/g,''))||0;}
 // đọc số từ báo cáo: tự nhận "." là NGHÌN (TikTok 141.000) hay THẬP PHÂN (Shopee 52434.9)
@@ -698,24 +826,65 @@ function setupZalo(){var q=document.getElementById('zaloQR');if(q)q.src='https:/
 
 /* ---------- auth ---------- */
 var authMode='login';
-function setAuthMode(m){authMode=m;
+function setAuthMode(m){authMode=m;hideForgot();
   document.getElementById('segLogin').classList.toggle('active',m==='login');
   document.getElementById('segReg').classList.toggle('active',m==='reg');
   document.getElementById('confirmBox').classList.toggle('hide',m!=='reg');
+  var fw=document.getElementById('forgotWrap');if(fw)fw.classList.toggle('hide',m!=='login');
   document.getElementById('authSubmit').textContent=m==='reg'?'Tạo tài khoản':'Đăng nhập';
-  document.getElementById('authHint').textContent=m==='reg'?'Nhập SĐT + mật khẩu + xác nhận rồi bấm Tạo tài khoản.':'Nhập SĐT + mật khẩu rồi bấm Đăng nhập.';}
+  document.getElementById('authHint').textContent=m==='reg'?'Mỗi SĐT chỉ đăng ký 1 tài khoản. Nhập SĐT + mật khẩu + xác nhận rồi bấm Tạo tài khoản.':'Nhập SĐT + mật khẩu rồi bấm Đăng nhập.';}
+// Quên mật khẩu — đặt lại AN TOÀN qua admin + Zalo (app giữ tiền, không tự reset bằng SĐT)
+function showForgot(){var lc=document.getElementById('loginCard'),fb=document.getElementById('forgotBox');
+  if(lc)lc.classList.add('hide');if(fb)fb.classList.remove('hide');
+  var fp=document.getElementById('forgotPhone'),ap=document.getElementById('authPhone');
+  if(fp&&ap&&ap.value)fp.value=ap.value;}
+function hideForgot(){var lc=document.getElementById('loginCard'),fb=document.getElementById('forgotBox');
+  if(fb)fb.classList.add('hide');if(lc)lc.classList.remove('hide');}
+function forgotViaZalo(){
+  var p=(document.getElementById('forgotPhone').value||'').replace(/\D/g,'');
+  if(!/^0\d{8,10}$/.test(p)){toast('Số điện thoại chưa đúng 😊','err');return;}
+  var msg='🔑 YÊU CẦU CẤP LẠI MẬT KHẨU\nSĐT đã đăng ký: '+p+'\nMình quên mật khẩu, nhờ đội hỗ trợ xác minh và cấp lại giúp. Cảm ơn ạ!';
+  copyText(msg,'📋 Đã copy — mở Zalo rồi DÁN gửi đội hỗ trợ');
+  setTimeout(function(){window.open(ZALO_LINK,'_blank');},350);
+}
+// Buộc đổi mật khẩu sau khi được cấp mật khẩu tạm (cờ user_metadata.force_pw)
+function showForcePw(){var o=document.getElementById('forcePwOv');if(o)o.classList.remove('hide');}
+async function doForcePw(){
+  var a=document.getElementById('fpPass').value,b=document.getElementById('fpPass2').value;
+  if(a.length<6){toast('Mật khẩu ít nhất 6 ký tự','err');return;}
+  if(a!==b){toast('Hai ô mật khẩu chưa giống nhau','err');return;}
+  var btn=document.getElementById('fpBtn');btnBusy(btn,true,'Đang lưu…');
+  var r=await sb.auth.updateUser({password:a,data:{force_pw:false}});
+  btnBusy(btn,false);
+  if(r.error){toast('Lỗi: '+r.error.message,'err');return;}
+  if(me&&me.user_metadata)me.user_metadata.force_pw=false;
+  try{var s=JSON.parse(localStorage.getItem('agLogin')||'null');if(s){s.w=a;localStorage.setItem('agLogin',JSON.stringify(s));}}catch(e){}
+  var o=document.getElementById('forcePwOv');if(o)o.classList.add('hide');
+  document.getElementById('fpPass').value='';document.getElementById('fpPass2').value='';
+  toast('✅ Đã đặt mật khẩu mới — chào mừng bạn!','ok');
+}
 function doAuth(){authMode==='reg'?doRegister():doLogin();}
 async function doRegister(){
   var p=document.getElementById('authPhone').value.trim(),pw=document.getElementById('authPass').value,pw2=document.getElementById('authPass2').value;
-  if(!/^0\d{8,10}$/.test(p)){toast('Số điện thoại chưa đúng 😊');return;}
-  if(pw.length<6){toast('Mật khẩu cần từ 6 ký tự');return;}
-  if(pw!==pw2){toast('Hai ô mật khẩu chưa giống nhau');return;}
+  if(!/^0\d{8,10}$/.test(p)){toast('Số điện thoại chưa đúng 😊','err');return;}
+  if(pw.length<6){toast('Mật khẩu cần từ 6 ký tự','err');return;}
+  if(pw!==pw2){toast('Hai ô mật khẩu chưa giống nhau','err');return;}
+  var btn=document.getElementById('authSubmit');btnBusy(btn,true,'Đang tạo…');
   var r=await sb.auth.signUp({email:phoneToEmail(p),password:pw,options:{data:{phone:p}}});
-  if(r.error){toast(/already/i.test(r.error.message)?'Số này đã có tài khoản — bấm Đăng nhập':'Có trục trặc, thử lại nhé');return;}
+  btnBusy(btn,false);
+  if(r.error){
+    if(/already|registered|exists/i.test(r.error.message)){
+      // MỖI SĐT CHỈ 1 TÀI KHOẢN — chuyển sang đăng nhập + gợi ý quên mật khẩu
+      toast('📱 Số này đã có tài khoản rồi','err');
+      setAuthMode('login');
+      var ap=document.getElementById('authPhone');if(ap)ap.value=p;
+      var hint=document.getElementById('authHint');if(hint)hint.innerHTML='Mỗi SĐT chỉ 1 tài khoản. Hãy <b>Đăng nhập</b>, hoặc bấm <b>🔑 Quên mật khẩu?</b> nếu bạn quên.';
+    } else toast('Có trục trặc, thử lại nhé','err');
+    return;}
   saveLogin(p,pw);
   var ref=(document.getElementById('authRef').value||pendingRef||'').trim();
   if(ref){try{await sb.rpc('ag_set_referrer',{p_code:ref});}catch(e){}}
-  toast('🎉 Tạo tài khoản thành công!');init();
+  toast('🎉 Tạo tài khoản thành công!','ok');init();
 }
 function copyRef(){if(!myProfile||!myProfile.ref_code){toast('Đang tải…');return;}
   copyText(location.origin+'/?ref='+myProfile.ref_code,'📋 Đã copy link mời bạn');}
@@ -745,9 +914,11 @@ async function loadPromo(){
   }catch(e){}}
 async function doLogin(){
   var p=document.getElementById('authPhone').value.trim(),pw=document.getElementById('authPass').value;
+  var btn=document.getElementById('authSubmit');btnBusy(btn,true,'Đang đăng nhập…');
   var r=await sb.auth.signInWithPassword({email:phoneToEmail(p),password:pw});
-  if(r.error){toast('SĐT hoặc mật khẩu chưa đúng 😊');return;}
-  saveLogin(p,pw);toast('👋 Chào mừng quay lại!');init();
+  btnBusy(btn,false);
+  if(r.error){toast('SĐT hoặc mật khẩu chưa đúng 😊','err');return;}
+  saveLogin(p,pw);toast('👋 Chào mừng quay lại!','ok');init();
 }
 async function logout(){await sb.auth.signOut();location.reload();}
 function saveLogin(p,w){try{var cb=document.getElementById('remember');
@@ -755,9 +926,9 @@ function saveLogin(p,w){try{var cb=document.getElementById('remember');
 function prefillLogin(){try{var s=JSON.parse(localStorage.getItem('agLogin')||'null');if(s){
   document.getElementById('authPhone').value=s.p||'';document.getElementById('authPass').value=s.w||'';}}catch(e){}}
 async function changePassword(){var a=document.getElementById('npPass').value,b=document.getElementById('npPass2').value;
-  if(a.length<6){toast('Mật khẩu ít nhất 6 ký tự');return;}if(a!==b){toast('Xác nhận không khớp');return;}
-  var r=await sb.auth.updateUser({password:a});if(r.error){toast('Lỗi: '+r.error.message);return;}
-  document.getElementById('npPass').value='';document.getElementById('npPass2').value='';toast('✓ Đổi mật khẩu thành công');}
+  if(a.length<6){toast('Mật khẩu ít nhất 6 ký tự','err');return;}if(a!==b){toast('Xác nhận không khớp','err');return;}
+  var r=await sb.auth.updateUser({password:a});if(r.error){toast('Lỗi: '+r.error.message,'err');return;}
+  document.getElementById('npPass').value='';document.getElementById('npPass2').value='';toast('✓ Đổi mật khẩu thành công','ok');}
 
 /* ---------- khởi động ---------- */
 async function init(){
@@ -767,6 +938,8 @@ async function init(){
   me=s.data.session.user;
   document.getElementById('viewAuth').classList.add('hide');
   document.getElementById('viewApp').classList.remove('hide');
+  // Được cấp mật khẩu tạm -> BẮT đổi mật khẩu mới trước khi dùng app
+  if(me.user_metadata&&me.user_metadata.force_pw)showForcePw();
   fillBanks();
   await loadProfile();
   loadRequests();loadWithdrawals();loadLedger();prefillBank();loadReferral();loadPromo();setupZalo();
@@ -779,6 +952,9 @@ async function init(){
     var b=document.getElementById(id);if(b)b.classList.toggle('hide',admin);});
   var wb=document.getElementById('walletBell');if(wb)wb.classList.toggle('hide',admin);
   if(admin){showTab('tabAdmin');loadAdmin();refreshPushBtn();}
+  else{refreshNotifToggle();ensureCustomerPush();maybeFirstRunPush();
+    if(/[?&](go|open)=/.test(location.search))routeGo(location.search);}
+  colApplyAll();
 }
 async function loadProfile(){
   var r=await sb.from('profiles').select('*').eq('id',me.id).single();
@@ -802,9 +978,10 @@ function showTab(id){
   var tabs=['tabHome','tabRequests','tabGuide','tabWallet','tabAdmin'];
   for(var i=0;i<tabs.length;i++){document.getElementById(tabs[i]).classList.toggle('hide',tabs[i]!==id);
     var nb=document.getElementById('nav-'+tabs[i]);if(nb)nb.classList.toggle('active',tabs[i]===id);}
-  if(id==='tabWallet'){loadProfile();loadLedger();loadWithdrawals();}
+  if(id==='tabWallet'){loadProfile();loadLedger();loadWithdrawals();refreshNotifToggle();}
   if(id==='tabRequests')loadRequests();
   if(id==='tabAdmin')loadAdmin();
+  colApplyAll();
   window.scrollTo(0,0);
 }
 
@@ -818,18 +995,20 @@ async function submitRequest(){
   if(raw.indexOf('http')!==0)raw='https://'+raw;
   var detected=null;for(var k in PLATFORMS)if(PLATFORMS[k].match.test(raw))detected=k;
   // CHẶN LINK SAI ngay tại app — chỉ gửi link Shopee/TikTok, khỏi phiền admin check lại
-  if(!detected){setSrcMsg('err','⚠️ Link này không phải Shopee/TikTok. Mở app Shopee/TikTok → Chia sẻ → Sao chép liên kết rồi dán lại nha.');toast('Link chưa đúng — kiểm tra lại nhé 😊');return;}
+  if(!detected){setSrcMsg('err','⚠️ Link này không phải Shopee/TikTok. Mở app Shopee/TikTok → Chia sẻ → Sao chép liên kết rồi dán lại nha.');toast('Link chưa đúng — kiểm tra lại nhé 😊','err');return;}
   var plat=detected;
   setSrcMsg('','');
-  busy=true;var btn=document.getElementById('btnSubmit');btn.disabled=true;btn.textContent='Đang gửi…';
+  busy=true;var btn=document.getElementById('btnSubmit');btnBusy(btn,true,'Đang gửi…');
   var r=await sb.from('ag_requests').insert({platform:plat,original_url:raw,user_id:me.id}).select('code').single();
-  btn.disabled=false;btn.textContent='🚀 Gửi yêu cầu';busy=false;
-  if(r.error){toast('Lỗi: '+r.error.message);return;}
+  btnBusy(btn,false);busy=false;
+  if(r.error){toast('Lỗi: '+r.error.message,'err');return;}
   document.getElementById('newCode').textContent=r.data.code;
   document.getElementById('submitResult').classList.remove('hide');
   document.getElementById('srcLink').value='';setSrcMsg('','');
-  toast('✅ Đã gửi yêu cầu '+r.data.code);
-  loadRequests();
+  toast('✅ Đã gửi yêu cầu '+r.data.code+'!','ok');
+  await loadRequests();
+  // cho khách thấy trạng thái ngay: chuyển sang tab Yêu cầu & cuộn lên đầu
+  setTimeout(function(){showTab('tabRequests');var rl=document.getElementById('reqList');if(rl&&rl.scrollIntoView)rl.scrollIntoView({behavior:'smooth',block:'start'});},700);
   // báo admin (không chặn UI)
   try{var s=await sb.auth.getSession();var tok=s.data.session?s.data.session.access_token:'';
     fetch('/api/notify-admin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
@@ -859,7 +1038,7 @@ function buildNotifs(){
   var out=[];
   (lastReqRows||[]).forEach(function(r){
     if(r.status==='completed'&&r.aff_url)out.push({ts:r.processed_at||r.created_at,type:'ready',ic:'🎉',
-      t1:'Link '+r.code+' đã sẵn sàng',t2:'Bấm để lấy link gửi khách',go:'req'});
+      t1:'Link '+r.code+' đã sẵn sàng',t2:'Bấm để mở sản phẩm mua ngay',go:'req',code:r.code});
     else if(r.status==='rejected')out.push({ts:r.processed_at||r.created_at,type:'rej',ic:'⚠️',
       t1:'Yêu cầu '+r.code+' bị từ chối',t2:r.note||'Bấm xem chi tiết',go:'req'});
   });
@@ -892,7 +1071,8 @@ function openNotifs(){
   var items=buildNotifs(),readAt=notifReadAt(),box=document.getElementById('notifList');
   if(!items.length)box.innerHTML='<div class="empty">Chưa có thông báo nào 🔔</div>';
   else{var h='';items.forEach(function(i){var un=new Date(i.ts).getTime()>readAt;
-    h+='<div class="nitem'+(un?' unread':'')+'" onclick="notifGo(\''+i.go+'\')">'
+    var oc=(i.type==='ready'&&i.code)?'notifOpenReady(\''+i.code+'\')':'notifGo(\''+i.go+'\')';
+    h+='<div class="nitem'+(un?' unread':'')+'" onclick="'+oc+'">'
       +'<div class="nic">'+i.ic+'</div><div class="ntx"><div class="nt1">'+esc(i.t1)+'</div>'
       +'<div class="nt2">'+esc(i.t2)+' · '+esc(relTime(i.ts))+'</div></div>'
       +(un?'<div class="ndot"></div>':'')+'</div>';});
@@ -904,6 +1084,7 @@ function openNotifs(){
 }
 function closeNotifs(){var o=document.getElementById('notifOv');if(o)o.classList.add('hide');}
 function notifGo(where){closeNotifs();showTab(where==='wallet'?'tabWallet':'tabRequests');}
+function notifOpenReady(code){closeNotifs();focusReadyRequest(code);}
 // realtime: khi admin bấm "Hoàn tất", khách đang mở app nhận ngay
 var rtChannel=null;
 async function subscribeRealtime(){
@@ -928,20 +1109,48 @@ function renderReqStats(rows){
   function t(v,l,cls){return '<div class="stat'+(cls?' '+cls:'')+'"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';}
   el.innerHTML=t(total,'Link đã gửi')+t(pend,'Đang xử lý','hl')+t(done,'Đã xong','ok')+t(fmt(hh),'Hoa hồng','ok');
 }
-function reqBadge(st){return st==='completed'?'<span class="badge b-ok">✓ Xong</span>'
-  :st==='rejected'?'<span class="badge b-rej">Từ chối</span>':'<span class="badge b-pending">Đang xử lý</span>';}
+function reqBadge(st){return st==='completed'?'<span class="badge b-ok">✅ Xong</span>'
+  :st==='rejected'?'<span class="badge b-rej">⛔ Từ chối</span>':'<span class="badge b-pending">⏳ Đang xử lý</span>';}
 function reqItemHTML(it){
   var plat=PLATFORMS[it.platform]?PLATFORMS[it.platform].label:it.platform;
-  return '<div class="item" style="flex-direction:column;align-items:stretch">'
+  var enc=encodeURIComponent(it.aff_url||'');
+  return '<div class="item" id="req-'+esc(it.code)+'" style="flex-direction:column;align-items:stretch">'
     +'<div style="display:flex;gap:10px;align-items:center">'
     +'<div class="main"><div class="t1">'+esc(it.code)+' · '+esc(plat)+'</div>'
     +'<div class="t2">'+esc((it.original_url||'').slice(0,44))+'… · '+fmtDT(it.created_at)+'</div></div>'
     +reqBadge(it.status)
-    +(it.status==='completed'&&it.aff_url?'<a class="sbtn" href="'+esc(it.aff_url)+'" onclick="return openProduct(decodeURIComponent(\''+encodeURIComponent(it.aff_url)+'\'))" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px">📲 Mở</a>':'')
     +'</div>'
-    +(it.status==='completed'&&it.aff_url?'<a class="linkbox linkopen" href="'+esc(it.aff_url)+'" onclick="return openProduct(decodeURIComponent(\''+encodeURIComponent(it.aff_url)+'\'))" style="margin-top:8px"><b>Link hoa hồng — mở để mua &amp; nhận hoàn tiền</b>'+esc(it.aff_url)+'<span class="go">👉 Bấm để mở sản phẩm trong app</span></a>':'')
+    // ĐÃ XONG: nút TO "Mở sản phẩm để mua ngay" (bấm 1 lần mở app Shopee/TikTok) + ô link để tham khảo
+    +(it.status==='completed'&&it.aff_url?
+       '<a class="btn-primary" href="'+esc(it.aff_url)+'" onclick="return openProduct(decodeURIComponent(\''+enc+'\'))" style="display:flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;color:#fff;margin-top:10px">🛒 Mở sản phẩm để mua ngay</a>'
+       +'<a class="linkbox linkopen" href="'+esc(it.aff_url)+'" onclick="return openProduct(decodeURIComponent(\''+enc+'\'))" style="margin-top:8px"><b>Link hoa hồng — mở để mua &amp; nhận hoàn tiền</b>'+esc(it.aff_url)+'<span class="go">👉 Bấm để mở sản phẩm trong app</span></a>':'')
     +(it.status==='rejected'?'<div style="background:var(--warn-soft);color:var(--warn);border-radius:11px;padding:11px 13px;margin-top:8px;font-size:.86rem;line-height:1.5">💡 '+esc(it.note||'Yêu cầu chưa được duyệt. Bạn thử gửi link khác nhé!')+'<div class="row" style="margin-top:8px"><button class="btn-ghost" style="font-size:.86rem" onclick="goSubmit()">🔄 Gửi link khác</button></div></div>':'')
     +'</div>';
+}
+// Mở đúng yêu cầu vừa "sẵn sàng" từ thông báo: sang tab Yêu cầu, bung danh sách,
+// cuộn tới & làm nổi bật ô link để khách bấm mở sản phẩm ngay.
+function focusReadyRequest(code){
+  if(!code)return;
+  showTab('tabRequests');
+  var tries=0;
+  (function attempt(){
+    var el=document.getElementById('req-'+code);
+    if(!el){ if(tries++<25){setTimeout(attempt,150);} return; }
+    var more=document.getElementById('reqMore');
+    if(more&&more.contains(el)&&more.classList.contains('hide')){toggleReqMore();}
+    setTimeout(function(){
+      el.scrollIntoView({behavior:'smooth',block:'center'});
+      el.classList.add('flash');
+      var lb=el.querySelector('.linkopen');if(lb)lb.classList.add('pop');
+      setTimeout(function(){el.classList.remove('flash');if(lb)lb.classList.remove('pop');},2600);
+    },120);
+  })();
+}
+// Mở yêu cầu "sẵn sàng" mới nhất (dùng cho banner 🎉 trên Trang chủ)
+function focusLatestReady(){
+  var r=(lastReqRows||[]).filter(function(x){return x.status==='completed'&&x.aff_url;})
+    .sort(function(a,b){return new Date(b.processed_at||b.created_at)-new Date(a.processed_at||a.created_at);})[0];
+  if(r)focusReadyRequest(r.code);else showTab('tabRequests');
 }
 function renderReq(box,rows){var el=document.getElementById(box);
   if(!rows||!rows.length){el.innerHTML='<div class="empty">Chưa có yêu cầu nào 🚀</div>';return;}
@@ -978,37 +1187,44 @@ function pasteClaimGlobal(){
     }).catch(function(){toast('Bấm giữ vào ô rồi Dán, sau đó bấm Ghi nhận');el.focus();});
   }else{toast('Bấm giữ vào ô rồi Dán, sau đó bấm Ghi nhận');el.focus();}
 }
+var claimBusy=false;
 async function claimOrderGlobal(){
+  if(claimBusy)return;
   var el=document.getElementById('claimGlobal');var raw=(el&&el.value||'').trim();
-  if(!raw){setGMsg('warn','😊 Dán mã đơn hoặc tin xác nhận đơn vào đã nhé.');return;}
+  if(!raw){setGMsg('warn','😊 Dán mã đơn hoặc tin xác nhận đơn vào đã nhé.');toast('Chưa có mã đơn 😊','err');return;}
   var code=extractOrderId(raw);
-  if(!code){setGMsg('warn','😅 Chưa thấy mã đơn trong nội dung — dán lại mã đơn hoặc tin xác nhận đơn giúp mình.');return;}
+  if(!code){setGMsg('warn','😅 Chưa thấy mã đơn trong nội dung — dán lại mã đơn hoặc tin xác nhận đơn giúp mình.');toast('Chưa thấy mã đơn 😅','err');return;}
   var mine=myClaims.filter(function(c){return String(c.order_id).toUpperCase()===code;})[0];
   if(mine){if(el)el.value='';
     setGMsg('warn','⚠️ Mã đơn '+code+' bạn đã ghi nhận rồi'+(mine.matched?' và đã được cộng hoa hồng ✓':' — đang chờ đối soát ⏳')+'. Mỗi mã chỉ ghi 1 lần.');
     return;}
+  claimBusy=true;var btn=document.getElementById('claimBtn');btnBusy(btn,true,'Đang ghi nhận…');
   var r=await sb.rpc('ag_claim_order',{p_order_id:code});   // không cần request_id — khớp theo mã đơn về đúng khách
+  btnBusy(btn,false);claimBusy=false;
   if(r.error){var m=r.error.message||'',mn=noAccent(m).toLowerCase();
     if(/tai khoan khac|khach khac|thuoc ve khach|da duoc|duplicate|unique|ma ag/.test(mn))
       setGMsg('err','🚫 Mã đơn '+code+' đã được người khác/mã AG khác ghi nhận trước. Nếu đúng là đơn của bạn, nhắn Zalo để kiểm tra.');
     else if(/qua nhieu|too many|gioi han|\blimit\b/.test(mn))
       setGMsg('err','🚦 Bạn đang ghi nhận quá nhiều mã đơn chưa khớp. Chờ đối soát rồi thử lại — chỉ nhập mã đơn thật của bạn nhé.');
     else setGMsg('err','Lỗi: '+m);
+    toast('Chưa ghi nhận được 😔','err');
     return;}
   if(el)el.value='';
   setGMsg('ok','✅ Đã ghi nhận mã đơn '+code+'! Hoa hồng sẽ tự cộng khi đối soát xong.');
-  toast('✅ Đã ghi nhận mã đơn '+code+'!');
+  toast('✅ Đã ghi nhận mã đơn '+code+'!','ok');
   loadRequests();loadProfile();
 }
 function renderMyClaims(){
-  var box=document.getElementById('myClaimsList');if(!box)return;
-  if(!myClaims.length){box.innerHTML='';return;}
-  var h='<div style="font-size:.78rem;font-weight:800;color:var(--muted);margin:12px 0 4px">ĐƠN ĐÃ GHI NHẬN</div>';
+  var box=document.getElementById('myClaimsList'),wrap=document.getElementById('myClaimsWrap');if(!box)return;
+  if(!myClaims.length){if(wrap)wrap.classList.add('hide');box.innerHTML='';return;}
+  if(wrap)wrap.classList.remove('hide');
+  var h='';
   for(var i=0;i<Math.min(myClaims.length,30);i++){var c=myClaims[i];
-    h+='<div class="t2" style="padding:5px 2px;display:flex;justify-content:space-between;gap:8px">'
+    h+='<div class="t2" style="padding:6px 2px;display:flex;justify-content:space-between;gap:8px">'
       +'<span>🧾 '+esc(c.order_id)+'</span>'
       +(c.matched?'<b style="color:var(--ok)">đã cộng ✓</b>':'<span style="color:var(--warn)">⏳ chờ đối soát</span>')+'</div>';}
   box.innerHTML=h;
+  colApply('myClaimsBody');
 }
 
 /* ---------- VÍ / RÚT ---------- */
@@ -1022,32 +1238,33 @@ async function createWithdrawal(){
   if(wdBusy)return;
   var a=num(document.getElementById('wdAmount').value),code=document.getElementById('wdBank').value;
   var acc=document.getElementById('wdAcc').value.trim(),name=document.getElementById('wdName').value.trim();
-  if(a<20000){toast('Rút tối thiểu 20.000đ 😊');return;}
-  if(!/^\d{6,19}$/.test(acc)){toast('Kiểm tra lại số tài khoản');return;}
-  if(!name){toast('Nhập tên chủ tài khoản');return;}
-  if(myProfile&&a>myProfile.balance){toast('Số dư khả dụng chưa đủ 💪');return;}
-  wdBusy=true;
+  if(a<20000){toast('Rút tối thiểu 20.000đ 😊','err');return;}
+  if(!/^\d{6,19}$/.test(acc)){toast('Kiểm tra lại số tài khoản','err');return;}
+  if(!name){toast('Nhập tên chủ tài khoản','err');return;}
+  if(myProfile&&a>myProfile.balance){toast('Số dư khả dụng chưa đủ 💪','err');return;}
+  wdBusy=true;var btn=document.getElementById('wdBtn');btnBusy(btn,true,'Đang gửi…');
   var info=bankName(code)+' — '+acc+' — '+noAccent(name).toUpperCase();
   var r=await sb.from('withdrawals').insert({user_id:me.id,amount:a,bank_code:code,account_no:acc,account_name:noAccent(name).toUpperCase(),bank_info:info});
-  wdBusy=false;
-  if(r.error){toast('Lỗi: '+r.error.message);return;}
+  btnBusy(btn,false);wdBusy=false;
+  if(r.error){toast('Lỗi: '+r.error.message,'err');return;}
   try{var s=await sb.auth.getSession();var tok=s.data.session?s.data.session.access_token:'';
     fetch('/api/notify-admin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
       body:JSON.stringify({kind:'withdraw',phone:myProfile&&myProfile.phone,amount:a})}).catch(function(){});}catch(e){}
-  toast('✅ Đã nhận yêu cầu rút!');document.getElementById('wdAmount').value='';loadWithdrawals();
+  toast('✅ Đã nhận yêu cầu rút!','ok');document.getElementById('wdAmount').value='';loadWithdrawals();
 }
 async function loadWithdrawals(){var r=await sb.from('withdrawals').select('*').eq('user_id',me.id).order('created_at',{ascending:false}).limit(15);
-  var box=document.getElementById('wdList'),rows=r.data||[];lastWithdrawals=rows;refreshNotif();
-  if(!rows.length){box.innerHTML='';return;}
-  var h='<div style="font-weight:800;font-size:.9rem;margin:6px 0 2px">Lịch sử rút tiền</div>';for(var i=0;i<rows.length;i++){var it=rows[i];
-    var bd=it.status==='approved'?'<span class="badge b-ok">✓ Đã chuyển</span>':it.status==='rejected'?'<span class="badge b-rej">Từ chối</span>':'<span class="badge b-pending">Đang xử lý</span>';
+  var box=document.getElementById('wdList'),wrap=document.getElementById('wdWrap'),rows=r.data||[];lastWithdrawals=rows;refreshNotif();
+  if(!rows.length){if(wrap)wrap.classList.add('hide');box.innerHTML='';return;}
+  if(wrap)wrap.classList.remove('hide');
+  var h='';for(var i=0;i<rows.length;i++){var it=rows[i];
+    var bd=it.status==='approved'?'<span class="badge b-ok">✅ Đã chuyển</span>':it.status==='rejected'?'<span class="badge b-rej">⛔ Từ chối</span>':'<span class="badge b-pending">⏳ Đang xử lý</span>';
     h+='<div class="item" style="align-items:flex-start"><div class="main"><div class="t1">💸 Rút '+fmt(it.amount)+'</div>'
       +'<div class="t2" style="font-variant-numeric:tabular-nums">🕒 '+fmtDTS(it.created_at)+'</div>'
       +(it.bank_info?'<div class="t2">🏦 '+esc(it.bank_info)+'</div>':'')
       +(it.status==='approved'&&it.paid_at?'<div class="t2" style="color:var(--ok)">✅ Đã chuyển: '+fmtDTS(it.paid_at)+'</div>':'')
       +(it.status==='rejected'?'<div style="background:#FCE8EA;color:var(--danger);border-radius:10px;padding:9px 11px;margin-top:6px;font-size:.84rem;line-height:1.45">❌ <b>Lý do:</b> '+esc(it.note||'Chưa đủ điều kiện — vui lòng liên hệ Zalo hỗ trợ.')+'</div>':'')
       +'</div>'+bd+'</div>';}
-  box.innerHTML=h;}
+  box.innerHTML=h;colApply('wdBody');}
 var LEDGER_LABEL={cashback:'💵 Hoa hồng đơn hàng',reverse:'↩️ Thu hồi (đơn hủy/hoàn)',withdraw:'💸 Rút tiền',
   welcome:'🎁 Thưởng chào mừng',referral:'🤝 Thưởng giới thiệu'};
 async function loadLedger(){
@@ -1073,6 +1290,12 @@ async function loadLedger(){
   box.innerHTML=h;}
 
 /* ---------- ADMIN ---------- */
+// đẩy thông báo (web push) tới khách sau khi admin xử lý — không chặn UI
+async function notifyUser(payload){
+  try{var s=await sb.auth.getSession();var tok=s.data.session?s.data.session.access_token:'';
+    fetch('/api/notify-user',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+      body:JSON.stringify(payload)}).catch(function(){});}catch(e){}
+}
 function showAdmSec(sec){
   var g=document.querySelectorAll('#tabAdmin .agrp');
   for(var i=0;i<g.length;i++)g[i].classList.toggle('hide',g[i].getAttribute('data-asec')!==sec);
@@ -1188,7 +1411,7 @@ function renderAdmDone(rows){var box=document.getElementById('admDone');
     h+='<div class="item" style="flex-direction:column;align-items:stretch">'
       +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:center">'
         +'<div class="main"><div class="t1">'+esc(it.code)+' · '+esc(plat)+' · '+esc(phone)+'</div>'
-        +'<div class="t2">'+fmtDT(it.processed_at||it.created_at)+'</div></div><span class="badge b-ok">✓ Xong</span></div>'
+        +'<div class="t2">'+fmtDT(it.processed_at||it.created_at)+'</div></div><span class="badge b-ok">✅ Xong</span></div>'
       +'<div class="linkbox" style="margin-top:8px"><b>Link affiliate</b>'+esc(it.aff_url||'')+'</div>'
       +'<div class="row" style="margin-top:8px">'
         +'<button class="btn-ok" onclick="zaloMsg(\''+phone+'\',decodeURIComponent(\''+em+'\'))">💬 Zalo + copy tin nhắn</button>'
@@ -1210,12 +1433,37 @@ async function loadCRM(){var box=document.getElementById('crmBox');if(!box)retur
   var q=(document.getElementById('crmSearch')||{}).value||'';
   try{var r=await sb.rpc('admin_customers',{p_q:q});if(r.error){box.innerHTML='<div class="empty">'+esc(r.error.message)+'</div>';return;}
     var rows=r.data||[];if(!rows.length){box.innerHTML='<div class="empty">Không có khách phù hợp.</div>';return;}
-    var h='';for(var i=0;i<rows.length;i++){var it=rows[i];
-      h+='<div class="item" style="align-items:flex-start"><div class="main"><div class="t1">'+esc(it.phone||'—')+' · <span style="color:var(--muted)">'+esc(it.ref_code||'')+'</span></div>'
+    var h='';for(var i=0;i<rows.length;i++){var it=rows[i];var ph=esc(it.phone||'');
+      h+='<div class="item" style="flex-direction:column;align-items:stretch">'
+        +'<div style="display:flex;gap:10px;align-items:flex-start"><div class="main"><div class="t1">'+esc(it.phone||'—')+' · <span style="color:var(--muted)">'+esc(it.ref_code||'')+'</span></div>'
         +'<div class="t2">💰 Dư '+fmt(it.balance)+' · Chờ '+fmt(it.ag_pending)+' · Tổng '+fmt(it.ag_total)+'</div>'
-        +'<div class="t2">'+it.reqs+' yêu cầu · '+it.refs+' giới thiệu · '+fmtDT(it.created_at)+'</div></div></div>';}
-    box.innerHTML=h;
+        +'<div class="t2">'+it.reqs+' yêu cầu · '+it.refs+' giới thiệu · '+fmtDT(it.created_at)+'</div></div></div>'
+        +'<div class="row" style="margin-top:8px"><button class="btn-line" style="flex:0 0 auto;color:var(--accent)" onclick="adminResetPw(\''+ph+'\')">🔑 Cấp lại mật khẩu</button></div>'
+        +'</div>';}
+    box.innerHTML=h;colApply('crmBoxBody');
   }catch(e){box.innerHTML='<div class="empty">Không tải được.</div>';}}
+// ADMIN: cấp lại mật khẩu cho khách sau khi ĐÃ xác minh Zalo trùng SĐT. Đặt MK tạm + buộc đổi.
+async function adminResetPw(phone){
+  phone=(phone||'').replace(/\D/g,'');
+  if(!/^0\d{8,10}$/.test(phone)){toast('SĐT không hợp lệ','err');return;}
+  if(!confirm('⚠️ XÁC MINH TRƯỚC KHI CẤP LẠI\n\nBạn đã kết bạn Zalo và số Zalo TRÙNG với SĐT '+phone+' chưa?\n\nChỉ bấm OK khi chắc chắn đây là chủ tài khoản — vì thao tác này cấp quyền vào ví của họ.')) return;
+  // Xác minh phụ (tuỳ chọn) — chắc hơn cho khách đã từng rút tiền
+  var acc=prompt('🔒 (Tuỳ chọn — chắc hơn) Nhờ khách đọc qua Zalo SỐ TÀI KHOẢN ngân hàng đã rút gần nhất, rồi nhập vào đây để đối chiếu.\n\nĐể TRỐNG nếu khách chưa từng rút (chỉ xác minh bằng Zalo).');
+  if(acc===null) return;   // admin bấm Huỷ
+  acc=(acc||'').replace(/\s/g,'');
+  var temp='Ag'+Math.floor(100000+Math.random()*900000);
+  try{
+    var s=await sb.auth.getSession();var tok=s.data.session?s.data.session.access_token:'';
+    var res=await fetch('/api/reset-password',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+      body:JSON.stringify({phone:phone,password:temp,acc:acc})});
+    var j=await res.json();
+    if(!res.ok||j.error){toast('Lỗi: '+(j.error||res.status),'err');return;}
+    var msg='🔑 CẤP LẠI MẬT KHẨU — AntiGravity\nSĐT: '+phone+'\nMật khẩu tạm: '+temp+'\n\n👉 Bạn đăng nhập bằng mật khẩu tạm này, app sẽ yêu cầu ĐẶT MẬT KHẨU MỚI ngay. Không chia sẻ mật khẩu cho ai nhé!';
+    copyText(msg,'📋 Đã copy MK tạm + tin nhắn — gửi Zalo cho khách');
+    toast('✅ Đã cấp MK tạm: '+temp,'ok');
+    if(confirm('✅ Đã cấp mật khẩu tạm: '+temp+'\n\n(Đã copy sẵn tin nhắn) Mở Zalo của khách để gửi luôn?')) zaloTo(phone);
+  }catch(e){toast('Lỗi mạng: '+e.message,'err');}
+}
 function renderAdmPending(rows){var box=document.getElementById('admPending');
   if(!rows.length){box.innerHTML='<div class="empty">Không có yêu cầu chờ 🎉</div>';return;}
   var h='';for(var i=0;i<rows.length;i++){var it=rows[i];var phone=(it.profiles&&it.profiles.phone)||'';
@@ -1224,7 +1472,7 @@ function renderAdmPending(rows){var box=document.getElementById('admPending');
       +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:center">'
         +'<div class="main"><div class="t1">'+esc(it.code)+' · '+esc(plat)+'</div>'
         +'<div class="t2">'+esc(phone)+' · '+fmtDT(it.created_at)+'</div></div>'
-        +'<span class="badge b-pending">Chờ</span></div>'
+        +'<span class="badge b-pending">⏳ Chờ</span></div>'
       +'<div class="row" style="margin-top:8px">'
         +'<button class="btn-line" onclick="window.open(decodeURIComponent(\''+encodeURIComponent(it.original_url)+'\'),\'_blank\')">🔗 Mở link gốc</button>'
         +'<button class="sbtn" onclick="copyText(\''+it.code+'\',\'Copy mã Sub ID: '+it.code+'\')">Copy Sub ID</button></div>'
@@ -1237,15 +1485,18 @@ function renderAdmPending(rows){var box=document.getElementById('admPending');
       +'</div>';}
   box.innerHTML=h;}
 async function completeReq(id){var v=(document.getElementById('aff'+id).value||'').trim();
-  if(!v){toast('Dán link affiliate vào đã nhé');return;}
+  if(!v){toast('Dán link affiliate vào đã nhé','err');return;}
   var r=await sb.rpc('ag_complete_request',{p_id:id,p_aff_url:v});
-  if(r.error){toast('Lỗi: '+r.error.message);return;}
+  if(r.error){toast('Lỗi: '+r.error.message,'err');return;}
   var row=r.data;
+  notifyUser({kind:'ready',request_id:id,code:(row&&row.code)||''});   // 🔔 báo khách link đã sẵn sàng
   if(row&&row.code)copyText(custMsg(row.code,v),'✓ Xong! Đã copy tin nhắn — kéo xuống "Link đã xử lý" bấm 💬 Zalo');
-  else toast('✓ Đã hoàn tất');
+  else toast('✓ Đã hoàn tất','ok');
   loadAdmin();}
 async function rejectReq(id){var note=prompt('Lý do từ chối (khách sẽ thấy):','Link không hợp lệ');if(note===null)return;
-  var r=await sb.rpc('ag_reject_request',{p_id:id,p_note:note});if(r.error){toast('Lỗi: '+r.error.message);return;}toast('Đã từ chối');loadAdmin();}
+  var r=await sb.rpc('ag_reject_request',{p_id:id,p_note:note});if(r.error){toast('Lỗi: '+r.error.message,'err');return;}
+  notifyUser({kind:'rejected',request_id:id,note:note});   // 🔔 báo khách
+  toast('Đã từ chối','ok');loadAdmin();}
 // SP không đủ điều kiện hoa hồng -> báo khách thân thiện, GỢI Ý RIÊNG theo từng sàn
 function noCommMsg(platform){
   var tip = platform==='tiktok'
@@ -1254,8 +1505,11 @@ function noCommMsg(platform){
   return 'Sản phẩm này chưa hỗ trợ hoàn tiền 😔 ('+tip+'). Bạn thử chọn sản phẩm/shop tương tự có hoàn tiền, hoặc gửi link khác nhé — mình luôn sẵn sàng hỗ trợ! 💚';
 }
 async function rejectNoComm(id,platform){
-  var r=await sb.rpc('ag_reject_request',{p_id:id,p_note:noCommMsg(platform)});
-  if(r.error){toast('Lỗi: '+r.error.message);return;}toast('✓ Đã báo khách: sản phẩm không có hoa hồng');loadAdmin();}
+  var note=noCommMsg(platform);
+  var r=await sb.rpc('ag_reject_request',{p_id:id,p_note:note});
+  if(r.error){toast('Lỗi: '+r.error.message,'err');return;}
+  notifyUser({kind:'rejected',request_id:id,note:note});   // 🔔 báo khách
+  toast('✓ Đã báo khách: sản phẩm không có hoa hồng','ok');loadAdmin();}
 function goSubmit(){showTab('tabHome');var el=document.getElementById('srcLink');if(el)el.focus();}
 
 function renderAdmWithdrawals(rows){var box=document.getElementById('admWithdrawals');
@@ -1305,7 +1559,9 @@ function saveQR(bank, acc, amount, nameEnc, phone){
 }
 function toggleQR(id){var e=document.getElementById('qr'+id);if(e)e.classList.toggle('hide');}
 async function admApprove(rpc,param,id){var a={};a[param]=id;var r=await sb.rpc(rpc,a);
-  if(r.error){toast('Lỗi: '+r.error.message);return;}toast('✓ Đã duyệt');loadAdmin();loadProfile();}
+  if(r.error){toast('Lỗi: '+r.error.message,'err');return;}
+  if(rpc==='approve_withdrawal')notifyUser({kind:'wd_approved',withdrawal_id:id});   // 🔔 báo khách đã chuyển tiền
+  toast('✓ Đã duyệt','ok');loadAdmin();loadProfile();}
 // LÝ DO TỪ CHỐI RÚT — chọn bằng nút cho admin (khách sẽ thấy chi tiết)
 var WD_REASONS=[
   'Sai số tài khoản hoặc tên chủ tài khoản — vui lòng kiểm tra & tạo lại yêu cầu.',
@@ -1330,20 +1586,23 @@ async function doRejectWd(i){
   var reason=WD_REASONS[i];
   if(i===WD_REASONS.length-1){ var c=prompt('Nhập lý do từ chối (khách sẽ thấy):',''); if(c===null)return; reason=(c||'').trim()||'Yêu cầu không hợp lệ.'; }
   closeReject();
-  var r=await sb.rpc('reject_withdrawal',{withdrawal_id:rejectWdId,p_note:reason});
-  if(r.error){toast('Lỗi: '+r.error.message);return;}
-  toast('✓ Đã từ chối — lý do đã gửi cho khách');loadAdmin();
+  var wid=rejectWdId;
+  var r=await sb.rpc('reject_withdrawal',{withdrawal_id:wid,p_note:reason});
+  if(r.error){toast('Lỗi: '+r.error.message,'err');return;}
+  notifyUser({kind:'wd_rejected',withdrawal_id:wid,note:reason});   // 🔔 báo khách
+  toast('✓ Đã từ chối — lý do đã gửi cho khách','ok');loadAdmin();
 }
 
-function renderAdmOrders(rows){var box=document.getElementById('admOrders');
-  if(!rows.length){box.innerHTML='';return;}
-  var h='<div style="font-weight:800;font-size:.9rem;margin:6px 0 4px">Đơn đã đối soát gần đây</div>';
+function renderAdmOrders(rows){var box=document.getElementById('admOrders'),wrap=document.getElementById('admOrdersWrap');
+  if(!rows.length){if(wrap)wrap.classList.add('hide');box.innerHTML='';return;}
+  if(wrap)wrap.classList.remove('hide');
+  var h='';
   for(var i=0;i<rows.length;i++){var it=rows[i];
-    var bd=it.status==='approved'?'<span class="badge b-ok">Duyệt</span>':it.status==='rejected'?'<span class="badge b-rej">Hủy</span>':'<span class="badge b-pending">Chờ</span>';
+    var bd=it.status==='approved'?'<span class="badge b-ok">✅ Duyệt</span>':it.status==='rejected'?'<span class="badge b-rej">⛔ Hủy</span>':'<span class="badge b-pending">⏳ Chờ</span>';
     var ws=it.wallet_state==='available'?' · <b style="color:var(--ok)">đã cộng '+fmt(it.user_commission)+'</b>':it.wallet_state==='pending'?' · chờ giam':'';
     h+='<div class="item"><div class="main"><div class="t1">'+esc(it.order_id)+' '+(it.track_code?'· '+esc(it.track_code):'')+'</div>'
       +'<div class="t2">HH '+fmt(it.commission)+' → khách '+fmt(it.user_commission)+ws+'</div></div>'+bd+'</div>';}
-  box.innerHTML=h;}
+  box.innerHTML=h;colApply('admOrdersBody');}
 
 /* ---------- ĐỐI SOÁT: đọc CSV báo cáo AccessTrade ---------- */
 function parseCSV(text){
@@ -1483,6 +1742,81 @@ async function enablePush(){if(pushBusy)return;pushBusy=true;
   finally{pushBusy=false;if(btn)btn.disabled=false;}
 }
 
+/* ---------- THÔNG BÁO CHO KHÁCH (Web Push) — Bật/Tắt + xin quyền lần đầu ---------- */
+function pushSupported(){return ('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window);}
+async function refreshNotifToggle(){
+  var onB=document.getElementById('notifOnBtn'),offB=document.getElementById('notifOffBtn'),sub=document.getElementById('notifSubText');
+  if(!onB||!offB)return;
+  if(!pushSupported()){onB.classList.remove('on');offB.classList.add('on','off');
+    if(sub)sub.innerHTML='📱 Thiết bị/trình duyệt này chưa hỗ trợ thông báo đẩy. Hãy <b>Cài app vào Màn hình chính</b> rồi mở lại để bật nhé.';return;}
+  var on=false;
+  try{ if(Notification.permission==='granted'){var reg=await navigator.serviceWorker.ready;var s=await reg.pushManager.getSubscription();on=!!s;} }catch(e){}
+  onB.classList.toggle('on',on);
+  offB.classList.toggle('on',!on);offB.classList.toggle('off',!on);
+  if(sub){ sub.innerHTML = on
+    ? '✅ <b>Đang bật &amp; luôn duy trì</b> — bạn nhận thông báo về máy ngay khi <b>link sẵn sàng</b>, <b>được cộng hoa hồng</b> hay <b>rút tiền được duyệt</b>, kể cả khi không mở app.'
+    : 'Bật để nhận thông báo ngay khi <b>link sẵn sàng</b>, đơn <b>được cộng hoa hồng</b>, hay <b>rút tiền được duyệt</b> — kể cả khi không mở app. (Mặc định luôn bật)'; }
+}
+// Mặc định BẬT: chỉ coi là tắt khi khách chủ động bấm "Tắt".
+function pushPref(){try{return localStorage.getItem('agPushPref')||'on';}catch(e){return 'on';}}
+var setPushBusy=false;
+async function setPush(on){
+  if(setPushBusy)return;
+  if(!pushSupported()){toast('Thiết bị chưa hỗ trợ thông báo 😊','err');return;}
+  setPushBusy=true;
+  try{
+    if(on){
+      var perm=await Notification.requestPermission();
+      if(perm!=='granted'){toast('Bạn chưa cho phép nhận thông báo 😊','err');return;}
+      var reg=await navigator.serviceWorker.ready;
+      var sub=await reg.pushManager.getSubscription();
+      if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64(VAPID_PUBLIC)});
+      var r=await sb.rpc('save_push_sub',{sub:sub.toJSON?sub.toJSON():sub});
+      if(r.error){toast('Lỗi: '+r.error.message,'err');return;}
+      try{localStorage.setItem('agPushPref','on');}catch(e){}
+      toast('🔔 Đã bật thông báo!','ok');
+    }else{
+      try{localStorage.setItem('agPushPref','off');}catch(e){}
+      var reg2=await navigator.serviceWorker.ready;var s2=await reg2.pushManager.getSubscription();
+      if(s2)try{await s2.unsubscribe();}catch(e){}
+      try{await sb.rpc('save_push_sub',{sub:null});}catch(e){}
+      toast('🔕 Đã tắt thông báo','ok');
+    }
+  }catch(e){toast('Không đổi được thông báo: '+(e.message||e),'err');}
+  finally{setPushBusy=false;refreshNotifToggle();}
+}
+// DUY TRÌ MẶC ĐỊNH: mỗi lần mở app, nếu đã cấp quyền & khách chưa tắt -> tự đăng ký lại
+// và đồng bộ subscription lên server (phòng khoá cũ/đổi thiết bị) để luôn nhận được push.
+async function ensureCustomerPush(){
+  if(!pushSupported())return;
+  if(pushPref()==='off')return;
+  try{
+    if(Notification.permission==='granted'){
+      var reg=await navigator.serviceWorker.ready;
+      var sub=await reg.pushManager.getSubscription();
+      if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64(VAPID_PUBLIC)});
+      try{await sb.rpc('save_push_sub',{sub:sub.toJSON?sub.toJSON():sub});}catch(e){}
+      refreshNotifToggle();
+    }
+  }catch(e){}
+}
+// Lần đầu dùng: tự xin quyền nhận thông báo (mặc định bật). Khách có thể tắt trong tab Ví.
+function maybeFirstRunPush(){
+  if(pushPref()==='off')return;              // khách đã chủ động tắt -> tôn trọng
+  try{ if(localStorage.getItem('agAskedPush')==='1')return; }catch(e){}
+  if(!pushSupported()||Notification.permission!=='default')return;
+  try{localStorage.setItem('agAskedPush','1');}catch(e){}
+  setTimeout(function(){setPush(true);},1200);
+}
+// Mở đúng màn hình khi bấm vào thông báo (?go=req | ?go=wallet | ?open=AGxxxxxx)
+function routeGo(url){
+  try{var q=(url||'').split('?')[1]||'';
+    var op=q.match(/(?:^|&)open=([^&]+)/);var open=op?decodeURIComponent(op[1]):'';
+    if(open){focusReadyRequest(open);return;}
+    var m=q.match(/(?:^|&)go=([^&]+)/);var go=m?decodeURIComponent(m[1]):'';
+    if(go==='wallet')showTab('tabWallet');else if(go==='req')showTab('tabRequests');}catch(e){}
+}
+
 /* ---------- CÀI ĐẶT APP (PWA) — Android bấm 1 nút, iOS hướng dẫn ---------- */
 var deferredPrompt=null;
 function isStandalone(){return (window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;}
@@ -1514,7 +1848,11 @@ function initInstall(){ if(isStandalone())return; if(isIOS())showInstallBar('ios
 init();
 initInstall();
 document.getElementById('srcLink').addEventListener('input',function(){validateSrc(this.value);});
-if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});
+  // Khi khách bấm vào thông báo lúc app đang mở -> điều hướng đúng màn hình
+  navigator.serviceWorker.addEventListener('message',function(e){if(e.data&&e.data.type==='nav')routeGo(e.data.url);});
+}
 </script>
 </body>
 </html>

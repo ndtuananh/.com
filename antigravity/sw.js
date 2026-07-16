@@ -1,5 +1,5 @@
 // AntiGravity service worker — cài PWA + nhận push. Cache nhẹ, ưu tiên mạng.
-const CACHE = 'antigravity-v2-24';
+const CACHE = 'antigravity-v2-30';
 const SHELL = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -31,8 +31,15 @@ self.addEventListener('push', (e) => {
 });
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
-  e.waitUntil(clients.matchAll({ type: 'window' }).then((list) => {
-    for (const c of list) { if ('focus' in c) return c.focus(); }
-    return clients.openWindow(e.notification.data.url || '/');
+  const url = (e.notification.data && e.notification.data.url) || '/';
+  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    for (const c of list) {
+      if ('focus' in c) {
+        // app đang mở -> điều hướng đúng màn hình rồi focus
+        try { c.postMessage({ type: 'nav', url: url }); } catch (err) {}
+        return c.focus();
+      }
+    }
+    return clients.openWindow(url);
   }));
 });
