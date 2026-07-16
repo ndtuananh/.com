@@ -832,21 +832,31 @@ function renderReqStats(rows){
 }
 function reqBadge(st){return st==='completed'?'<span class="badge b-ok">✓ Xong</span>'
   :st==='rejected'?'<span class="badge b-rej">Từ chối</span>':'<span class="badge b-pending">Đang xử lý</span>';}
+function reqItemHTML(it){
+  var plat=PLATFORMS[it.platform]?PLATFORMS[it.platform].label:it.platform;
+  return '<div class="item" style="flex-direction:column;align-items:stretch">'
+    +'<div style="display:flex;gap:10px;align-items:center">'
+    +'<div class="main"><div class="t1">'+esc(it.code)+' · '+esc(plat)+'</div>'
+    +'<div class="t2">'+esc((it.original_url||'').slice(0,44))+'… · '+fmtDT(it.created_at)+'</div></div>'
+    +reqBadge(it.status)
+    +(it.status==='completed'&&it.aff_url?'<button class="sbtn" onclick="copyText(decodeURIComponent(\''+encodeURIComponent(it.aff_url)+'\'),\'Đã copy link\')">Copy</button>':'')
+    +'</div>'
+    +(it.status==='completed'&&it.aff_url?'<a class="linkbox linkopen" href="'+esc(it.aff_url)+'" target="_blank" rel="noopener" style="margin-top:8px"><b>Link hoa hồng — gửi khách</b>'+esc(it.aff_url)+'<span class="go">👉 Bấm để mở sản phẩm trong app</span></a>':'')
+    +(it.status==='rejected'?'<div style="background:var(--warn-soft);color:var(--warn);border-radius:11px;padding:11px 13px;margin-top:8px;font-size:.86rem;line-height:1.5">💡 '+esc(it.note||'Yêu cầu chưa được duyệt. Bạn thử gửi link khác nhé!')+'<div class="row" style="margin-top:8px"><button class="btn-ghost" style="font-size:.86rem" onclick="goSubmit()">🔄 Gửi link khác</button></div></div>':'')
+    +'</div>';
+}
 function renderReq(box,rows){var el=document.getElementById(box);
   if(!rows||!rows.length){el.innerHTML='<div class="empty">Chưa có yêu cầu nào 🚀</div>';return;}
-  var h='';for(var i=0;i<rows.length;i++){var it=rows[i];
-    var plat=PLATFORMS[it.platform]?PLATFORMS[it.platform].label:it.platform;
-    h+='<div class="item" style="flex-direction:column;align-items:stretch">'
-      +'<div style="display:flex;gap:10px;align-items:center">'
-      +'<div class="main"><div class="t1">'+esc(it.code)+' · '+esc(plat)+'</div>'
-      +'<div class="t2">'+esc((it.original_url||'').slice(0,44))+'… · '+fmtDT(it.created_at)+'</div></div>'
-      +reqBadge(it.status)
-      +(it.status==='completed'&&it.aff_url?'<button class="sbtn" onclick="copyText(decodeURIComponent(\''+encodeURIComponent(it.aff_url)+'\'),\'Đã copy link\')">Copy</button>':'')
-      +'</div>'
-      +(it.status==='completed'&&it.aff_url?'<a class="linkbox linkopen" href="'+esc(it.aff_url)+'" target="_blank" rel="noopener" style="margin-top:8px"><b>Link hoa hồng — gửi khách</b>'+esc(it.aff_url)+'<span class="go">👉 Bấm để mở sản phẩm trong app</span></a>':'')
-      +(it.status==='rejected'?'<div style="background:var(--warn-soft);color:var(--warn);border-radius:11px;padding:11px 13px;margin-top:8px;font-size:.86rem;line-height:1.5">💡 '+esc(it.note||'Yêu cầu chưa được duyệt. Bạn thử gửi link khác nhé!')+'<div class="row" style="margin-top:8px"><button class="btn-ghost" style="font-size:.86rem" onclick="goSubmit()">🔄 Gửi link khác</button></div></div>':'')
-      +'</div>';}
+  var SHOW=3,h='';
+  for(var i=0;i<Math.min(SHOW,rows.length);i++)h+=reqItemHTML(rows[i]);
+  if(rows.length>SHOW){
+    var more='';for(var j=SHOW;j<rows.length;j++)more+=reqItemHTML(rows[j]);
+    h+='<div id="reqMore" class="hide">'+more+'</div>'
+      +'<div class="row" style="margin-top:8px"><button class="btn-line" id="reqMoreBtn" onclick="toggleReqMore()">Xem tất cả ('+rows.length+') ▾</button></div>';
+  }
   el.innerHTML=h;}
+function toggleReqMore(){var m=document.getElementById('reqMore'),b=document.getElementById('reqMoreBtn');
+  if(!m)return;var hidden=m.classList.toggle('hide');if(b)b.innerHTML=hidden?'Xem tất cả ▾':'Thu gọn ▴';}
 // Tự TÁCH mã đơn từ nội dung khách dán (mã đơn / tin nhắn xác nhận / link đơn).
 // TikTok: chuỗi số dài 15–20. Shopee: chuỗi CHỮ+SỐ 10–20 ký tự. Bỏ qua mã AG (Sub ID).
 function extractOrderId(raw){
