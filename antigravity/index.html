@@ -297,6 +297,7 @@ nav .ic{font-size:1.35rem}
     </div>
     <label>Link sản phẩm</label>
     <input type="text" id="srcLink" placeholder="Dán link Shopee / TikTok vào đây" inputmode="url" autocomplete="off">
+    <div id="srcMsg" class="claimmsg hide"></div>
     <div class="row">
       <button class="btn-ghost" onclick="pasteTo('srcLink')">📋 Dán</button>
       <button class="btn-primary" id="btnSubmit" onclick="submitRequest()">🚀 Gửi yêu cầu</button>
@@ -617,9 +618,22 @@ function fbCopy(t,msg){var a=document.createElement('textarea');a.value=t;a.styl
 function pasteTo(id){var el=document.getElementById(id);if(el)el.focus();
   if(navigator.clipboard&&navigator.clipboard.readText){
     navigator.clipboard.readText().then(function(t){t=(t||'').trim();if(!t){toast('Bộ nhớ tạm trống');return;}
-      el.value=t;autoPlat(t);toast('Đã dán');}).catch(function(){toast('Bấm giữ vào ô rồi chọn Dán')});
+      el.value=t;if(id==='srcLink')validateSrc(t);else autoPlat(t);toast('Đã dán');}).catch(function(){toast('Bấm giữ vào ô rồi chọn Dán')});
   }else toast('Bấm giữ vào ô rồi chọn Dán');}
 function autoPlat(u){for(var k in PLATFORMS){if(PLATFORMS[k].match.test(u)){pickPlat(k);return;}}}
+// Kiểm tra link NGAY trên app — chỉ nhận link Shopee/TikTok để KHÔNG gửi link sai lên admin.
+function checkLink(raw){
+  raw=(raw||'').trim();
+  var m=raw.match(/https?:\/\/[^\s"'<>]+/i);var url=m?m[0]:raw;
+  if(!url)return {state:'',msg:''};
+  for(var k in PLATFORMS){if(PLATFORMS[k].match.test(url))return {state:'ok',platform:k,msg:'✅ Đã nhận link '+PLATFORMS[k].label+' hợp lệ — bấm Gửi yêu cầu nhé!'};}
+  if(!/[a-z0-9-]+\.[a-z]{2,}/i.test(url))return {state:'err',msg:'😅 Cái này chưa giống một đường link. Bạn dán lại link sản phẩm nhé.'};
+  return {state:'err',msg:'⚠️ Link này không phải Shopee/TikTok. Mở app Shopee/TikTok → Chia sẻ → Sao chép liên kết rồi dán lại giúp mình nha.'};
+}
+function setSrcMsg(state,msg){var e=document.getElementById('srcMsg');if(!e)return;
+  if(!state){e.classList.add('hide');return;}
+  e.className='claimmsg '+(state==='ok'?'ok':'err');e.textContent=msg;e.classList.remove('hide');}
+function validateSrc(v){var c=checkLink(v);if(c.platform)pickPlat(c.platform);setSrcMsg(c.state,c.msg);return c;}
 function pickPlat(k){curPlat=k;var ps=document.querySelectorAll('.pill');
   for(var i=0;i<ps.length;i++)ps[i].classList.toggle('active',ps[i].getAttribute('data-plat')===k);}
 
@@ -800,17 +814,20 @@ async function submitRequest(){
   if(busy)return;
   var raw=document.getElementById('srcLink').value.trim();
   var m=raw.match(/https?:\/\/[^\s"'<>]+/i);if(m)raw=m[0];
-  if(!raw){toast('Bạn dán link sản phẩm vào trước nhé 😊');return;}
+  if(!raw){setSrcMsg('err','😊 Bạn dán link sản phẩm vào trước nhé.');toast('Chưa có link 😊');return;}
   if(raw.indexOf('http')!==0)raw='https://'+raw;
   var detected=null;for(var k in PLATFORMS)if(PLATFORMS[k].match.test(raw))detected=k;
-  var plat=detected||curPlat;
+  // CHẶN LINK SAI ngay tại app — chỉ gửi link Shopee/TikTok, khỏi phiền admin check lại
+  if(!detected){setSrcMsg('err','⚠️ Link này không phải Shopee/TikTok. Mở app Shopee/TikTok → Chia sẻ → Sao chép liên kết rồi dán lại nha.');toast('Link chưa đúng — kiểm tra lại nhé 😊');return;}
+  var plat=detected;
+  setSrcMsg('','');
   busy=true;var btn=document.getElementById('btnSubmit');btn.disabled=true;btn.textContent='Đang gửi…';
   var r=await sb.from('ag_requests').insert({platform:plat,original_url:raw,user_id:me.id}).select('code').single();
   btn.disabled=false;btn.textContent='🚀 Gửi yêu cầu';busy=false;
   if(r.error){toast('Lỗi: '+r.error.message);return;}
   document.getElementById('newCode').textContent=r.data.code;
   document.getElementById('submitResult').classList.remove('hide');
-  document.getElementById('srcLink').value='';
+  document.getElementById('srcLink').value='';setSrcMsg('','');
   toast('✅ Đã gửi yêu cầu '+r.data.code);
   loadRequests();
   // báo admin (không chặn UI)
@@ -1496,7 +1513,7 @@ function initInstall(){ if(isStandalone())return; if(isIOS())showInstallBar('ios
   var el=document.getElementById('authRef');if(el)el.value=pendingRef;setAuthMode('reg');}}catch(e){}})();
 init();
 initInstall();
-document.getElementById('srcLink').addEventListener('input',function(){autoPlat(this.value);});
+document.getElementById('srcLink').addEventListener('input',function(){validateSrc(this.value);});
 if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});
 </script>
 </body>
