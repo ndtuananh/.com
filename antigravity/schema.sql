@@ -616,10 +616,12 @@ end $$;
 -- (idempotent — chạy lại không lỗi)
 do $$
 begin
-  begin
+  -- chỉ thêm khi CHƯA có trong publication (tránh lỗi 42710 "already member")
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'ag_requests'
+  ) then
     alter publication supabase_realtime add table ag_requests;
-  exception
-    when duplicate_object then null;   -- đã có trong publication
-    when undefined_object then null;   -- publication chưa tồn tại (bỏ qua)
-  end;
+  end if;
+exception when others then null;   -- publication chưa tồn tại / thiếu quyền → bỏ qua, không chặn script
 end $$;
