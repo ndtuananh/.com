@@ -1,0 +1,15 @@
+{
+  "name": "AntiGravity — Đổi link & Hoa hồng",
+  "short_name": "AntiGravity",
+  "description": "Gửi link, đối soát đơn, ví hoa hồng cho Shopee & TikTok Shop",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FF5A1F",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

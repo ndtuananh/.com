@@ -1,0 +1,10 @@
+{
+  "name": "antigravity",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "AntiGravity v2 — quản lý yêu cầu đổi link affiliate, đối soát đơn, ví hoa hồng (Shopee + TikTok)",
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}

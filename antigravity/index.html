@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FF5A1F">
+<title>AntiGravity — Đổi link & Hoa hồng</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="AntiGravity">
+<meta name="mobile-web-app-capable" content="yes">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --accent:#FF5A1F;--accent-dark:#E8480E;--accent-soft:#FFEDE4;
+  --ink:#16181D;--muted:#6B7280;--paper:#FBFBFC;--card:#fff;--line:#ECEEF2;
+  --ok:#12A150;--ok-soft:#E5F5EC;--warn:#B26A00;--warn-soft:#FFF4E0;--danger:#D1293D;
+  --glass:rgba(255,255,255,.9);
+  --radius:18px;--shadow:0 2px 14px rgba(20,25,40,.06);
+}
+/* DARK MODE — theo hệ thống, hoặc do người dùng chọn (data-theme) */
+:root[data-theme="dark"], html[data-theme="dark"]{
+  --accent:#FF6A33;--accent-dark:#FF864F;--accent-soft:#3A2318;
+  --ink:#ECEDF0;--muted:#9AA0AB;--paper:#131418;--card:#1D1F26;--line:#2B2E38;
+  --ok:#34D399;--ok-soft:#123026;--warn:#E6A23C;--warn-soft:#3A2E15;--danger:#F87171;
+  --glass:rgba(19,20,24,.88);
+  --shadow:0 2px 16px rgba(0,0,0,.4);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --accent:#FF6A33;--accent-dark:#FF864F;--accent-soft:#3A2318;
+    --ink:#ECEDF0;--muted:#9AA0AB;--paper:#131418;--card:#1D1F26;--line:#2B2E38;
+    --ok:#34D399;--ok-soft:#123026;--warn:#E6A23C;--warn-soft:#3A2E15;--danger:#F87171;
+    --glass:rgba(19,20,24,.88);
+    --shadow:0 2px 16px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;
+  padding-bottom:env(safe-area-inset-bottom)}
+.hide{display:none!important}
+/* header */
+header{position:sticky;top:0;z-index:40;background:var(--glass);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:1.05rem;letter-spacing:-.3px}
+.brand .logo{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#FF7A45,#FF5A1F);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.1rem;box-shadow:0 3px 8px rgba(255,90,31,.35)}
+.brand small{display:block;font-size:.62rem;font-weight:600;color:var(--muted);letter-spacing:.5px;margin-top:-2px}
+.hbtn{background:var(--accent-soft);color:var(--accent);border:none;border-radius:10px;
+  padding:8px 12px;font-size:.78rem;font-weight:700;cursor:pointer}
+.bell{position:relative;background:none;border:none;font-size:1.3rem;cursor:pointer;padding:2px 4px}
+.bell .dot{position:absolute;top:0;right:2px;min-width:16px;height:16px;background:var(--accent);
+  color:#fff;border-radius:99px;font-size:.62rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px}
+main{max-width:560px;margin:0 auto;padding:16px 16px 104px}
+@media (max-width:360px){main{padding:12px 12px 100px}.card{padding:14px}}
+/* cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px;margin-bottom:13px;box-shadow:var(--shadow)}
+h2{font-size:1.08rem;font-weight:800;margin-bottom:4px;letter-spacing:-.2px}
+.sub{font-size:.86rem;color:var(--muted);line-height:1.5}
+label{font-size:.85rem;color:var(--muted);font-weight:600;display:block;margin:14px 0 6px}
+input,textarea,select{width:100%;border:1.5px solid var(--line);border-radius:12px;
+  padding:14px;font-size:1.02rem;font-family:inherit;color:var(--ink);background:#fff;outline:none;transition:border .15s}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:80px;line-height:1.5}
+.row{display:flex;gap:9px;margin-top:13px;flex-wrap:wrap}
+button{border:none;border-radius:12px;padding:14px 16px;font-size:1.02rem;font-weight:700;
+  font-family:inherit;cursor:pointer;flex:1;min-width:120px;transition:transform .05s,opacity .15s}
+button:active{transform:scale(.98)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 4px 12px rgba(255,90,31,.28)}
+.btn-dark{background:var(--ink);color:#fff}
+.btn-ghost{background:var(--accent-soft);color:var(--accent)}
+.btn-ok{background:var(--ok);color:#fff}
+.btn-line{background:#fff;border:1.5px solid var(--line);color:var(--ink)}
+.sbtn{flex:0 0 auto;min-width:0;padding:9px 13px;font-size:.85rem;border-radius:10px;background:var(--accent-soft);color:var(--accent);font-weight:700}
+.hint{font-size:.85rem;color:var(--muted);margin-top:9px;line-height:1.55}
+/* steps */
+.steps{display:flex;gap:8px;margin:12px 0}
+.step{flex:1;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 8px;text-align:center}
+.step .n{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;font-size:.8rem;
+  display:flex;align-items:center;justify-content:center;margin:0 auto 5px}
+.step .t{font-size:.72rem;color:var(--muted);line-height:1.35;font-weight:600}
+/* platform pills */
+.pills{display:flex;gap:8px;margin-top:8px}
+.pill{flex:1;border:1.5px solid var(--line);border-radius:12px;padding:11px;text-align:center;font-weight:700;
+  font-size:.9rem;color:var(--muted);background:#fff;cursor:pointer}
+.pill.active{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+/* wallet */
+.wallet{background:linear-gradient(135deg,#FF7A45 0%,#FF5A1F 60%,#E8480E 100%);color:#fff;border:none;
+  box-shadow:0 8px 22px rgba(255,90,31,.32)}
+.wallet .lbl{font-size:.76rem;opacity:.9;font-weight:600}
+.wallet .big{font-size:2rem;font-weight:800;margin:3px 0 2px;letter-spacing:-.5px}
+.wallet .who{font-size:.78rem;opacity:.85}
+.wgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px}
+.wgrid .b{background:rgba(255,255,255,.16);border-radius:12px;padding:9px 10px}
+.wgrid .b .v{font-size:.98rem;font-weight:800}
+.wgrid .b .l{font-size:.64rem;opacity:.9;margin-top:1px}
+/* result box */
+.reqcode{background:var(--ink);color:#fff;border-radius:14px;padding:14px 16px;margin-top:12px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px}
+.reqcode .c{font-size:1.5rem;font-weight:800;letter-spacing:1px}
+.reqcode .s{font-size:.72rem;opacity:.75}
+.linkbox{background:var(--ok-soft);border-radius:12px;padding:12px 13px;margin-top:11px;font-size:.82rem;
+  color:#0a5c40;word-break:break-all;line-height:1.5}
+.linkbox b{display:block;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--ok);margin-bottom:4px}
+/* list items */
+.item{border-top:1px solid var(--line);padding:13px 2px;display:flex;gap:11px;align-items:center}
+.item:first-child{border-top:none}
+.item .main{flex:1;min-width:0}
+.item .t1{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.95rem}
+.item .t2{font-size:.8rem;color:var(--muted);margin-top:2px;line-height:1.4}
+.badge{flex:0 0 auto;font-size:.72rem;font-weight:800;padding:5px 10px;border-radius:99px}
+.b-pending{background:var(--warn-soft);color:var(--warn)}
+.b-ok{background:var(--ok-soft);color:var(--ok)}
+.b-rej{background:#FCE8EA;color:var(--danger)}
+.b-mut{background:#EEF0F4;color:var(--muted)}
+.empty{font-size:.9rem;color:var(--muted);text-align:center;padding:22px 0}
+/* stats */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.stat{background:var(--paper);border:1px solid var(--line);border-radius:13px;padding:12px 13px}
+.stat .v{font-size:1.3rem;font-weight:800;line-height:1.1;word-break:break-word}
+.stat .l{font-size:.7rem;color:var(--muted);margin-top:3px;font-weight:600}
+.stat.hl{background:var(--accent-soft);border-color:transparent}.stat.hl .v{color:var(--accent)}
+.stat.ok{background:var(--ok-soft);border-color:transparent}.stat.ok .v{color:var(--ok)}
+/* nav */
+nav{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.95);backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:50}
+nav button{flex:1;background:none;color:var(--muted);font-size:.68rem;font-weight:700;padding:9px 3px;
+  border-radius:0;display:flex;flex-direction:column;gap:3px;align-items:center;min-width:0}
+nav button.active{color:var(--accent)}
+nav .ic{font-size:1.35rem}
+/* toast */
+#toast{position:fixed;left:50%;bottom:calc(74px + env(safe-area-inset-bottom));
+  transform:translateX(-50%) translateY(90px);background:var(--ink);color:#fff;padding:12px 20px;
+  border-radius:99px;font-size:.86rem;font-weight:600;opacity:0;transition:all .28s;pointer-events:none;
+  z-index:99;max-width:92vw;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+/* auth */
+.auth-wrap{max-width:420px;margin:6vh auto;padding:0 18px}
+.auth-logo{text-align:center;margin-bottom:22px}
+.auth-logo .logo{width:62px;height:62px;border-radius:18px;background:linear-gradient(135deg,#FF7A45,#FF5A1F);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:2rem;margin:0 auto 12px;box-shadow:0 8px 20px rgba(255,90,31,.4)}
+.auth-logo h1{font-size:1.5rem;letter-spacing:-.5px}
+.auth-logo p{font-size:.86rem;color:var(--muted);margin-top:5px}
+.segmented{display:flex;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:6px}
+.segmented button{background:none;color:var(--muted);border-radius:9px;padding:10px;font-size:.92rem}
+.segmented button.active{background:var(--accent);color:#fff}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ================= ĐĂNG NHẬP ================= -->
+<div id="viewAuth" class="auth-wrap hide">
+  <div class="auth-logo">
+    <div class="logo">🛰️</div>
+    <h1>AntiGravity</h1>
+    <p>Đổi link affiliate · Đối soát · Ví hoa hồng</p>
+  </div>
+  <div class="card">
+    <div class="segmented">
+      <button class="active" id="segLogin" onclick="setAuthMode('login')">Đăng nhập</button>
+      <button id="segReg" onclick="setAuthMode('reg')">Đăng ký</button>
+    </div>
+    <label>Số điện thoại</label>
+    <input type="text" id="authPhone" placeholder="09xxxxxxxx" inputmode="tel" autocomplete="tel">
+    <label>Mật khẩu</label>
+    <input type="password" id="authPass" placeholder="Ít nhất 6 ký tự">
+    <div id="confirmBox" class="hide">
+      <label>Xác nhận mật khẩu</label>
+      <input type="password" id="authPass2" placeholder="Nhập lại mật khẩu">
+      <label>Mã giới thiệu (nếu có)</label>
+      <input type="text" id="authRef" placeholder="VD R0001234 — nhập để bạn bè nhận thưởng">
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:13px;color:var(--ink);font-weight:500;cursor:pointer">
+      <input type="checkbox" id="remember" checked style="width:auto;margin:0">Lưu đăng nhập trên máy này
+    </label>
+    <div class="row"><button class="btn-primary" id="authSubmit" onclick="doAuth()">Đăng nhập</button></div>
+    <p class="hint" id="authHint" style="text-align:center">Nhập SĐT + mật khẩu rồi bấm Đăng nhập.</p>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="viewApp" class="hide">
+<header>
+  <div class="brand"><div class="logo">🛰️</div><div>AntiGravity<small>ĐỔI LINK · HOA HỒNG</small></div></div>
+  <div style="display:flex;align-items:center;gap:6px">
+    <button class="bell" id="notifBtn" onclick="openNotifs()" title="Thông báo">🔔<span class="dot hide" id="notifDot">0</span></button>
+    <button class="bell" id="themeBtn" onclick="toggleTheme()" title="Giao diện sáng/tối">🌙</button>
+    <button class="bell" onclick="showTab('tabWallet')" title="Ví">👛</button>
+    <button class="hbtn" onclick="logout()">Thoát</button>
+  </div>
+</header>
+<main>
+
+<!-- TAB: TRANG CHỦ / GỬI YÊU CẦU -->
+<section id="tabHome">
+  <div class="card hide" id="readyBanner" onclick="openNotifs()" style="background:linear-gradient(135deg,#12A150,#0E8B45);color:#fff;border:none;cursor:pointer;box-shadow:0 8px 22px rgba(18,161,80,.3)">
+    <div style="font-weight:800;font-size:1.06rem">🎉 <span id="readyText">Link của bạn đã sẵn sàng!</span></div>
+    <div style="font-size:.86rem;opacity:.95;margin-top:4px">Bấm để mở tab <b>Yêu cầu</b> và lấy link gửi khách ngay 👉</div>
+  </div>
+  <div class="card" id="promoBanner" style="background:linear-gradient(135deg,#FF7A45,#FF5A1F);color:#fff;border:none;box-shadow:0 8px 22px rgba(255,90,31,.3)">
+    <div style="font-weight:800;font-size:1.06rem">🎁 Quà chào mừng 10.000đ</div>
+    <div style="font-size:.86rem;opacity:.95;margin-top:4px" id="promoText">Tạo link đầu tiên để nhận ngay 10.000đ vào ví!</div>
+    <div id="promoCountdown" style="margin-top:9px"></div>
+  </div>
+  <div class="card" style="display:flex;gap:13px;align-items:center">
+    <img id="zaloQR" alt="QR Zalo" style="width:82px;height:82px;border-radius:11px;flex:0 0 auto;border:1px solid var(--line);background:#fff">
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:800">📩 Kết bạn Zalo để nhận link</div>
+      <div class="sub" style="margin:3px 0 8px">Kết bạn Zalo <b class="zalo-name"></b> để nhận link hoàn tiền nhanh & được hỗ trợ trực tiếp.</div>
+      <button class="btn-primary" style="padding:9px 15px;font-size:.88rem" onclick="openZalo()">💬 Kết bạn Zalo ngay</button>
+    </div>
+  </div>
+  <div class="card" style="border-left:4px solid var(--accent)">
+    <div style="font-weight:800;margin-bottom:7px">💡 Lưu ý trước khi gửi link</div>
+    <div style="font-size:.9rem;line-height:1.7">
+      <div style="color:var(--ok)">✅ <b>CÓ hoàn tiền:</b> hàng có <b>Freeship Xtra / Hoàn Xu</b> (Shopee) · có <b>"Chia sẻ liên kết"</b> (TikTok)</div>
+      <div style="color:var(--warn);margin-top:5px">❌ <b>KHÔNG có:</b> sữa, bỉm, thẻ cào, nạp điện thoại, hàng giá gốc, hàng thường không gắn liên kết</div>
+    </div>
+    <div class="hint" style="margin-top:9px">📌 <b>Cách lấy link:</b> mở app Shopee/TikTok → bấm <b>Chia sẻ</b> → <b>Sao chép link</b> → dán vào ô bên dưới.</div>
+  </div>
+  <div class="card">
+    <h2>🔗 Gửi link cần đổi</h2>
+    <p class="sub">Dán link sản phẩm Shopee hoặc TikTok Shop. Bộ phận kỹ thuật sẽ tạo link hoa hồng và gửi lại cho bạn.</p>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><div class="t">Dán link<br>sản phẩm</div></div>
+      <div class="step"><div class="n">2</div><div class="t">Gửi<br>yêu cầu</div></div>
+      <div class="step"><div class="n">3</div><div class="t">Nhận link<br>hoa hồng</div></div>
+    </div>
+    <label>Nền tảng</label>
+    <div class="pills">
+      <div class="pill active" data-plat="shopee" onclick="pickPlat('shopee')">🛒 Shopee</div>
+      <div class="pill" data-plat="tiktok" onclick="pickPlat('tiktok')">🎵 TikTok Shop</div>
+    </div>
+    <label>Link sản phẩm</label>
+    <input type="text" id="srcLink" placeholder="Dán link Shopee / TikTok vào đây" inputmode="url" autocomplete="off">
+    <div class="row">
+      <button class="btn-ghost" onclick="pasteTo('srcLink')">📋 Dán</button>
+      <button class="btn-primary" id="btnSubmit" onclick="submitRequest()">🚀 Gửi yêu cầu</button>
+    </div>
+    <div id="submitResult" class="hide">
+      <div class="reqcode"><div><div class="s">MÃ YÊU CẦU CỦA BẠN</div><div class="c" id="newCode">AG000000</div></div>
+        <span class="badge b-pending">Đang xử lý</span></div>
+      <p class="hint">✅ Đã gửi! Bọn mình sẽ tạo link và gửi bạn ngay khi xong. Xem trạng thái ở tab <b>Yêu cầu</b>.</p>
+      <div class="row"><button class="btn-primary" onclick="openZalo()">💬 Kết bạn Zalo để nhận link nhanh</button></div>
+      <p class="hint" style="margin-top:10px">📋 Xem tất cả yêu cầu & trạng thái link ở tab <b>Yêu cầu</b> phía dưới.</p>
+    </div>
+  </div>
+</section>
+
+<!-- TAB: YÊU CẦU -->
+<section id="tabRequests" class="hide">
+  <div class="card">
+    <h2>📊 Thống kê chuyển đổi</h2>
+    <p class="sub">Tổng quan nhanh lịch sử đổi link của bạn.</p>
+    <div id="reqStats" class="stats" style="margin-top:10px"><div class="empty" style="grid-column:1/-1">Đang tải…</div></div>
+  </div>
+  <div class="card">
+    <h2>📋 Tất cả yêu cầu của bạn</h2>
+    <p class="sub">Link đã xong sẽ có nút <b>Copy</b> để bạn gửi cho khách.</p>
+    <div id="reqList" style="margin-top:6px"><div class="empty">Đang tải…</div></div>
+  </div>
+</section>
+
+<!-- TAB: VÍ -->
+<section id="tabWallet" class="hide">
+  <div class="card wallet">
+    <div class="lbl">Số dư khả dụng</div>
+    <div class="big" id="wAvail">0đ</div>
+    <div class="who" id="wPhone"></div>
+    <div class="wgrid">
+      <div class="b"><div class="v" id="wPending">0đ</div><div class="l">Chờ đối soát</div></div>
+      <div class="b"><div class="v" id="wPaid">0đ</div><div class="l">Đã rút</div></div>
+      <div class="b"><div class="v" id="wTotal">0đ</div><div class="l">Tổng kiếm</div></div>
+    </div>
+    <div id="wdProgress" style="margin-top:13px"></div>
+  </div>
+
+  <div class="card">
+    <h2>💸 Rút tiền</h2>
+    <p class="sub">Mỗi đơn hợp lệ sẽ được cộng hoa hồng thẳng vào số dư khi đối soát. Đủ tối thiểu <b>20.000đ</b> là rút được.</p>
+    <label>Số tiền muốn rút (đ)</label>
+    <input type="text" id="wdAmount" inputmode="numeric" placeholder="20000">
+    <label>Ngân hàng</label>
+    <select id="wdBank"></select>
+    <label>Số tài khoản</label>
+    <input type="text" id="wdAcc" inputmode="numeric" placeholder="0123456789" autocomplete="off">
+    <label>Chủ tài khoản (viết HOA, không dấu)</label>
+    <input type="text" id="wdName" placeholder="NGUYEN VAN A" autocomplete="off">
+    <div class="row"><button class="btn-dark" onclick="createWithdrawal()">Tạo yêu cầu rút</button></div>
+    <div id="wdList" style="margin-top:6px"></div>
+  </div>
+
+  <div class="card">
+    <h2>💰 Lịch sử ví</h2>
+    <div id="ledger"><div class="empty">Chưa có giao dịch nào.</div></div>
+  </div>
+
+  <div class="card">
+    <h2>🤝 Mời bạn — nhận thưởng</h2>
+    <p class="sub">Khi người bạn mời có <b>đơn thành công (hoa hồng ≥ 5.000đ)</b>, bạn nhận <b>+5.000đ</b>. Chia sẻ link của bạn:</p>
+    <div class="linkbox" style="color:var(--ink);background:var(--accent-soft)"><b style="color:var(--accent)">Link giới thiệu của bạn</b><span id="refLink">…</span></div>
+    <div class="row"><button class="btn-ghost" onclick="copyRef()">📋 Copy link mời bạn</button></div>
+    <div class="hint" id="refCount"></div>
+  </div>
+
+  <div class="card">
+    <h2>🔑 Đổi mật khẩu</h2>
+    <label>Mật khẩu mới</label><input type="password" id="npPass" placeholder="Ít nhất 6 ký tự">
+    <label>Xác nhận mật khẩu mới</label><input type="password" id="npPass2" placeholder="Nhập lại">
+    <div class="row"><button class="btn-line" onclick="changePassword()">Đổi mật khẩu</button></div>
+  </div>
+</section>
+
+<!-- TAB: ADMIN -->
+<section id="tabAdmin" class="hide">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h2 style="margin:0">📈 Tổng quan</h2>
+      <div style="display:flex;gap:6px">
+        <button class="sbtn" id="pushBtn" onclick="enablePush()">🔔 Bật báo</button>
+        <button class="sbtn" onclick="loadAdmin(true)">🔄</button>
+      </div>
+    </div>
+    <div id="statsBox" style="margin-top:12px"><div class="empty">Đang tải…</div></div>
+  </div>
+
+  <div class="card">
+    <h2>🟠 Link chờ xử lý</h2>
+    <p class="sub">Mở link gốc → tạo link affiliate <b>thủ công</b> trên Shopee/TikTok → dán vào đây → Hoàn tất.
+      Nhớ gắn <b>Sub ID / utm_content = mã AG</b> để đối soát tự khớp về khách.</p>
+    <div id="admPending" style="margin-top:8px"><div class="empty">Không có yêu cầu chờ.</div></div>
+  </div>
+
+  <div class="card">
+    <h2>🟢 Link đã xử lý — gửi khách</h2>
+    <p class="sub">Bấm <b>💬 Zalo</b> để mở chat với khách gửi link, hoặc <b>✉️ SMS</b> / <b>📋 Copy tin nhắn</b>.</p>
+    <div id="admDone" style="margin-top:8px"><div class="empty">Chưa có link nào xử lý.</div></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">🏆 Bảng xếp hạng</h2>
+      <button class="sbtn" onclick="loadTop()">🔄</button></div>
+    <div id="topBox" style="margin-top:10px"><div class="empty">Bấm 🔄 để xem.</div></div>
+  </div>
+
+  <div class="card">
+    <h2>👥 Khách hàng (CRM)</h2>
+    <input type="text" id="crmSearch" placeholder="🔍 Tìm theo SĐT…" oninput="loadCRM()">
+    <div id="crmBox" style="margin-top:8px"><div class="empty">Đang tải…</div></div>
+  </div>
+
+  <div class="card">
+    <h2>📊 Đối soát đơn hàng</h2>
+    <p class="sub">Nạp báo cáo: <b>Shopee</b> (AccessTrade → .csv) hoặc <b>TikTok</b> (Đơn hàng liên kết → .xlsx). Hệ thống tự nhận sàn, gộp theo mã đơn, khớp về khách qua <b>mã AG</b> (Shopee) hoặc <b>mã đơn khách đã nhập</b>, và chỉ cộng đơn đã quyết toán.</p>
+    <div class="row" style="margin-top:10px">
+      <input type="file" id="csvFile" accept=".csv,.xlsx,.xls,text/csv" style="padding:11px;font-size:.9rem" onchange="onCsvPick(event)">
+    </div>
+    <div id="csvPreview"></div>
+    <div id="admOrders" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2>💵 Duyệt rút tiền</h2>
+    <p class="sub">Bấm 📲 QR → mở app ngân hàng quét chuyển → bấm "Đã chuyển" để trừ số dư.</p>
+    <div id="admWithdrawals" style="margin-top:8px"><div class="empty">Không có yêu cầu chờ.</div></div>
+  </div>
+</section>
+
+</main>
+
+<nav>
+  <button class="active" id="nav-tabHome" onclick="showTab('tabHome')"><span class="ic">🚀</span>Trang chủ</button>
+  <button id="nav-tabRequests" onclick="showTab('tabRequests')"><span class="ic">📋</span>Yêu cầu</button>
+  <button id="nav-tabWallet" onclick="showTab('tabWallet')"><span class="ic">👛</span>Ví</button>
+  <button id="nav-tabAdmin" class="hide" onclick="showTab('tabAdmin')"><span class="ic">🛠</span>Admin</button>
+</nav>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ===== CHỐNG NHÂN BẢN: chỉ chạy trên tên miền chính thức =====
+   (Thêm tên miền riêng của anh vào biểu thức bên dưới nếu gắn domain mới) */
+(function(){var h=location.hostname;
+  var ok=/(^|\.)vercel\.app$/.test(h)||/(^|\.)antigravity/i.test(h)||h==='localhost'||h==='127.0.0.1'||h==='';
+  if(!ok){document.documentElement.innerHTML='<div style="font-family:-apple-system,sans-serif;padding:48px 20px;text-align:center;color:#16181D"><div style="font-size:2.4rem">🛰️⚠️</div><h2>Bản sao không hợp lệ</h2><p style="color:#6B7280">Đây không phải AntiGravity chính thức. Vui lòng dùng ứng dụng gốc để đảm bảo an toàn tài khoản & số dư.</p></div>';throw new Error('unauthorized host');}
+})();
+
+/* ============================ CẤU HÌNH ============================ */
+var SUPABASE_URL = 'https://nxvcsotzybjxykadbxbr.supabase.co';
+var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54dmNzb3R6eWJqeHlrYWRieGJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3NDg5MzIsImV4cCI6MjA5OTMyNDkzMn0.JtKX-tQIoI3NaGh6aul0XC3nSLOMgSe26aS9DAvmo_4';
+var VAPID_PUBLIC = 'BAG3IAMEMlfw7dLUWX0nwfWwyLTyTMyoQar4gW7KFmHgXL7Ogwg9M1BYFQQj6J3zQUDVpPsDYVyk-eKtsfr94oA';
+var PLATFORMS = {
+  shopee: { label:'Shopee', match:/shopee\.[a-z]|shope\.ee|shp\.ee/i },
+  tiktok: { label:'TikTok Shop', match:/tiktok\.[a-z]|tiktokv\.[a-z]|douyin/i }
+};
+// ZALO của admin — khách kết bạn để nhận link. ĐỔI thành link Zalo của anh nếu khác.
+var ZALO_LINK = 'https://zalo.me/0903836902';
+var ZALO_NAME = 'HOÀN TIỀN SHOPEE 24/7';
+/* ================================================================= */
+
+var sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+var me=null, myProfile=null, curPlat='shopee', pendingRows=[], pendingRef='';
+
+/* ---------- tiện ích ---------- */
+var toastTimer;
+function toast(t){var e=document.getElementById('toast');e.textContent=t;e.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(function(){e.classList.remove('show')},2400);}
+function fmt(n){return (n==null?'0':Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.'))+'đ';}
+function num(s){return parseFloat((s||'').replace(/[^\d]/g,''))||0;}
+// đọc số từ báo cáo: tự nhận "." là NGHÌN (TikTok 141.000) hay THẬP PHÂN (Shopee 52434.9)
+function numF(s){
+  s=(s==null?'':s).toString().trim().replace(/[^0-9.,\-]/g,'');
+  if(!s)return 0;
+  if(/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s=s.replace(/\./g,'').replace(',','.'); // 1.234.567,8 -> nghìn "."/thập phân ","
+  else if(/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) s=s.replace(/,/g,'');               // 1,234,567.8 -> nghìn ","
+  else s=s.replace(/,/g,'');                                                           // còn lại: bỏ "," lạ, giữ "." thập phân
+  var v=parseFloat(s);return isNaN(v)?0:v;
+}
+function p2(n){return (n<10?'0':'')+n;}
+function fmtDT(iso){if(!iso)return '';var d=new Date(iso);return p2(d.getHours())+':'+p2(d.getMinutes())+' '+p2(d.getDate())+'/'+p2(d.getMonth()+1)+'/'+d.getFullYear();}
+// đầy đủ giờ:phút:giây ngày/tháng/năm — dùng cho sổ thu chi
+function fmtDTS(iso){if(!iso)return '';var d=new Date(iso);return p2(d.getHours())+':'+p2(d.getMinutes())+':'+p2(d.getSeconds())+' · '+p2(d.getDate())+'/'+p2(d.getMonth()+1)+'/'+d.getFullYear();}
+/* ---------- giao diện sáng/tối ---------- */
+function applyTheme(t){document.documentElement.setAttribute('data-theme',t);
+  try{localStorage.setItem('agTheme',t)}catch(e){}
+  var b=document.getElementById('themeBtn');if(b)b.textContent=(t==='dark'?'☀️':'🌙');
+  var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='dark'?'#131418':'#FF5A1F');}
+function currentTheme(){var c=document.documentElement.getAttribute('data-theme');
+  if(c)return c;return (window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches)?'dark':'light';}
+function toggleTheme(){applyTheme(currentTheme()==='dark'?'light':'dark');}
+(function(){try{var t=localStorage.getItem('agTheme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function phoneToEmail(p){return p.replace(/\D/g,'')+'@hoantienshopee.com';}
+function copyText(t,msg){if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(function(){toast(msg||'Đã copy')}).catch(function(){fbCopy(t,msg)});}else fbCopy(t,msg);}
+function fbCopy(t,msg){var a=document.createElement('textarea');a.value=t;a.style.position='fixed';a.style.opacity='0';
+  document.body.appendChild(a);a.select();try{document.execCommand('copy');toast(msg||'Đã copy')}catch(e){toast('Không copy được')}document.body.removeChild(a);}
+function pasteTo(id){var el=document.getElementById(id);if(el)el.focus();
+  if(navigator.clipboard&&navigator.clipboard.readText){
+    navigator.clipboard.readText().then(function(t){t=(t||'').trim();if(!t){toast('Bộ nhớ tạm trống');return;}
+      el.value=t;autoPlat(t);toast('Đã dán');}).catch(function(){toast('Bấm giữ vào ô rồi chọn Dán')});
+  }else toast('Bấm giữ vào ô rồi chọn Dán');}
+function autoPlat(u){for(var k in PLATFORMS){if(PLATFORMS[k].match.test(u)){pickPlat(k);return;}}}
+function pickPlat(k){curPlat=k;var ps=document.querySelectorAll('.pill');
+  for(var i=0;i<ps.length;i++)ps[i].classList.toggle('active',ps[i].getAttribute('data-plat')===k);}
+
+var BANKS=[['VCB','Vietcombank'],['MB','MB Bank'],['TCB','Techcombank'],['ICB','VietinBank'],['BIDV','BIDV'],
+  ['VBA','Agribank'],['ACB','ACB'],['VPB','VPBank'],['STB','Sacombank'],['TPB','TPBank'],['HDB','HDBank'],
+  ['VIB','VIB'],['SHB','SHB'],['MSB','MSB'],['OCB','OCB'],['SEAB','SeABank'],['EIB','Eximbank'],['LPB','LPBank'],
+  ['NAB','Nam A Bank'],['SCB','SCB'],['PVCB','PVcomBank'],['BAB','Bac A Bank'],['CAKE','Cake by VPBank'],['TIMO','Timo']];
+function bankName(c){for(var i=0;i<BANKS.length;i++)if(BANKS[i][0]===c)return BANKS[i][1];return c;}
+function noAccent(s){return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D');}
+function vietQR(bank,acc,amt,name,info){return 'https://img.vietqr.io/image/'+bank+'-'+acc+'-compact2.png?amount='+amt
+  +'&addInfo='+encodeURIComponent(noAccent(info))+'&accountName='+encodeURIComponent(noAccent(name));}
+// MẪU tin nhắn gửi khách (admin copy dán thủ công qua Zalo)
+function custMsg(code,url){return '🎁 '+ZALO_NAME+'\n'
+  +'✅ Link hoàn tiền cho yêu cầu '+code+' của bạn đã sẵn sàng!\n\n'
+  +'👉 '+url+'\n\n'
+  +'📌 Cách nhận hoàn tiền:\n'
+  +'1️⃣ Bấm vào link trên để mở sản phẩm\n'
+  +'2️⃣ Đặt hàng như bình thường\n'
+  +'3️⃣ Hoa hồng tự cộng vào ví sau khi đơn hoàn tất\n\n'
+  +'💰 Đủ 20.000đ là rút được về ngân hàng.\nCảm ơn bạn đã ủng hộ! 🛍️';}
+function zaloTo(phone){var p=(phone||'').replace(/\D/g,'');if(!p){toast('Khách chưa có SĐT');return;}window.open('https://zalo.me/'+p,'_blank');}
+// Zalo không cho điền sẵn nội dung qua link -> copy tin nhắn rồi mở chat khách để dán
+function zaloMsg(phone,msg){var p=(phone||'').replace(/\D/g,'');if(!p){toast('Khách chưa có SĐT');return;}
+  copyText(msg,'📋 Đã copy tin nhắn — mở Zalo rồi DÁN cho khách');
+  setTimeout(function(){window.open('https://zalo.me/'+p,'_blank');},350);}
+function smsTo(phone,msg){var p=(phone||'').replace(/\D/g,'');if(!p){toast('Khách chưa có SĐT');return;}window.open('sms:'+p+'?body='+encodeURIComponent(msg),'_blank');}
+// Kết bạn Zalo với admin để nhận link
+function openZalo(){window.open(ZALO_LINK,'_blank');}
+function setupZalo(){var q=document.getElementById('zaloQR');if(q)q.src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=6&data='+encodeURIComponent(ZALO_LINK);
+  var n=document.querySelectorAll('.zalo-name');for(var i=0;i<n.length;i++)n[i].textContent=ZALO_NAME;}
+
+/* ---------- auth ---------- */
+var authMode='login';
+function setAuthMode(m){authMode=m;
+  document.getElementById('segLogin').classList.toggle('active',m==='login');
+  document.getElementById('segReg').classList.toggle('active',m==='reg');
+  document.getElementById('confirmBox').classList.toggle('hide',m!=='reg');
+  document.getElementById('authSubmit').textContent=m==='reg'?'Tạo tài khoản':'Đăng nhập';
+  document.getElementById('authHint').textContent=m==='reg'?'Nhập SĐT + mật khẩu + xác nhận rồi bấm Tạo tài khoản.':'Nhập SĐT + mật khẩu rồi bấm Đăng nhập.';}
+function doAuth(){authMode==='reg'?doRegister():doLogin();}
+async function doRegister(){
+  var p=document.getElementById('authPhone').value.trim(),pw=document.getElementById('authPass').value,pw2=document.getElementById('authPass2').value;
+  if(!/^0\d{8,10}$/.test(p)){toast('Số điện thoại chưa đúng 😊');return;}
+  if(pw.length<6){toast('Mật khẩu cần từ 6 ký tự');return;}
+  if(pw!==pw2){toast('Hai ô mật khẩu chưa giống nhau');return;}
+  var r=await sb.auth.signUp({email:phoneToEmail(p),password:pw,options:{data:{phone:p}}});
+  if(r.error){toast(/already/i.test(r.error.message)?'Số này đã có tài khoản — bấm Đăng nhập':'Có trục trặc, thử lại nhé');return;}
+  saveLogin(p,pw);
+  var ref=(document.getElementById('authRef').value||pendingRef||'').trim();
+  if(ref){try{await sb.rpc('ag_set_referrer',{p_code:ref});}catch(e){}}
+  toast('🎉 Tạo tài khoản thành công!');init();
+}
+function copyRef(){if(!myProfile||!myProfile.ref_code){toast('Đang tải…');return;}
+  copyText(location.origin+'/?ref='+myProfile.ref_code,'📋 Đã copy link mời bạn');}
+async function loadReferral(){if(!myProfile)return;
+  var el=document.getElementById('refLink');if(el)el.textContent=location.origin+'/?ref='+(myProfile.ref_code||'');
+  try{var r=await sb.rpc('ag_my_referrals');var c=document.getElementById('refCount');if(c)c.textContent='👥 Bạn đã giới thiệu: '+(r.data||0)+' người';}catch(e){}}
+var promoTimer=null;
+var PROMO_END=new Date('2026-08-01T00:00:00+07:00').getTime(); // hết 23:59 ngày 31/07/2026 (giờ VN)
+function startCountdown(){
+  function tick(){var el=document.getElementById('promoCountdown');if(!el)return;
+    var diff=PROMO_END-Date.now();
+    if(diff<=0){el.textContent='⏳ Chương trình đã kết thúc';if(promoTimer){clearInterval(promoTimer);promoTimer=null;}return;}
+    var d=Math.floor(diff/86400000),h=Math.floor(diff/3600000)%24,m=Math.floor(diff/60000)%60,s=Math.floor(diff/1000)%60;
+    el.innerHTML='<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.18);border-radius:9px;padding:6px 11px;font-weight:800;font-size:.92rem;letter-spacing:.3px">⏳ Kết thúc sau '+d+' ngày '+p2(h)+':'+p2(m)+':'+p2(s)+'</span>';
+  }
+  tick();if(promoTimer)clearInterval(promoTimer);promoTimer=setInterval(tick,1000);
+}
+function stopCountdown(){if(promoTimer){clearInterval(promoTimer);promoTimer=null;}var el=document.getElementById('promoCountdown');if(el)el.innerHTML='';}
+async function loadPromo(){
+  var txt=document.getElementById('promoText'),banner=document.getElementById('promoBanner');
+  try{var got=await sb.from('balance_log').select('id').eq('user_id',me.id).eq('reason','welcome').limit(1);
+    if(got.data&&got.data.length){if(txt)txt.textContent='🎉 Bạn đã nhận quà chào mừng 10.000đ rồi!';stopCountdown();return;}
+    var r=await sb.rpc('ag_welcome_left');var left=r.data||0;var show=Math.min(left,50);
+    if(txt)txt.textContent=left>0?('🔥 Chỉ còn '+show+' suất — tạo link đầu tiên nhận ngay 10.000đ!'):'Chương trình chào mừng đã kết thúc.';
+    if(left>0){startCountdown();}
+    else{stopCountdown();if(banner)banner.classList.add('hide');}
+  }catch(e){}}
+async function doLogin(){
+  var p=document.getElementById('authPhone').value.trim(),pw=document.getElementById('authPass').value;
+  var r=await sb.auth.signInWithPassword({email:phoneToEmail(p),password:pw});
+  if(r.error){toast('SĐT hoặc mật khẩu chưa đúng 😊');return;}
+  saveLogin(p,pw);toast('👋 Chào mừng quay lại!');init();
+}
+async function logout(){await sb.auth.signOut();location.reload();}
+function saveLogin(p,w){try{var cb=document.getElementById('remember');
+  if(cb&&cb.checked)localStorage.setItem('agLogin',JSON.stringify({p:p,w:w}));else localStorage.removeItem('agLogin');}catch(e){}}
+function prefillLogin(){try{var s=JSON.parse(localStorage.getItem('agLogin')||'null');if(s){
+  document.getElementById('authPhone').value=s.p||'';document.getElementById('authPass').value=s.w||'';}}catch(e){}}
+async function changePassword(){var a=document.getElementById('npPass').value,b=document.getElementById('npPass2').value;
+  if(a.length<6){toast('Mật khẩu ít nhất 6 ký tự');return;}if(a!==b){toast('Xác nhận không khớp');return;}
+  var r=await sb.auth.updateUser({password:a});if(r.error){toast('Lỗi: '+r.error.message);return;}
+  document.getElementById('npPass').value='';document.getElementById('npPass2').value='';toast('✓ Đổi mật khẩu thành công');}
+
+/* ---------- khởi động ---------- */
+async function init(){
+  var s=await sb.auth.getSession();
+  if(!s.data.session){document.getElementById('viewAuth').classList.remove('hide');
+    document.getElementById('viewApp').classList.add('hide');prefillLogin();return;}
+  me=s.data.session.user;
+  document.getElementById('viewAuth').classList.add('hide');
+  document.getElementById('viewApp').classList.remove('hide');
+  fillBanks();
+  await loadProfile();
+  loadRequests();loadWithdrawals();loadLedger();prefillBank();loadReferral();loadPromo();setupZalo();
+  subscribeRealtime();
+  var tb=document.getElementById('themeBtn');if(tb)tb.textContent=currentTheme()==='dark'?'☀️':'🌙';
+  var admin=myProfile&&myProfile.is_admin;
+  document.getElementById('nav-tabAdmin').classList.toggle('hide',!admin);
+  if(admin){loadAdmin();refreshPushBtn();}
+}
+async function loadProfile(){
+  var r=await sb.from('profiles').select('*').eq('id',me.id).single();
+  if(r.data){myProfile=r.data;
+    document.getElementById('wAvail').textContent=fmt(r.data.balance);
+    document.getElementById('wPending').textContent=fmt(r.data.ag_pending);
+    document.getElementById('wPaid').textContent=fmt(r.data.ag_paid);
+    document.getElementById('wTotal').textContent=fmt(r.data.ag_total);
+    document.getElementById('wPhone').textContent='SĐT: '+(r.data.phone||'');
+    var bal=r.data.balance,goal=20000,el=document.getElementById('wdProgress');
+    if(el){
+      if(bal>=goal){el.innerHTML='<div style="background:rgba(255,255,255,.18);border-radius:10px;padding:10px 12px;font-size:.86rem;font-weight:700">🎉 Bạn đủ điều kiện rút! Bấm 💸 Rút tiền phía dưới.</div>';}
+      else{var pct=Math.max(2,Math.round(bal/goal*100));
+        el.innerHTML='<div style="font-size:.74rem;opacity:.9;display:flex;justify-content:space-between;margin-bottom:5px"><span>Tiến độ đạt mốc rút</span><span>'+fmt(bal)+' / '+fmt(goal)+'</span></div>'
+          +'<div style="height:9px;background:rgba(255,255,255,.22);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:#fff;border-radius:99px;transition:width .4s"></div></div>'
+          +'<div style="font-size:.82rem;margin-top:6px;opacity:.95">💪 Chỉ còn <b>'+fmt(goal-bal)+'</b> nữa là rút được — tạo thêm link để đạt mốc nhé!</div>';}
+    }
+  }
+}
+function showTab(id){
+  var tabs=['tabHome','tabRequests','tabWallet','tabAdmin'];
+  for(var i=0;i<tabs.length;i++){document.getElementById(tabs[i]).classList.toggle('hide',tabs[i]!==id);
+    var nb=document.getElementById('nav-'+tabs[i]);if(nb)nb.classList.toggle('active',tabs[i]===id);}
+  if(id==='tabWallet'){loadProfile();loadLedger();loadWithdrawals();}
+  if(id==='tabRequests'){loadRequests();markReadySeen();}
+  if(id==='tabAdmin')loadAdmin();
+  window.scrollTo(0,0);
+}
+
+/* ---------- GỬI YÊU CẦU ---------- */
+var busy=false;
+async function submitRequest(){
+  if(busy)return;
+  var raw=document.getElementById('srcLink').value.trim();
+  var m=raw.match(/https?:\/\/[^\s"'<>]+/i);if(m)raw=m[0];
+  if(!raw){toast('Bạn dán link sản phẩm vào trước nhé 😊');return;}
+  if(raw.indexOf('http')!==0)raw='https://'+raw;
+  var detected=null;for(var k in PLATFORMS)if(PLATFORMS[k].match.test(raw))detected=k;
+  var plat=detected||curPlat;
+  busy=true;var btn=document.getElementById('btnSubmit');btn.disabled=true;btn.textContent='Đang gửi…';
+  var r=await sb.from('ag_requests').insert({platform:plat,original_url:raw,user_id:me.id}).select('code').single();
+  btn.disabled=false;btn.textContent='🚀 Gửi yêu cầu';busy=false;
+  if(r.error){toast('Lỗi: '+r.error.message);return;}
+  document.getElementById('newCode').textContent=r.data.code;
+  document.getElementById('submitResult').classList.remove('hide');
+  document.getElementById('srcLink').value='';
+  toast('✅ Đã gửi yêu cầu '+r.data.code);
+  loadRequests();
+  // báo admin (không chặn UI)
+  try{var s=await sb.auth.getSession();var tok=s.data.session?s.data.session.access_token:'';
+    fetch('/api/notify-admin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+      body:JSON.stringify({code:r.data.code,platform:plat,phone:myProfile&&myProfile.phone,url:raw})}).catch(function(){});}catch(e){}
+}
+
+/* ---------- DANH SÁCH YÊU CẦU (khách) ---------- */
+var myClaims=[];
+async function loadRequests(){
+  var r=await sb.from('ag_requests').select('*').eq('user_id',me.id).order('created_at',{ascending:false}).limit(100);
+  var c=await sb.from('ag_claims').select('*').eq('user_id',me.id).order('created_at',{ascending:false}).limit(300);
+  myClaims=c.data||[];
+  var rows=r.data||[];lastReqRows=rows;
+  renderReq('reqList',rows);
+  renderReqStats(rows);
+  refreshNotif(rows);
+}
+/* ---------- THÔNG BÁO IN-APP: link đã xong → báo khách lấy link ngay ---------- */
+var lastReqRows=[], unreadReady=[];
+function seenSet(){try{return new Set(JSON.parse(localStorage.getItem('agSeen_'+(me&&me.id))||'[]'));}catch(e){return new Set();}}
+function saveSeen(set){try{localStorage.setItem('agSeen_'+(me&&me.id),JSON.stringify([].slice.call(set).slice(-800)));}catch(e){}}
+function refreshNotif(rows){
+  var seen=seenSet();
+  unreadReady=(rows||[]).filter(function(r){return r.status==='completed'&&r.aff_url&&!seen.has(r.id);});
+  var n=unreadReady.length;
+  var dot=document.getElementById('notifDot');
+  if(dot){dot.textContent=n>9?'9+':String(n);dot.classList.toggle('hide',n===0);}
+  var b=document.getElementById('readyBanner'),txt=document.getElementById('readyText');
+  if(b){b.classList.toggle('hide',n===0);
+    if(n&&txt)txt.textContent=(n===1?('Link '+unreadReady[0].code):(n+' link'))+' đã sẵn sàng!';}
+}
+function markReadySeen(){
+  var seen=seenSet();
+  lastReqRows.forEach(function(r){if(r.status==='completed'&&r.aff_url)seen.add(r.id);});
+  saveSeen(seen);unreadReady=[];
+  var dot=document.getElementById('notifDot');if(dot)dot.classList.add('hide');
+  var b=document.getElementById('readyBanner');if(b)b.classList.add('hide');
+}
+function openNotifs(){markReadySeen();showTab('tabRequests');}
+// realtime: khi admin bấm "Hoàn tất", khách đang mở app nhận ngay
+var rtChannel=null;
+async function subscribeRealtime(){
+  try{ if(rtChannel)return;
+    // realtime có RLS → phải gắn JWT của khách thì mới nhận được sự kiện của chính họ
+    var s=await sb.auth.getSession();var tok=s.data.session&&s.data.session.access_token;
+    if(tok&&sb.realtime&&sb.realtime.setAuth)sb.realtime.setAuth(tok);
+    rtChannel=sb.channel('ag_reqs_'+me.id)
+      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'ag_requests',filter:'user_id=eq.'+me.id},function(p){
+        var row=(p&&p.new)||{};
+        if(row.status==='completed'&&row.aff_url)toast('🎉 Link '+(row.code||'')+' đã sẵn sàng — lấy ở tab Yêu cầu!');
+        loadRequests();
+      }).subscribe();
+  }catch(e){}
+}
+function renderReqStats(rows){
+  var el=document.getElementById('reqStats');if(!el)return;
+  var total=rows.length,pend=0,done=0,rej=0;
+  for(var i=0;i<rows.length;i++){var s=rows[i].status;
+    if(s==='completed')done++;else if(s==='rejected')rej++;else pend++;}
+  var hh=(myProfile&&myProfile.ag_total)||0;
+  function t(v,l,cls){return '<div class="stat'+(cls?' '+cls:'')+'"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';}
+  el.innerHTML=t(total,'Link đã gửi')+t(pend,'Đang xử lý','hl')+t(done,'Đã xong','ok')+t(fmt(hh),'Hoa hồng','ok');
+}
+function reqBadge(st){return st==='completed'?'<span class="badge b-ok">✓ Xong</span>'
+  :st==='rejected'?'<span class="badge b-rej">Từ chối</span>':'<span class="badge b-pending">Đang xử lý</span>';}
+function renderReq(box,rows){var el=document.getElementById(box);
+  if(!rows||!rows.length){el.innerHTML='<div class="empty">Chưa có yêu cầu nào 🚀</div>';return;}
+  var h='';for(var i=0;i<rows.length;i++){var it=rows[i];
+    var plat=PLATFORMS[it.platform]?PLATFORMS[it.platform].label:it.platform;
+    var claims=myClaims.filter(function(c){return c.request_id===it.id;});
+    var cH='';for(var k=0;k<claims.length;k++){cH+='<div class="t2">🧾 '+esc(claims[k].order_id)+' — '
+      +(claims[k].matched?'<b style="color:var(--ok)">đã cộng ✓</b>':'⏳ chờ đối soát')+'</div>';}
+    var claimed=claims.some(function(c){return c.matched;});
+    var claimUI = (it.status==='completed'&&!claimed)
+      ? cH+'<div style="margin-top:8px">'
+        +'<input id="claim'+it.id+'" placeholder="Đã mua? Dán mã đơn / tin nhắn / link đơn — app tự tách mã" style="font-size:.92rem;padding:11px">'
+        +'<div class="row" style="margin-top:6px">'
+          +'<button class="btn-ghost" style="flex:0 0 auto;font-size:.9rem" onclick="pasteClaim('+it.id+')">📋 Dán</button>'
+          +'<button class="btn-primary" style="font-size:.92rem" onclick="claimOrder('+it.id+')">🧾 Ghi nhận để nhận hoa hồng</button></div>'
+        +'<div class="hint" style="margin-top:6px">💡 Đơn <b>Shopee</b> tự cộng qua link — thường không cần nhập. Đơn <b>TikTok</b>: dán mã đơn hoặc tin xác nhận, app tự tách mã giúp bạn.</div>'
+        +'</div>'
+      : cH;
+    h+='<div class="item" style="flex-direction:column;align-items:stretch">'
+      +'<div style="display:flex;gap:10px;align-items:center">'
+      +'<div class="main"><div class="t1">'+esc(it.code)+' · '+esc(plat)+'</div>'
+      +'<div class="t2">'+esc((it.original_url||'').slice(0,44))+'… · '+fmtDT(it.created_at)+'</div></div>'
+      +reqBadge(it.status)
+      +(it.status==='completed'&&it.aff_url?'<button class="sbtn" onclick="copyText(decodeURIComponent(\''+encodeURIComponent(it.aff_url)+'\'),\'Đã copy link\')">Copy</button>':'')
+      +'</div>'
+      +(it.status==='completed'&&it.aff_url?'<div class="linkbox" style="margin-top:8px"><b>Link hoa hồng — gửi khách</b>'+esc(it.aff_url)+'</div>':'')
+      +(it.status==='rejected'?'<div style="background:var(--warn-soft);color:var(--warn);border-radius:11px;padding:11px 13px;margin-top:8px;font-size:.86rem;line-height:1.5">💡 '+esc(it.note||'Yêu cầu chưa được duyệt. Bạn thử gửi link khác nhé!')+'<div class="row" style="margin-top:8px"><button class="btn-ghost" style="font-size:.86rem" onclick="goSubmit()">🔄 Gửi link khác</button></div></div>':'')
+      +claimUI
+      +'</div>';}
+  el.innerHTML=h;}
+// Tự TÁCH mã đơn từ nội dung khách dán (mã đơn / tin nhắn xác nhận / link đơn).
+// TikTok: chuỗi số dài 15–20. Shopee: chuỗi CHỮ+SỐ 10–20 ký tự. Bỏ qua mã AG (Sub ID).
+function extractOrderId(raw){
+  var t=(raw||'').toUpperCase();
+  var tik=(t.match(/\d{15,20}/g)||[]).sort(function(a,b){return b.length-a.length;});
+  if(tik.length)return tik[0];
+  var cand=(t.match(/[A-Z0-9]{10,22}/g)||[]).filter(function(x){
+    return /\d/.test(x)&&/[A-Z]/.test(x)&&!/^AG\d+$/.test(x);});
+  cand.sort(function(a,b){return b.length-a.length;});
+  return cand.length?cand[0]:'';
+}
+function pasteClaim(id){
+  var el=document.getElementById('claim'+id);if(!el)return;
+  if(navigator.clipboard&&navigator.clipboard.readText){
+    navigator.clipboard.readText().then(function(t){t=(t||'').trim();
+      if(!t){toast('Bộ nhớ tạm trống');return;}
+      el.value=t;claimOrder(id);
+    }).catch(function(){toast('Bấm giữ vào ô rồi Dán, sau đó bấm Ghi nhận');el.focus();});
+  }else{toast('Bấm giữ vào ô rồi Dán, sau đó bấm Ghi nhận');el.focus();}
+}
+async function claimOrder(reqId){
+  var el=document.getElementById('claim'+reqId);var raw=(el&&el.value||'').trim();
+  if(!raw){toast('Dán mã đơn / tin nhắn xác nhận đơn vào đã nhé 😊');return;}
+  var code=extractOrderId(raw);
+  if(!code){toast('Chưa thấy mã đơn trong nội dung — dán lại mã đơn hoặc tin xác nhận nhé 😊');return;}
+  var r=await sb.rpc('ag_claim_order',{p_order_id:code,p_request_id:reqId});
+  if(r.error){toast('Lỗi: '+(/da duoc tai khoan khac|already/i.test(r.error.message)?'Mã đơn này đã được người khác ghi nhận':r.error.message));return;}
+  if(el)el.value='';toast('✅ Đã ghi nhận mã đơn '+code+'! Hoa hồng sẽ tự cộng khi đối soát.');
+  loadRequests();loadProfile();
+}
+
+/* ---------- VÍ / RÚT ---------- */
+function fillBanks(){var s=document.getElementById('wdBank');if(!s||s.options.length)return;
+  var h='';for(var i=0;i<BANKS.length;i++)h+='<option value="'+BANKS[i][0]+'">'+BANKS[i][1]+'</option>';s.innerHTML=h;}
+async function prefillBank(){try{var r=await sb.from('withdrawals').select('bank_code,account_no,account_name').eq('user_id',me.id).order('created_at',{ascending:false}).limit(1);
+  var w=r.data&&r.data[0];if(!w)return;var b=document.getElementById('wdBank');if(b&&w.bank_code)b.value=w.bank_code;
+  var a=document.getElementById('wdAcc');if(a&&!a.value)a.value=w.account_no||'';var n=document.getElementById('wdName');if(n&&!n.value)n.value=w.account_name||'';}catch(e){}}
+var wdBusy=false;
+async function createWithdrawal(){
+  if(wdBusy)return;
+  var a=num(document.getElementById('wdAmount').value),code=document.getElementById('wdBank').value;
+  var acc=document.getElementById('wdAcc').value.trim(),name=document.getElementById('wdName').value.trim();
+  if(a<20000){toast('Rút tối thiểu 20.000đ 😊');return;}
+  if(!/^\d{6,19}$/.test(acc)){toast('Kiểm tra lại số tài khoản');return;}
+  if(!name){toast('Nhập tên chủ tài khoản');return;}
+  if(myProfile&&a>myProfile.balance){toast('Số dư khả dụng chưa đủ 💪');return;}
+  wdBusy=true;
+  var info=bankName(code)+' — '+acc+' — '+noAccent(name).toUpperCase();
+  var r=await sb.from('withdrawals').insert({user_id:me.id,amount:a,bank_code:code,account_no:acc,account_name:noAccent(name).toUpperCase(),bank_info:info});
+  wdBusy=false;
+  if(r.error){toast('Lỗi: '+r.error.message);return;}
+  try{var s=await sb.auth.getSession();var tok=s.data.session?s.data.session.access_token:'';
+    fetch('/api/notify-admin',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+      body:JSON.stringify({kind:'withdraw',phone:myProfile&&myProfile.phone,amount:a})}).catch(function(){});}catch(e){}
+  toast('✅ Đã nhận yêu cầu rút!');document.getElementById('wdAmount').value='';loadWithdrawals();
+}
+async function loadWithdrawals(){var r=await sb.from('withdrawals').select('*').eq('user_id',me.id).order('created_at',{ascending:false}).limit(15);
+  var box=document.getElementById('wdList'),rows=r.data||[];if(!rows.length){box.innerHTML='';return;}
+  var h='<div style="font-weight:800;font-size:.9rem;margin:6px 0 2px">Lịch sử rút tiền</div>';for(var i=0;i<rows.length;i++){var it=rows[i];
+    var bd=it.status==='approved'?'<span class="badge b-ok">✓ Đã chuyển</span>':it.status==='rejected'?'<span class="badge b-rej">Từ chối</span>':'<span class="badge b-pending">Đang xử lý</span>';
+    h+='<div class="item" style="align-items:flex-start"><div class="main"><div class="t1">💸 Rút '+fmt(it.amount)+'</div>'
+      +'<div class="t2" style="font-variant-numeric:tabular-nums">🕒 '+fmtDTS(it.created_at)+'</div>'
+      +(it.bank_info?'<div class="t2">🏦 '+esc(it.bank_info)+'</div>':'')
+      +(it.status==='approved'&&it.paid_at?'<div class="t2" style="color:var(--ok)">✅ Đã chuyển: '+fmtDTS(it.paid_at)+'</div>':'')
+      +'</div>'+bd+'</div>';}
+  box.innerHTML=h;}
+var LEDGER_LABEL={cashback:'💵 Hoa hồng đơn hàng',reverse:'↩️ Thu hồi (đơn hủy/hoàn)',withdraw:'💸 Rút tiền',
+  welcome:'🎁 Thưởng chào mừng',referral:'🤝 Thưởng giới thiệu'};
+async function loadLedger(){
+  var r=await sb.from('balance_log').select('*').eq('user_id',me.id).order('created_at',{ascending:false}).limit(80);
+  var box=document.getElementById('ledger'),rows=r.data||[];
+  if(!rows.length){box.innerHTML='<div class="empty">Chưa có giao dịch nào — mua qua link để nhận hoa hồng nhé! 🛍️</div>';return;}
+  var tin=0,tout=0;
+  for(var j=0;j<rows.length;j++){if(rows[j].change>0)tin+=rows[j].change;else tout+=-rows[j].change;}
+  var h='<div style="display:flex;gap:9px;margin-bottom:10px">'
+    +'<div class="stat ok" style="flex:1"><div class="v">+'+fmt(tin)+'</div><div class="l">Tổng tiền vào</div></div>'
+    +'<div class="stat" style="flex:1"><div class="v" style="color:var(--accent)">-'+fmt(tout)+'</div><div class="l">Tổng tiền ra</div></div></div>'
+    +'<div style="font-size:.72rem;color:var(--muted);font-weight:700;display:flex;justify-content:space-between;padding:0 2px 6px;border-bottom:1px solid var(--line)"><span>THỜI GIAN · NỘI DUNG</span><span>SỐ TIỀN · SỐ DƯ</span></div>';
+  for(var i=0;i<rows.length;i++){var it=rows[i],pos=it.change>0;
+    var lb=LEDGER_LABEL[it.reason]||'✏️ Điều chỉnh';
+    var bafter=(it.balance_after==null?'—':fmt(it.balance_after));
+    h+='<div class="item" style="align-items:flex-start"><div class="main">'
+      +'<div class="t1" style="font-weight:600">'+lb+'</div>'
+      +'<div class="t2" style="font-variant-numeric:tabular-nums">🕒 '+fmtDTS(it.created_at)+(it.ref?' · #'+esc(it.ref):'')+'</div></div>'
+      +'<div style="text-align:right;flex:0 0 auto">'
+      +'<div style="font-weight:800;color:'+(pos?'var(--ok)':'var(--accent)')+'">'+(pos?'+':'−')+fmt(Math.abs(it.change))+'</div>'
+      +'<div class="t2">Dư: '+bafter+'</div></div></div>';}
+  box.innerHTML=h;}
+
+/* ---------- ADMIN ---------- */
+async function loadAdmin(force){
+  try{var r=await sb.rpc('admin_stats');if(r.data){var d=r.data;
+    function c(v,l,cls){return '<div class="stat'+(cls?' '+cls:'')+'"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';}
+    document.getElementById('statsBox').innerHTML='<div class="stats">'
+      +c(d.req_cho||0,'Link chờ xử lý','hl')+c(d.req_xong||0,'Đã hoàn tất')
+      +c(d.so_khach||0,'Khách hàng')+c(d.req_hom_nay||0,'Yêu cầu hôm nay')
+      +c(d.so_don||0,'Đơn đối soát')+c(d.rut_cho||0,'Rút chờ duyệt')
+      +c(fmt(d.tong_hoan||0),'Đã hoàn khách','ok')+c(fmt(d.tong_chi||0),'Đã chi trả','ok')+'</div>';}
+  }catch(e){}
+  var p=await sb.from('ag_requests').select('*, profiles!user_id(phone)').eq('status','pending').order('created_at').limit(100);
+  renderAdmPending(p.data||[]);
+  var dn=await sb.from('ag_requests').select('*, profiles!user_id(phone)').eq('status','completed').order('processed_at',{ascending:false}).limit(20);
+  renderAdmDone(dn.data||[]);
+  var w=await sb.from('withdrawals').select('*, profiles!user_id(phone)').eq('status','pending').order('created_at').limit(100);
+  renderAdmWithdrawals(w.data||[]);
+  var o=await sb.from('ag_orders').select('*').order('imported_at',{ascending:false}).limit(30);
+  renderAdmOrders(o.data||[]);
+  loadTop();loadCRM();
+}
+function renderAdmDone(rows){var box=document.getElementById('admDone');
+  if(!rows.length){box.innerHTML='<div class="empty">Chưa có link nào xử lý.</div>';return;}
+  var h='';for(var i=0;i<rows.length;i++){var it=rows[i];var phone=(it.profiles&&it.profiles.phone)||'';
+    var plat=PLATFORMS[it.platform]?PLATFORMS[it.platform].label:it.platform;var msg=custMsg(it.code,it.aff_url||'');
+    var em=encodeURIComponent(msg);
+    h+='<div class="item" style="flex-direction:column;align-items:stretch">'
+      +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:center">'
+        +'<div class="main"><div class="t1">'+esc(it.code)+' · '+esc(plat)+' · '+esc(phone)+'</div>'
+        +'<div class="t2">'+fmtDT(it.processed_at||it.created_at)+'</div></div><span class="badge b-ok">✓ Xong</span></div>'
+      +'<div class="linkbox" style="margin-top:8px"><b>Link affiliate</b>'+esc(it.aff_url||'')+'</div>'
+      +'<div class="row" style="margin-top:8px">'
+        +'<button class="btn-ok" onclick="zaloMsg(\''+phone+'\',decodeURIComponent(\''+em+'\'))">💬 Zalo + copy tin nhắn</button>'
+        +'<button class="btn-line" onclick="smsTo(\''+phone+'\',decodeURIComponent(\''+em+'\'))">✉️ SMS</button>'
+        +'<button class="sbtn" onclick="copyText(decodeURIComponent(\''+em+'\'),\'📋 Đã copy tin nhắn\')">📋 Copy</button></div></div>';}
+  box.innerHTML=h;}
+async function loadTop(){var box=document.getElementById('topBox');if(!box)return;
+  try{var r=await sb.rpc('admin_top');if(r.error){box.innerHTML='<div class="empty">'+esc(r.error.message)+'</div>';return;}
+    var d=r.data||{},h='';
+    h+='<div style="font-weight:800;font-size:.88rem;margin:2px 0 4px">💰 Top khách kiếm nhiều</div>';
+    (d.top_earners||[]).forEach(function(t,i){h+='<div class="item" style="padding:8px 2px"><div class="main"><div class="t1">'+(i+1)+'. '+esc(t.phone)+'</div></div><b>'+fmt(t.ag_total)+'</b></div>';});
+    h+='<div style="font-weight:800;font-size:.88rem;margin:10px 0 4px">🛒 Theo sàn</div>';
+    (d.by_platform||[]).forEach(function(t){h+='<div class="item" style="padding:8px 2px"><div class="main"><div class="t1">'+esc(t.platform)+' · '+t.don+' đơn</div></div><b>'+fmt(t.hh)+'</b></div>';});
+    h+='<div style="font-weight:800;font-size:.88rem;margin:10px 0 4px">🔥 Top sản phẩm</div>';
+    (d.top_products||[]).forEach(function(t){h+='<div class="item" style="padding:8px 2px"><div class="main"><div class="t1" style="white-space:normal">'+esc((t.ten||'').slice(0,50))+'</div><div class="t2">'+t.don+' đơn</div></div><b>'+fmt(t.hh)+'</b></div>';});
+    box.innerHTML=h||'<div class="empty">Chưa có dữ liệu.</div>';
+  }catch(e){box.innerHTML='<div class="empty">Không tải được.</div>';}}
+async function loadCRM(){var box=document.getElementById('crmBox');if(!box)return;
+  var q=(document.getElementById('crmSearch')||{}).value||'';
+  try{var r=await sb.rpc('admin_customers',{p_q:q});if(r.error){box.innerHTML='<div class="empty">'+esc(r.error.message)+'</div>';return;}
+    var rows=r.data||[];if(!rows.length){box.innerHTML='<div class="empty">Không có khách phù hợp.</div>';return;}
+    var h='';for(var i=0;i<rows.length;i++){var it=rows[i];
+      h+='<div class="item" style="align-items:flex-start"><div class="main"><div class="t1">'+esc(it.phone||'—')+' · <span style="color:var(--muted)">'+esc(it.ref_code||'')+'</span></div>'
+        +'<div class="t2">💰 Dư '+fmt(it.balance)+' · Chờ '+fmt(it.ag_pending)+' · Tổng '+fmt(it.ag_total)+'</div>'
+        +'<div class="t2">'+it.reqs+' yêu cầu · '+it.refs+' giới thiệu · '+fmtDT(it.created_at)+'</div></div></div>';}
+    box.innerHTML=h;
+  }catch(e){box.innerHTML='<div class="empty">Không tải được.</div>';}}
+function renderAdmPending(rows){var box=document.getElementById('admPending');
+  if(!rows.length){box.innerHTML='<div class="empty">Không có yêu cầu chờ 🎉</div>';return;}
+  var h='';for(var i=0;i<rows.length;i++){var it=rows[i];var phone=(it.profiles&&it.profiles.phone)||'';
+    var plat=PLATFORMS[it.platform]?PLATFORMS[it.platform].label:it.platform;
+    h+='<div class="item" style="flex-direction:column;align-items:stretch">'
+      +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:center">'
+        +'<div class="main"><div class="t1">'+esc(it.code)+' · '+esc(plat)+'</div>'
+        +'<div class="t2">'+esc(phone)+' · '+fmtDT(it.created_at)+'</div></div>'
+        +'<span class="badge b-pending">Chờ</span></div>'
+      +'<div class="row" style="margin-top:8px">'
+        +'<button class="btn-line" onclick="window.open(decodeURIComponent(\''+encodeURIComponent(it.original_url)+'\'),\'_blank\')">🔗 Mở link gốc</button>'
+        +'<button class="sbtn" onclick="copyText(\''+it.code+'\',\'Copy mã Sub ID: '+it.code+'\')">Copy Sub ID</button></div>'
+      +'<input id="aff'+it.id+'" placeholder="Dán link affiliate vừa tạo…" style="margin-top:8px">'
+      +'<div class="row" style="margin-top:8px">'
+        +'<button class="btn-ok" onclick="completeReq('+it.id+')">✓ Hoàn tất & gửi khách</button></div>'
+      +'<div class="row" style="margin-top:6px">'
+        +'<button class="btn-line" style="color:var(--warn)" onclick="rejectNoComm('+it.id+',\''+it.platform+'\')">⚠️ SP không có hoa hồng</button>'
+        +'<button class="btn-line" style="flex:0 0 auto;color:var(--danger)" onclick="rejectReq('+it.id+')">Từ chối</button></div>'
+      +'</div>';}
+  box.innerHTML=h;}
+async function completeReq(id){var v=(document.getElementById('aff'+id).value||'').trim();
+  if(!v){toast('Dán link affiliate vào đã nhé');return;}
+  var r=await sb.rpc('ag_complete_request',{p_id:id,p_aff_url:v});
+  if(r.error){toast('Lỗi: '+r.error.message);return;}
+  var row=r.data;
+  if(row&&row.code)copyText(custMsg(row.code,v),'✓ Xong! Đã copy tin nhắn — kéo xuống "Link đã xử lý" bấm 💬 Zalo');
+  else toast('✓ Đã hoàn tất');
+  loadAdmin();}
+async function rejectReq(id){var note=prompt('Lý do từ chối (khách sẽ thấy):','Link không hợp lệ');if(note===null)return;
+  var r=await sb.rpc('ag_reject_request',{p_id:id,p_note:note});if(r.error){toast('Lỗi: '+r.error.message);return;}toast('Đã từ chối');loadAdmin();}
+// SP không đủ điều kiện hoa hồng -> báo khách thân thiện, GỢI Ý RIÊNG theo từng sàn
+function noCommMsg(platform){
+  var tip = platform==='tiktok'
+    ? 'trên TikTok Shop chỉ sản phẩm có gắn "Chia sẻ liên kết" mới được hoàn tiền'
+    : 'trên Shopee một số mặt hàng (sữa, bỉm, thẻ cào, nạp ĐT, hàng giá gốc...) shop không mở hoàn tiền';
+  return 'Sản phẩm này chưa hỗ trợ hoàn tiền 😔 ('+tip+'). Bạn thử chọn sản phẩm/shop tương tự có hoàn tiền, hoặc gửi link khác nhé — mình luôn sẵn sàng hỗ trợ! 💚';
+}
+async function rejectNoComm(id,platform){
+  var r=await sb.rpc('ag_reject_request',{p_id:id,p_note:noCommMsg(platform)});
+  if(r.error){toast('Lỗi: '+r.error.message);return;}toast('✓ Đã báo khách: sản phẩm không có hoa hồng');loadAdmin();}
+function goSubmit(){showTab('tabHome');var el=document.getElementById('srcLink');if(el)el.focus();}
+
+function renderAdmWithdrawals(rows){var box=document.getElementById('admWithdrawals');
+  if(!rows.length){box.innerHTML='<div class="empty">Không có yêu cầu chờ.</div>';return;}
+  var h='';for(var i=0;i<rows.length;i++){var it=rows[i];var phone=(it.profiles&&it.profiles.phone)||'';
+    var qr=(it.bank_code&&it.account_no)?vietQR(it.bank_code,it.account_no,it.amount,it.account_name||'','ANTIGRAVITY '+phone):'';
+    h+='<div class="item" style="flex-direction:column;align-items:stretch">'
+      +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:center">'
+        +'<div class="main"><div class="t1">Rút '+fmt(it.amount)+' — '+esc(phone)+'</div>'
+        +'<div class="t2">'+esc(it.bank_info||'')+'</div></div>'
+        +(qr?'<button class="sbtn" onclick="toggleQR('+it.id+')">📲 QR</button>':'')+'</div>'
+      +(qr?'<div id="qr'+it.id+'" class="hide" style="text-align:center;margin-top:10px"><img src="'+qr+'" style="max-width:230px;width:100%;border-radius:12px;border:1px solid var(--line)"></div>':'')
+      +'<div class="row" style="margin-top:8px">'
+        +'<button class="btn-ok" onclick="admApprove(\'approve_withdrawal\',\'withdrawal_id\','+it.id+')">✓ Đã chuyển — trừ số dư</button>'
+        +'<button class="btn-line" style="flex:0 0 auto;color:var(--danger)" onclick="admReject('+it.id+')">Từ chối</button></div></div>';}
+  box.innerHTML=h;}
+function toggleQR(id){var e=document.getElementById('qr'+id);if(e)e.classList.toggle('hide');}
+async function admApprove(rpc,param,id){var a={};a[param]=id;var r=await sb.rpc(rpc,a);
+  if(r.error){toast('Lỗi: '+r.error.message);return;}toast('✓ Đã duyệt');loadAdmin();loadProfile();}
+async function admReject(id){var note=prompt('Lý do từ chối rút:','');if(note===null)return;
+  var r=await sb.rpc('reject_withdrawal',{withdrawal_id:id,p_note:note});if(r.error){toast('Lỗi: '+r.error.message);return;}toast('Đã từ chối');loadAdmin();}
+
+function renderAdmOrders(rows){var box=document.getElementById('admOrders');
+  if(!rows.length){box.innerHTML='';return;}
+  var h='<div style="font-weight:800;font-size:.9rem;margin:6px 0 4px">Đơn đã đối soát gần đây</div>';
+  for(var i=0;i<rows.length;i++){var it=rows[i];
+    var bd=it.status==='approved'?'<span class="badge b-ok">Duyệt</span>':it.status==='rejected'?'<span class="badge b-rej">Hủy</span>':'<span class="badge b-pending">Chờ</span>';
+    var ws=it.wallet_state==='available'?' · <b style="color:var(--ok)">đã cộng '+fmt(it.user_commission)+'</b>':it.wallet_state==='pending'?' · chờ giam':'';
+    h+='<div class="item"><div class="main"><div class="t1">'+esc(it.order_id)+' '+(it.track_code?'· '+esc(it.track_code):'')+'</div>'
+      +'<div class="t2">HH '+fmt(it.commission)+' → khách '+fmt(it.user_commission)+ws+'</div></div>'+bd+'</div>';}
+  box.innerHTML=h;}
+
+/* ---------- ĐỐI SOÁT: đọc CSV báo cáo AccessTrade ---------- */
+function parseCSV(text){
+  // bỏ BOM, tách dòng, hỗ trợ ô có dấu phẩy trong ngoặc kép
+  text=text.replace(/^﻿/,'');var rows=[],cur=[],val='',q=false;
+  for(var i=0;i<text.length;i++){var c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){val+='"';i++;}else q=false;}else val+=c;}
+    else{if(c==='"')q=true;else if(c===','){cur.push(val);val='';}
+      else if(c==='\n'){cur.push(val);rows.push(cur);cur=[];val='';}
+      else if(c==='\r'){}else val+=c;}}
+  if(val.length||cur.length){cur.push(val);rows.push(cur);}return rows;}
+// tìm cột theo ƯU TIÊN MẪU (pattern đứng trước thắng) — để chọn đúng cột hoa hồng RÒNG
+function findCol(headers,res){
+  for(var j=0;j<res.length;j++){
+    for(var i=0;i<headers.length;i++){
+      if(res[j].test(noAccent(headers[i]).toLowerCase()))return i;
+    }
+  }
+  return -1;
+}
+function mapStatus(s){s=noAccent(s||'').toLowerCase();
+  // rejected trước (ưu tiên): hủy / không đủ điều kiện / hoàn trả
+  if(/huy|cancel|reject|tu choi|hoan tra|invalid|khong du dieu kien|khong hop le|that bai/.test(s))return 'rejected';
+  // approved: đã duyệt / hoàn thành / đã quyết toán / đã giải quyết  (loại "chưa/chờ")
+  if(/duyet|approved|hoan thanh|confirmed|thanh cong|quyet toan|giai quyet|settled|da tra/.test(s)&&!/chua|cho\b|dang/.test(s))return 'approved';
+  return 'pending';}
+function onCsvPick(ev){var f=ev.target.files[0];if(!f)return;
+  var name=(f.name||'').toLowerCase();var rd=new FileReader();
+  if(/\.xlsx?$/.test(name)&&window.XLSX){
+    // Excel (TikTok): đọc số thật để KHÔNG mất chữ số mã đơn 18 chữ số
+    rd.onload=function(){try{
+      var wb=XLSX.read(new Uint8Array(rd.result),{type:'array',cellDates:true});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var raw=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+      var rows=raw.map(function(r){return r.map(function(c){
+        return (c instanceof Date)?c.toISOString():(c==null?'':String(c));});});
+      buildPreview(rows);
+    }catch(e){toast('Không đọc được Excel: '+e.message);}};
+    rd.readAsArrayBuffer(f);
+  }else{
+    rd.onload=function(){try{buildPreview(parseCSV(rd.result));}catch(e){toast('Không đọc được file: '+e.message);}};
+    rd.readAsText(f,'utf-8');
+  }
+}
+function buildPreview(rows){
+  if(rows.length<2){toast('File rỗng');return;}
+  var H=rows[0];
+  // Nhận diện cột cho CẢ Shopee (AccessTrade) LẪN TikTok. Hoa hồng lấy cột RÒNG
+  // (anh thực nhận) trước: TikTok "Tổng số tiền nhận được cuối cùng", Shopee "Hoa hồng ròng".
+  var ci={
+    order:findCol(H,[/id don hang/,/^order\s*id/,/^ma\s*don/,/orderid/]),
+    sub: findCol(H,[/^sub_?id/,/utm[_ ]?content/,/ma theo doi/,/tracking/]),
+    comm:findCol(H,[/tong so tien nhan duoc/,/hoa hong rong tiep thi/,/tong hoa hong don hang/,/^hoa hong don hang$/,/commission/]),
+    val: findCol(H,[/gia tri don hang/,/gia tri don/,/order value/,/^gia$/,/^gia\(/]),
+    stt: findCol(H,[/trang thai dat hang/,/trang thai quyet toan/,/trang thai dat/,/trang thai don/,/order status/]),
+    time:findCol(H,[/thoi gian dat hang/,/ngay dat hang/,/thoi gian dat/,/order time/,/ngay dat/]),
+    shop:findCol(H,[/ten shop/,/ten cua hang/,/shop name/]),
+    prod:findCol(H,[/ten item/,/ten san pham/,/product name/])
+  };
+  if(ci.order<0){toast('Không thấy cột mã đơn (ID Đơn hàng / Order id) — kiểm tra lại file');return;}
+  if(ci.comm<0){toast('Không thấy cột hoa hồng — kiểm tra lại file xuất');return;}
+  // nền tảng suy từ tiêu đề (1 file = 1 sàn)
+  var isTikTok=H.some(function(h){return /quyet toan|gmv|tong so tien nhan duoc|tik ?tok/.test(noAccent(h).toLowerCase());});
+  var platform=isTikTok?'tiktok':'shopee';
+  // GỘP theo mã đơn: 1 đơn nhiều dòng sản phẩm, hoa hồng tổng chỉ ở 1 dòng → lấy MAX.
+  var map={};
+  for(var i=1;i<rows.length;i++){var r=rows[i];if(!r)continue;
+    var oid=(r[ci.order]||'').toString().trim();if(!oid)continue;
+    var agRow=(r.join(' ').match(/AG\d{4,}/i)||[])[0]||'';
+    if(!map[oid]){
+      map[oid]={order_id:oid,track_code:agRow.toUpperCase(),commission:0,order_value:0,
+        status:mapStatus(ci.stt>=0?r[ci.stt]:''),order_time:ci.time>=0?(r[ci.time]||''):'',
+        platform:platform,
+        shop_name:ci.shop>=0?(r[ci.shop]||''):'',product_title:ci.prod>=0?(r[ci.prod]||''):''};
+    }
+    map[oid].commission=Math.max(map[oid].commission,numF(r[ci.comm]));
+    if(ci.val>=0)map[oid].order_value=Math.max(map[oid].order_value,numF(r[ci.val]));
+    if(!map[oid].track_code&&agRow)map[oid].track_code=agRow.toUpperCase();
+  }
+  pendingRows=Object.keys(map).map(function(k){return map[k];});
+  var matched=pendingRows.filter(function(x){return /AG\d{4,}/i.test(x.track_code);}).length;
+  var approved=pendingRows.filter(function(x){return x.status==='approved';}).length;
+  var totalComm=pendingRows.reduce(function(s,x){return s+(x.status==='approved'?x.commission:0);},0);
+  var box=document.getElementById('csvPreview');
+  box.innerHTML='<div style="background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px">'
+    +'<div style="font-weight:800">📄 Đọc được '+pendingRows.length+' đơn (đã gộp theo mã đơn)</div>'
+    +'<div class="sub" style="margin-top:4px">Sàn: <b>'+(isTikTok?'TikTok':'Shopee')+'</b> · Đơn thành công: <b>'+approved+'</b> · Có sẵn mã AG: <b>'+matched+'</b></div>'
+    +'<div class="sub">Tổng hoa hồng đơn thành công: <b>'+fmt(totalComm)+'</b> → chia khách ~<b style="color:var(--ok)">'+fmt(totalComm*0.5)+'</b></div>'
+    +'<div class="row"><button class="btn-primary" onclick="importOrders()">⬆️ Nạp & đối soát '+pendingRows.length+' đơn</button></div>'
+    +'<div class="hint">Cộng ví cho đơn <b>đã quyết toán</b> khi khớp được khách (mã AG hoặc mã đơn khách đã nhập). Nạp lại nhiều lần không cộng trùng.</div></div>';
+}
+async function importOrders(){
+  if(!pendingRows.length){toast('Chưa có dữ liệu');return;}
+  toast('Đang nạp '+pendingRows.length+' đơn…');
+  try{var s=await sb.auth.getSession();var tok=s.data.session?s.data.session.access_token:'';
+    var res=await fetch('/api/import-orders',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+      body:JSON.stringify({orders:pendingRows})});
+    var j=await res.json();
+    if(!res.ok||j.error){toast('Lỗi: '+(j.error||res.status));return;}
+    toast('✅ Xong! Nạp '+j.upserted+' đơn · '+ (j.reconcile&&j.reconcile.to_pending!=null?('cộng chờ '+j.reconcile.to_pending+' đơn'):'đã đối soát'));
+    pendingRows=[];document.getElementById('csvPreview').innerHTML='';document.getElementById('csvFile').value='';
+    loadAdmin();
+  }catch(e){toast('Lỗi mạng: '+e.message);}
+}
+
+/* ---------- PUSH ---------- */
+function urlB64(s){var pad='='.repeat((4-s.length%4)%4),b=(s+pad).replace(/-/g,'+').replace(/_/g,'/');
+  var raw=atob(b),a=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)a[i]=raw.charCodeAt(i);return a;}
+// hiển thị đúng trạng thái đã lưu khi mở lại app (1 chạm là xong, không phải bật lại)
+async function refreshPushBtn(){
+  var btn=document.getElementById('pushBtn');if(!btn)return;
+  try{
+    if(!('serviceWorker' in navigator)||!('PushManager' in window)){btn.textContent='🔔 Không hỗ trợ';btn.disabled=true;return;}
+    if(Notification.permission==='granted'){
+      var reg=await navigator.serviceWorker.ready;var sub=await reg.pushManager.getSubscription();
+      if(sub){btn.textContent='✓ Đã bật báo';btn.disabled=false;
+        // đồng bộ lại subscription lên server (phòng khi đổi thiết bị/khoá cũ)
+        try{await sb.rpc('save_push_sub',{sub:sub.toJSON?sub.toJSON():sub});}catch(e){}
+        return;}
+    }
+    btn.textContent='🔔 Bật báo';btn.disabled=false;
+  }catch(e){}
+}
+var pushBusy=false;
+async function enablePush(){if(pushBusy)return;pushBusy=true;
+  var btn=document.getElementById('pushBtn');var old=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='⏳ Đang bật…';}
+  try{
+    if(!('serviceWorker' in navigator)||!('PushManager' in window)){toast('Thiết bị không hỗ trợ');return;}
+    var perm=await Notification.requestPermission();if(perm!=='granted'){toast('Bạn chưa cho phép nhận thông báo');if(btn)btn.textContent=old||'🔔 Bật báo';return;}
+    var reg=await navigator.serviceWorker.ready;var sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64(VAPID_PUBLIC)});
+    var r=await sb.rpc('save_push_sub',{sub:sub.toJSON?sub.toJSON():sub});
+    if(r.error){toast('Lỗi: '+r.error.message);if(btn)btn.textContent=old||'🔔 Bật báo';return;}
+    if(btn)btn.textContent='✓ Đã bật báo';toast('✓ Đã bật thông báo — 1 chạm là xong!');
+  }catch(e){toast('Không bật được: '+(e.message||e));if(btn)btn.textContent=old||'🔔 Bật báo';}
+  finally{pushBusy=false;if(btn)btn.disabled=false;}
+}
+
+/* ---------- boot ---------- */
+(function(){try{var m=location.search.match(/[?&]ref=([^&#]+)/);if(m){pendingRef=decodeURIComponent(m[1]).trim();
+  var el=document.getElementById('authRef');if(el)el.value=pendingRef;setAuthMode('reg');}}catch(e){}})();
+init();
+document.getElementById('srcLink').addEventListener('input',function(){autoPlat(this.value);});
+if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});
+</script>
+</body>
+</html>
