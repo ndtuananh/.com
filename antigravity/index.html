@@ -89,6 +89,11 @@ header{position:sticky;top:0;z-index:40;background:var(--glass);backdrop-filter:
 .achip{flex:0 0 auto;background:var(--card);border:1px solid var(--line);color:var(--muted);
   border-radius:999px;padding:9px 14px;font-size:.85rem;font-weight:700;cursor:pointer;white-space:nowrap}
 .achip.active{background:var(--accent);border-color:transparent;color:#fff}
+/* hướng dẫn */
+.gstep{display:flex;align-items:center;gap:10px;font-size:1.02rem}
+.gstep .gn{width:28px;height:28px;flex:0 0 auto;border-radius:50%;background:var(--accent);color:#fff;
+  font-weight:800;display:flex;align-items:center;justify-content:center}
+.gvid{width:100%;border-radius:12px;background:#000;margin-top:10px;display:block;max-height:78vh}
 /* thanh cài đặt PWA (Android/iOS) */
 .installbar{display:flex;align-items:center;gap:11px;background:var(--accent-soft);
   border:1px solid var(--accent);border-radius:14px;padding:11px 13px;margin-bottom:13px}
@@ -401,6 +406,29 @@ nav .ic{font-size:1.35rem}
   </div>
 </section>
 
+<!-- TAB: HƯỚNG DẪN -->
+<section id="tabGuide" class="hide">
+  <div class="card" style="background:linear-gradient(135deg,#FF7A45,#FF5A1F);color:#fff;border:none">
+    <div style="font-weight:800;font-size:1.08rem">📖 Hướng dẫn sử dụng</div>
+    <div style="font-size:.88rem;opacity:.95;margin-top:3px">Chỉ 3 bước để nhận hoa hồng &amp; rút tiền về ngân hàng.</div>
+  </div>
+  <div class="card">
+    <div class="gstep"><span class="gn">1</span><b>Lấy link sản phẩm</b></div>
+    <video class="gvid" controls playsinline preload="metadata" src="/videos/buoc1-lay-link.mp4"></video>
+    <p class="sub" style="margin-top:8px">Mở app <b>Shopee/TikTok</b> → bấm <b>Chia sẻ → Sao chép link</b> → về AntiGravity, tab <b>Trang chủ</b> dán vào ô <b>“Link sản phẩm”</b> → Gửi yêu cầu.</p>
+  </div>
+  <div class="card">
+    <div class="gstep"><span class="gn">2</span><b>Dán mã đơn hàng thành công</b></div>
+    <video class="gvid" controls playsinline preload="metadata" src="/videos/buoc2-ma-don.mp4"></video>
+    <p class="sub" style="margin-top:8px">Sau khi <b>mua hàng</b>, mở tab <b>Yêu cầu</b> → ô <b>“Ghi nhận đơn”</b> → dán <b>mã đơn</b> (hoặc tin xác nhận) → hoa hồng tự cộng khi đối soát.</p>
+  </div>
+  <div class="card">
+    <div class="gstep"><span class="gn">3</span><b>Rút tiền</b></div>
+    <video class="gvid" controls playsinline preload="metadata" src="/videos/buoc3-rut-tien.mp4"></video>
+    <p class="sub" style="margin-top:8px">Vào tab <b>Ví</b> → nhập <b>số tiền + ngân hàng + số tài khoản</b> → <b>Tạo yêu cầu rút</b>. Đủ tối thiểu <b>20.000đ</b> là rút được.</p>
+  </div>
+</section>
+
 <!-- TAB: ADMIN -->
 <section id="tabAdmin" class="hide">
   <div class="asub" id="asub">
@@ -473,6 +501,7 @@ nav .ic{font-size:1.35rem}
 <nav><div class="nwrap">
   <button class="active" id="nav-tabHome" onclick="showTab('tabHome')"><span class="ic">🚀</span>Trang chủ</button>
   <button id="nav-tabRequests" onclick="showTab('tabRequests')"><span class="ic">📋</span>Yêu cầu</button>
+  <button id="nav-tabGuide" onclick="showTab('tabGuide')"><span class="ic">📖</span>Hướng dẫn</button>
   <button id="nav-tabWallet" onclick="showTab('tabWallet')"><span class="ic">👛</span>Ví</button>
   <button id="nav-tabAdmin" class="hide" onclick="showTab('tabAdmin')"><span class="ic">🛠</span>Admin</button>
 </div></nav>
@@ -605,6 +634,20 @@ function zaloMsg(phone,msg){var p=(phone||'').replace(/\D/g,'');if(!p){toast('Kh
 function smsTo(phone,msg){var p=(phone||'').replace(/\D/g,'');if(!p){toast('Khách chưa có SĐT');return;}window.open('sms:'+p+'?body='+encodeURIComponent(msg),'_blank');}
 // Kết bạn Zalo với admin để nhận link
 function openZalo(){window.open(ZALO_LINK,'_blank');}
+// Mở link sản phẩm THẲNG vào app Shopee/TikTok. Không mở tab mới (target=_blank làm kẹt ở trình duyệt);
+// điều hướng top-level mới kích hoạt universal link (iOS) / app-link (Android) để nhảy vào app.
+function openProduct(url){
+  if(!url)return false;
+  var ua=navigator.userAgent||'';
+  if(/android/i.test(ua)){
+    // Android: ép qua app-link, có fallback về link nếu chưa cài app
+    var clean=url.replace(/^https?:\/\//i,'');
+    try{ window.location.href='intent://'+clean+'#Intent;scheme=https;S.browser_fallback_url='+encodeURIComponent(url)+';end'; return false; }catch(e){}
+  }
+  // iOS & còn lại: điều hướng top-level tới universal link
+  try{ window.top.location.href=url; }catch(e){ window.location.href=url; }
+  return false;
+}
 function setupZalo(){var q=document.getElementById('zaloQR');if(q)q.src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=6&data='+encodeURIComponent(ZALO_LINK);
   var n=document.querySelectorAll('.zalo-name');for(var i=0;i<n.length;i++)n[i].textContent=ZALO_NAME;}
 
@@ -687,7 +730,7 @@ async function init(){
   var admin=myProfile&&myProfile.is_admin;
   document.getElementById('nav-tabAdmin').classList.toggle('hide',!admin);
   // ADMIN: ẩn giao diện khách (nhập link + ví/hoa hồng) — admin chỉ thao tác trong tab Admin
-  ['nav-tabHome','nav-tabRequests','nav-tabWallet'].forEach(function(id){
+  ['nav-tabHome','nav-tabRequests','nav-tabGuide','nav-tabWallet'].forEach(function(id){
     var b=document.getElementById(id);if(b)b.classList.toggle('hide',admin);});
   var wb=document.getElementById('walletBell');if(wb)wb.classList.toggle('hide',admin);
   if(admin){showTab('tabAdmin');loadAdmin();refreshPushBtn();}
@@ -711,7 +754,7 @@ async function loadProfile(){
   }
 }
 function showTab(id){
-  var tabs=['tabHome','tabRequests','tabWallet','tabAdmin'];
+  var tabs=['tabHome','tabRequests','tabGuide','tabWallet','tabAdmin'];
   for(var i=0;i<tabs.length;i++){document.getElementById(tabs[i]).classList.toggle('hide',tabs[i]!==id);
     var nb=document.getElementById('nav-'+tabs[i]);if(nb)nb.classList.toggle('active',tabs[i]===id);}
   if(id==='tabWallet'){loadProfile();loadLedger();loadWithdrawals();}
@@ -846,9 +889,9 @@ function reqItemHTML(it){
     +'<div class="main"><div class="t1">'+esc(it.code)+' · '+esc(plat)+'</div>'
     +'<div class="t2">'+esc((it.original_url||'').slice(0,44))+'… · '+fmtDT(it.created_at)+'</div></div>'
     +reqBadge(it.status)
-    +(it.status==='completed'&&it.aff_url?'<a class="sbtn" href="'+esc(it.aff_url)+'" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px">📲 Mở</a>':'')
+    +(it.status==='completed'&&it.aff_url?'<a class="sbtn" href="'+esc(it.aff_url)+'" onclick="return openProduct(decodeURIComponent(\''+encodeURIComponent(it.aff_url)+'\'))" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px">📲 Mở</a>':'')
     +'</div>'
-    +(it.status==='completed'&&it.aff_url?'<a class="linkbox linkopen" href="'+esc(it.aff_url)+'" target="_blank" rel="noopener" style="margin-top:8px"><b>Link hoa hồng — gửi khách</b>'+esc(it.aff_url)+'<span class="go">👉 Bấm để mở sản phẩm trong app</span></a>':'')
+    +(it.status==='completed'&&it.aff_url?'<a class="linkbox linkopen" href="'+esc(it.aff_url)+'" onclick="return openProduct(decodeURIComponent(\''+encodeURIComponent(it.aff_url)+'\'))" style="margin-top:8px"><b>Link hoa hồng — mở để mua &amp; nhận hoàn tiền</b>'+esc(it.aff_url)+'<span class="go">👉 Bấm để mở sản phẩm trong app</span></a>':'')
     +(it.status==='rejected'?'<div style="background:var(--warn-soft);color:var(--warn);border-radius:11px;padding:11px 13px;margin-top:8px;font-size:.86rem;line-height:1.5">💡 '+esc(it.note||'Yêu cầu chưa được duyệt. Bạn thử gửi link khác nhé!')+'<div class="row" style="margin-top:8px"><button class="btn-ghost" style="font-size:.86rem" onclick="goSubmit()">🔄 Gửi link khác</button></div></div>':'')
     +'</div>';
 }
