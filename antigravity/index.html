@@ -1035,12 +1035,11 @@ function renderAdmWithdrawals(rows){var box=document.getElementById('admWithdraw
     h+='<div class="item" style="flex-direction:column;align-items:stretch">'
       +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:center">'
         +'<div class="main"><div class="t1">Rút '+fmt(it.amount)+' — '+esc(phone)+'</div>'
-        +'<div class="t2">'+esc(it.bank_info||'')+'</div></div>'
-        +(qr?'<button class="sbtn" onclick="toggleQR('+it.id+')">QR</button>':'')+'</div>'
+        +'<div class="t2">'+esc(it.bank_info||'')+'</div></div></div>'
+      +(qr?'<div style="text-align:center;margin-top:10px"><img src="'+qr+'" style="max-width:210px;width:100%;border-radius:12px;border:1px solid var(--line)"></div>':'')
       +(qr?'<div class="row" style="margin-top:8px">'
-        +'<button class="btn-primary" onclick="quickPay('+it.id+',\''+it.bank_code+'\',\''+it.account_no+'\','+it.amount+',\''+encodeURIComponent(it.account_name||'')+'\',\''+phone+'\')">📲 Chuyển nhanh (lưu QR + mở NH)</button>'
+        +'<button class="btn-primary" onclick="quickPay('+it.id+',\''+it.bank_code+'\',\''+it.account_no+'\','+it.amount+',\''+encodeURIComponent(it.account_name||'')+'\',\''+phone+'\')">📲 Mở app ngân hàng để chuyển</button>'
         +'<button class="btn-line" style="flex:0 0 auto" onclick="copyText(\''+it.account_no+'\',\'Đã copy số TK\')">📋 STK</button></div>':'')
-      +(qr?'<div id="qr'+it.id+'" class="hide" style="text-align:center;margin-top:10px"><img src="'+qr+'" style="max-width:230px;width:100%;border-radius:12px;border:1px solid var(--line)"></div>':'')
       +'<div class="row" style="margin-top:8px">'
         +'<button class="btn-ok" onclick="admApprove(\'approve_withdrawal\',\'withdrawal_id\','+it.id+')">✓ Đã chuyển — trừ số dư</button>'
         +'<button class="btn-line" style="flex:0 0 auto;color:var(--danger)" onclick="admReject('+it.id+')">Từ chối</button></div></div>';}
@@ -1048,19 +1047,20 @@ function renderAdmWithdrawals(rows){var box=document.getElementById('admWithdraw
 // Chuyển nhanh: lưu QR gốc về máy (khỏi chụp màn hình) + mở app ngân hàng.
 // (Điền sẵn số tiền/người nhận trong app NH kiểu Zalo cần tích hợp Napas được cấp phép — web không làm được;
 //  cách này bỏ bước chụp màn hình: trong app NH chọn Quét QR → Chọn ảnh từ thư viện.)
-async function quickPay(id, bank, acc, amount, nameEnc, phone){
+function quickPay(id, bank, acc, amount, nameEnc, phone){
   var name=decodeURIComponent(nameEnc||'');
   var qr=vietQR(bank, acc, amount, name, 'ANTIGRAVITY '+phone);
-  try{
-    var res=await fetch(qr); var blob=await res.blob();
+  // (1) tải QR gốc về máy (fetch chạy nền — khỏi chụp màn hình; nếu chặn thì giữ QR trên màn hình để lưu tay)
+  fetch(qr).then(function(res){return res.blob();}).then(function(blob){
     var url=URL.createObjectURL(blob); var a=document.createElement('a');
     a.href=url; a.download='vietqr-'+acc+'-'+amount+'.png'; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function(){URL.revokeObjectURL(url);},5000);
-  }catch(e){ toast('Không tải được QR — dùng QR trên màn hình nhé'); var b=document.getElementById('qr'+id); if(b)b.classList.remove('hide'); return; }
-  var isAndroid=/android/i.test(navigator.userAgent);
-  toast('💾 Đã lưu QR vào máy — mở app NH → Quét QR → Chọn ảnh từ thư viện');
-  if(isAndroid){ setTimeout(function(){ try{ window.location.href='intent://#Intent;package=com.mbmobile;end'; }catch(e){} }, 500); }
-  else { var b2=document.getElementById('qr'+id); if(b2)b2.classList.remove('hide'); }
+  }).catch(function(){});
+  // (2) mở app ngân hàng NGAY trong cùng cú chạm (giữ user-gesture để không bị chặn)
+  toast('💾 Đang lưu QR — trong app NH: Quét QR → Chọn ảnh từ thư viện');
+  if(/android/i.test(navigator.userAgent)){
+    try{ window.location.href='intent://#Intent;package=com.mbmobile;end'; }catch(e){}
+  }
 }
 function toggleQR(id){var e=document.getElementById('qr'+id);if(e)e.classList.toggle('hide');}
 async function admApprove(rpc,param,id){var a={};a[param]=id;var r=await sb.rpc(rpc,a);
