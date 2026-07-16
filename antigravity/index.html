@@ -1242,7 +1242,7 @@ function buildPreview(rows){
   box.innerHTML='<div style="background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px">'
     +'<div style="font-weight:800">📄 Đọc được '+pendingRows.length+' đơn (đã gộp theo mã đơn)</div>'
     +'<div class="sub" style="margin-top:4px">Sàn: <b>'+(isTikTok?'TikTok':'Shopee')+'</b> · Đơn thành công: <b>'+approved+'</b> · Có sẵn mã AG: <b>'+matched+'</b></div>'
-    +'<div class="sub">Tổng hoa hồng đơn thành công: <b>'+fmt(totalComm)+'</b> → cộng khách <b style="color:var(--ok)">100% = '+fmt(totalComm)+'</b></div>'
+    +'<div class="sub">Tổng hoa hồng đơn thành công: <b>'+fmt(totalComm)+'</b> → chia khách ~<b style="color:var(--ok)">'+fmt(Math.round(totalComm*0.5))+'</b> (50%)</div>'
     +'<div class="row"><button class="btn-primary" onclick="importOrders()">⬆️ Nạp & đối soát '+pendingRows.length+' đơn</button></div>'
     +'<div class="hint">Cộng ví cho đơn <b>đã quyết toán</b> khi khớp được khách (mã AG hoặc mã đơn khách đã nhập). Nạp lại nhiều lần không cộng trùng.</div></div>';
 }
