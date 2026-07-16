@@ -1,5 +1,5 @@
 // AntiGravity service worker — cài PWA + nhận push. Cache nhẹ, ưu tiên mạng.
-const CACHE = 'antigravity-v2-19';
+const CACHE = 'antigravity-v2-20';
 const SHELL = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (e) => {
