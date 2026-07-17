@@ -4,6 +4,8 @@
   "functions": {
     "api/import-orders.js": { "maxDuration": 60 },
     "api/notify-admin.js": { "maxDuration": 15 },
+    "api/notify-user.js": { "maxDuration": 15 },
+    "api/reset-password.js": { "maxDuration": 15 },
     "api/remind.js": { "maxDuration": 15 }
   },
   "crons": [

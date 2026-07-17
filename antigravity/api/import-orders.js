@@ -8,6 +8,8 @@
 //  • Cộng ví bằng 1 lệnh SET-BASED (RPC ag_reconcile) — chịu triệu đơn.
 //  • Idempotent: nạp lại cùng báo cáo không cộng tiền 2 lần.
 
+import webpush from 'web-push';
+
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nxvcsotzybjxykadbxbr.supabase.co';
 const ANON = process.env.SUPABASE_ANON || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54dmNzb3R6eWJqeHlrYWRieGJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3NDg5MzIsImV4cCI6MjA5OTMyNDkzMn0.JtKX-tQIoI3NaGh6aul0XC3nSLOMgSe26aS9DAvmo_4';
 const SR = process.env.SUPABASE_SERVICE_ROLE || '';
@@ -125,6 +127,32 @@ export default async function handler(req,res){
     await sbFetch('/rest/v1/rpc/ag_referral_bonus',{method:'POST',body:'{}'}).catch(()=>{});
   }catch(e){}
 
+  // 5) PUSH tới khách VỪA được cộng hoa hồng (đối soát xong). Dựa vào balance_log
+  //    cashback mới tạo (reconcile idempotent nên nạp lại không phát sinh dòng mới -> không báo trùng).
+  let notified=0;
+  try{
+    if(process.env.VAPID_PRIVATE && process.env.VAPID_PUBLIC){
+      const since=new Date(Date.now()-180000).toISOString();
+      const logs=await sbFetch('/rest/v1/balance_log?select=user_id,change&reason=eq.cashback&created_at=gte.'+encodeURIComponent(since)).then(r=>r.json()).catch(()=>[]);
+      const sum={};
+      (Array.isArray(logs)?logs:[]).forEach(l=>{ if(l&&l.user_id&&l.change>0) sum[l.user_id]=(sum[l.user_id]||0)+(+l.change||0); });
+      const uids=Object.keys(sum);
+      if(uids.length){
+        webpush.setVapidDetails(process.env.VAPID_SUBJECT||'mailto:admin@antigravity.app', process.env.VAPID_PUBLIC, process.env.VAPID_PRIVATE);
+        for(let i=0;i<uids.length;i+=200){
+          const chunk=uids.slice(i,i+200);
+          const profs=await sbFetch('/rest/v1/profiles?select=id,push_sub&push_sub=not.is.null&id=in.('+chunk.map(encodeURIComponent).join(',')+')').then(r=>r.json()).catch(()=>[]);
+          for(const p of (Array.isArray(profs)?profs:[])){
+            const amt=Math.round(sum[p.id]||0);
+            const payload=JSON.stringify({title:'💵 +'+amt.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.')+'đ hoa hồng vào ví',
+              body:'Đơn của bạn đã đối soát xong và được cộng hoa hồng. Mở app phần Ví để xem nhé.',url:'/?go=wallet'});
+            try{ await webpush.sendNotification(p.push_sub,payload); notified++; }catch(e){}
+          }
+        }
+      }
+    }
+  }catch(e){}
+
   const matchedUsers=clean.filter(o=>o.user_id).length;
-  return res.status(200).json({ ok:true, received:orders.length, upserted, matched:matchedUsers, reconcile });
+  return res.status(200).json({ ok:true, received:orders.length, upserted, matched:matchedUsers, reconcile, notified });
 }
