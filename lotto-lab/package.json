@@ -1,0 +1,12 @@
+{
+  "name": "lotto-lab",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "AI Lottery Research Lab — thu thập, phân tích thống kê & backtest minh bạch dữ liệu Vietlott. Chỉ mang tính tham khảo, không dự đoán kết quả.",
+  "dependencies": {
+    "@vercel/blob": "^2.6.1",
+    "nodemailer": "^6.9.14",
+    "web-push": "^3.6.7"
+  }
+}

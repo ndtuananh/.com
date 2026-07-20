@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "functions": {
+    "api/data.js": { "maxDuration": 20 },
+    "api/notify.js": { "maxDuration": 60 }
+  },
+  "crons": [
+    { "path": "/api/data?product=power655&warm=1", "schedule": "30 12 * * *" },
+    { "path": "/api/notify", "schedule": "30 1 * * *" }
+  ]
+}

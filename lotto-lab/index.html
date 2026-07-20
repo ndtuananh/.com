@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lotto Research Lab — Phân tích thống kê Vietlott minh bạch</title>
+  <meta name="description" content="Nền tảng nghiên cứu thống kê & backtest minh bạch trên dữ liệu Vietlott. Chỉ mang tính tham khảo — không dự đoán, không tăng xác suất trúng." />
+  <meta name="theme-color" content="#0f1220" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="busy">
+  <!-- Cảnh báo trách nhiệm — luôn hiển thị -->
+  <div class="disclaimer-bar">
+    ⚠️ <b>Công cụ THỐNG KÊ tham khảo & giải trí.</b> Xổ số là sự kiện ngẫu nhiên độc lập — không có phương pháp nào (kể cả AI) làm tăng xác suất trúng. App này <b>không dự đoán</b> kết quả và không đảm bảo trúng thưởng. Chơi có trách nhiệm, đủ 18+.
+  </div>
+
+  <header class="topbar">
+    <div class="brand">🎯 <span>Lotto Research Lab</span></div>
+    <div class="controls">
+      <span id="live" class="live"><span class="dot"></span> Đang kết nối…</span>
+      <span id="pill-product" class="pill">—</span>
+      <select id="product" aria-label="Chọn sản phẩm"></select>
+      <button id="notif" class="btn ghost">🔔 Bật báo trúng</button>
+      <button id="refresh" class="btn">↻ Làm mới</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ===================== MODULE 10 — DAILY DASHBOARD ===================== -->
+    <section class="card hero">
+      <div class="hero-grid">
+        <div>
+          <h2 class="sec-title">Bảng điều khiển hôm nay</h2>
+          <div id="latest" class="latest"></div>
+        </div>
+        <div>
+          <h3 class="sub">Bộ số tham khảo (Top 2) <span class="badge">xếp hạng minh bạch</span></h3>
+          <div id="ai-picks" class="picks"></div>
+        </div>
+      </div>
+      <div class="hero-grid">
+        <div>
+          <h3 class="sub">Xu hướng thống kê hôm nay</h3>
+          <div id="trends" class="trends"></div>
+          <h3 class="sub">Phiếu dự đoán đang chờ dò</h3>
+          <div id="compare"></div>
+        </div>
+        <div>
+          <h3 class="sub">Top 6 cặp số hay đi cùng</h3>
+          <div id="pairs" class="pairs"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== MODULE 12 — CHƠI KIỂU CHUYÊN GIA =============== -->
+    <section class="card expert">
+      <h2 class="sec-title">🎓 Chơi kiểu chuyên gia <small>(dàn vé & bao số — tối ưu trên ngân sách)</small></h2>
+      <p class="muted small">Không phép màu nào tăng xác suất của <b>một</b> vé — điều đó bất khả (đã kiểm chứng bằng backtest, kiểm định độc lập & mô hình ML). Nhưng trên một <b>ngân sách nhiều vé</b>, cách <b>chọn</b> vé quyết định hình dạng kết quả. Đây là hai kỹ thuật tổ hợp người chơi kỳ cựu thật sự dùng — minh bạch, kiểm chứng được. <b>Hoàn lại kỳ vọng vẫn ~30%</b> (nhà cái luôn thắng đường dài).</p>
+
+      <div class="expert-grid">
+        <div class="expert-tool">
+          <h4>🎯 Dàn vé tối ưu</h4>
+          <p class="muted small">Chọn bộ vé ít trùng nhau nhất ⇒ tăng xác suất trúng <b>ít nhất một giải</b> (~4–5% so với mua ngẫu nhiên, cùng số tiền).</p>
+          <div class="expert-controls">
+            <label>Số vé: <input id="ex-budget" type="range" min="3" max="40" step="1" value="10" /> <b id="ex-budget-val">10</b></label>
+            <button id="ex-diversify" class="btn">Tạo dàn vé</button>
+          </div>
+          <div id="ex-div-out" class="expert-out"></div>
+        </div>
+
+        <div class="expert-tool">
+          <h4>🎡 Bao số theo nhóm (wheel)</h4>
+          <p class="muted small">Chọn một nhóm số. Hệ thống bao số <b>đảm bảo toán học</b>: nếu đủ số trong nhóm được quay, chắc chắn có vé trúng — và gom nhiều giải khi nhóm "nóng".</p>
+          <div class="expert-controls">
+            <label>Nhóm: <input id="ex-pool" type="range" min="7" max="14" step="1" value="10" /> <b id="ex-pool-val">10</b> số</label>
+            <label class="chk"><input id="ex-unpop" type="checkbox" checked /> Thiên số ít người chọn (&gt;31)</label>
+            <button id="ex-wheel" class="btn">Tạo bao số</button>
+          </div>
+          <div id="ex-wheel-out" class="expert-out"></div>
+        </div>
+      </div>
+      <p class="note small">⚠️ Đây là tối ưu tổ hợp trên ngân sách, KHÔNG phải dự đoán số trúng. Xác suất mỗi vé không đổi; kỳ vọng dài hạn vẫn lỗ ~70%/vé. Chỉ chơi trong khả năng.</p>
+    </section>
+
+    <!-- =============== TỰ DÒ SỐ — báo trúng tự động khi có kết quả =========== -->
+    <section class="card">
+      <h2 class="sec-title">🎟️ Tự dò số — báo trúng khi có kết quả <small>(cập nhật liên tục)</small></h2>
+      <p class="muted small">Bộ số Top 2 được lưu làm <b>phiếu dự đoán cho kỳ kế tiếp</b>. Khi kỳ đó quay xong, app <b>tự nạp kết quả</b> và đối chiếu — số trúng được tô sáng. Có sổ theo dõi độ chính xác qua thời gian (đối chiếu trung thực với mốc ngẫu nhiên).</p>
+      <div id="hitreport"></div>
+    </section>
+
+    <!-- ===================== MODULE 04/05 — STATISTICS ====================== -->
+    <section class="card">
+      <h2 class="sec-title">Thống kê & đặc trưng <small>(Module 04·05)</small></h2>
+      <div id="stats" class="stats-grid"></div>
+      <div class="cols3">
+        <div><h4>🔥 Số nóng</h4><div id="hot" class="rank"></div></div>
+        <div><h4>❄️ Số nguội</h4><div id="cold" class="rank"></div></div>
+        <div><h4>⏳ Lâu chưa ra</h4><div id="overdue" class="rank"></div></div>
+      </div>
+      <h4>Bản đồ nhiệt tần suất (toàn lịch sử)</h4>
+      <div id="heatmap" class="heatmap"></div>
+    </section>
+
+    <!-- ===================== MODULE 07/08 — STRATEGY + BACKTEST ============= -->
+    <section class="card">
+      <h2 class="sec-title">Chiến lược & Backtest <small>(Module 07·08·11)</small></h2>
+      <p class="muted">Backtest <b>cuốn chiếu</b>: với mỗi kỳ, chỉ dùng dữ liệu <b>trước</b> kỳ đó để sinh bộ số rồi so với kết quả thật — không rò rỉ dữ liệu tương lai. 👑 = nhà vô địch (chiến lược backtest tốt nhất, được "deploy"; nếu không vượt bản cũ sẽ rollback).</p>
+      <div id="backtest"></div>
+    </section>
+
+    <!-- ===================== MODULE 06/09 — MONTE CARLO + RANKING =========== -->
+    <section class="card">
+      <h2 class="sec-title">Monte Carlo Lab & Xếp hạng <small>(Module 06·09)</small></h2>
+      <div class="mc-controls">
+        <label>Số mô phỏng: <input id="mc-size" type="range" min="20000" max="1000000" step="20000" value="200000" /> <b id="mc-size-val"></b></label>
+        <button id="mc-rerun" class="btn">▶ Chạy mô phỏng</button>
+        <span id="mc-status" class="muted small"></span>
+      </div>
+      <div class="weights-wrap">
+        <div>
+          <h4>Trọng số chấm điểm (mô hình minh bạch)</h4>
+          <div id="weights" class="weights"></div>
+          <button id="apply-weights" class="btn ghost">Áp dụng & chấm lại</button>
+          <p class="muted small" style="margin-top:8px">💡 <b>Ít bị chọn trùng (EV)</b> thiên về số &gt;31 mà người chơi ít chọn: <b>không</b> làm tăng xác suất trúng, nhưng nếu trúng thì <b>ít phải chia giải</b> ⇒ tiền kỳ vọng cao hơn. Đây là "hiệu quả" thật duy nhất mà thống kê mang lại.</p>
+        </div>
+        <div class="mc-top-wrap">
+          <h4>Bộ số điểm cao nhất từ mô phỏng</h4>
+          <div id="mc-top" class="picks picks-grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== MODULE 01/02/03 — DATA QUALITY ================= -->
+    <section class="card">
+      <h2 class="sec-title">Thu thập & Chất lượng dữ liệu <small>(Module 01·02·03)</small></h2>
+      <div id="quality" class="quality"></div>
+    </section>
+
+    <!-- Nhật ký AI (Module 11) -->
+    <section class="card">
+      <h2 class="sec-title">Nhật ký AI</h2>
+      <div id="ai-log" class="log"></div>
+    </section>
+
+    <!-- ===== BẢNG KẾT QUẢ & GIẢI ĐÃ DÒ (ở cuối app theo yêu cầu) =========== -->
+    <section class="card">
+      <h2 class="sec-title">📊 Bảng kết quả & giải đã trúng <small>(cập nhật sau mỗi kỳ)</small></h2>
+      <p class="muted small">Sau khi có kết quả, mỗi kỳ được ghi một dòng kèm cột <b>Trúng giải</b> — báo rõ bộ số gợi ý đạt bậc giải nào theo cơ cấu Vietlott.</p>
+      <div id="results-table"></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p><b>Tuyên bố minh bạch.</b> Nền tảng này chỉ thực hiện <b>thống kê mô tả</b> và <b>kiểm chứng chiến lược (backtest)</b> trên dữ liệu quá khứ công khai. Mỗi kỳ xổ số là độc lập; kết quả quá khứ <b>không</b> ảnh hưởng tới tương lai. Điểm số phản ánh mức độ "khớp" của một bộ số với đặc trưng lịch sử, <b>không phải</b> xác suất trúng. Đừng chi tiêu vượt khả năng.</p>
+    <p class="muted small">Nguồn dữ liệu: bộ dữ liệu công khai vietvudanh/vietlott-data (kết quả Vietlott đã số hoá, cập nhật hàng ngày). Không liên kết với Vietlott.</p>
+  </footer>
+
+  <div id="loader" class="loader"><div class="spinner"></div><span>Đang phân tích lịch sử…</span></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
