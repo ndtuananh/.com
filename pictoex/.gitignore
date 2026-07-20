@@ -1,0 +1,11 @@
+node_modules/
+.vercel/
+.env
+.env.local
+*.log
+
+# File tổng .xlsb 22MB không dùng làm mẫu (app dùng lenh-san-xuat-mau.xlsx). Không đẩy lên Vercel.
+templates/*.xlsb
+_gen_template.mjs
+
+.vercel

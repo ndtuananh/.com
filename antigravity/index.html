@@ -525,13 +525,20 @@ nav .ic{font-size:1.35rem}
     <video class="gvid" controls playsinline preload="metadata" src="/videos/buoc3-rut-tien.mp4"></video>
     <p class="sub" style="margin-top:8px">Vào tab <b>Ví</b> → nhập <b>số tiền + ngân hàng + số tài khoản</b> → <b>Tạo yêu cầu rút</b>. Đủ tối thiểu <b>20.000đ</b> là rút được.</p>
   </div>
-  <div class="card" style="display:flex;gap:13px;align-items:center">
-    <img id="zaloQR" alt="QR Zalo" style="width:82px;height:82px;border-radius:11px;flex:0 0 auto;border:1px solid var(--line);background:#fff">
-    <div style="flex:1;min-width:0">
-      <div style="font-weight:800">📩 Cần hỗ trợ? Kết bạn Zalo</div>
-      <div class="sub" style="margin:3px 0 8px">Kết bạn Zalo <b class="zalo-name"></b> để được hỗ trợ trực tiếp & nhận link nhanh.</div>
-      <button class="btn-primary" style="padding:9px 15px;font-size:.88rem" onclick="openZalo()">💬 Kết bạn Zalo ngay</button>
+  <div class="card">
+    <div style="display:flex;gap:13px;align-items:flex-start">
+      <img id="zaloQR" alt="QR Zalo" style="width:96px;height:96px;border-radius:11px;flex:0 0 auto;border:1px solid var(--line);background:#fff">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800">📩 Kết bạn Zalo để nhận link &amp; hỗ trợ</div>
+        <div class="sub" style="margin:3px 0 6px">Zalo <b class="zalo-name"></b></div>
+        <div style="font-weight:800;font-size:1.2rem;color:var(--accent);letter-spacing:.5px" id="zaloPhoneTxt">0903836902</div>
+      </div>
     </div>
+    <div class="row" style="margin-top:11px">
+      <button class="btn-primary" onclick="openZalo()">💬 Mở Zalo kết bạn</button>
+      <button class="btn-ghost" style="flex:0 0 auto" onclick="copyZaloPhone()">📋 Copy số</button>
+    </div>
+    <div class="hint" style="margin-top:9px">📌 <b>Cách chắc chắn nhất:</b> mở app <b>Zalo</b> → <b>Thêm bạn</b> (biểu tượng 👤➕ góc trên) → nhập số <b class="zalo-phone">0903836902</b> → <b>Kết bạn</b>. Hoặc dùng Zalo <b>quét mã QR</b> bên trên.</div>
   </div>
 </section>
 
@@ -579,7 +586,7 @@ nav .ic{font-size:1.35rem}
     <div class="chd"><h2>🟠 Link chờ xử lý</h2>
       <div class="htog" data-for="admPendingBody"><button type="button" onclick="colSet('admPendingBody',false)">Hiện</button><button type="button" onclick="colSet('admPendingBody',true)">Ẩn</button></div></div>
     <div id="admPendingBody" class="colbody">
-      <p class="sub">Mở link gốc → tạo link affiliate <b>thủ công</b> → dán vào đây → Hoàn tất. Nhớ gắn <b>Sub ID = mã AG</b> để tự khớp.</p>
+      <p class="sub">Mở link gốc → tạo link affiliate → dán vào ô → Hoàn tất. <b>Shopee:</b> nhớ dán <b>Sub ID = mã AG</b> khi tạo link (đơn tự khớp). <b>TikTok:</b> khách nhập mã đơn để khớp (app lo sẵn).</p>
       <div id="admPending" style="margin-top:8px"><div class="empty">Không có yêu cầu chờ.</div></div>
     </div>
   </div>
@@ -683,6 +690,7 @@ var PLATFORMS = {
 };
 // ZALO của admin — khách kết bạn để nhận link. ĐỔI thành link Zalo của anh nếu khác.
 var ZALO_LINK = 'https://zalo.me/0903836902';
+var ZALO_PHONE = '0903836902';
 var ZALO_NAME = 'HOÀN TIỀN SHOPEE 24/7';
 /* ================================================================= */
 
@@ -806,7 +814,13 @@ function zaloMsg(phone,msg){var p=(phone||'').replace(/\D/g,'');if(!p){toast('Kh
   setTimeout(function(){window.open('https://zalo.me/'+p,'_blank');},350);}
 function smsTo(phone,msg){var p=(phone||'').replace(/\D/g,'');if(!p){toast('Khách chưa có SĐT');return;}window.open('sms:'+p+'?body='+encodeURIComponent(msg),'_blank');}
 // Kết bạn Zalo với admin để nhận link
-function openZalo(){window.open(ZALO_LINK,'_blank');}
+// Kết bạn Zalo với admin. Link zalo.me/<sđt> chỉ mở được khi Zalo admin bật "cho tìm qua SĐT/QR";
+// nên luôn copy sẵn số + nhắc cách thêm bạn thủ công để khách không bị kẹt nếu link lỗi.
+function openZalo(){
+  copyText(ZALO_PHONE,'📋 Đã copy số Zalo '+ZALO_PHONE);
+  setTimeout(function(){window.open(ZALO_LINK,'_blank');},250);
+}
+function copyZaloPhone(){copyText(ZALO_PHONE,'📋 Đã copy '+ZALO_PHONE+' — mở Zalo → Thêm bạn → dán số → Kết bạn');}
 // Mở link sản phẩm THẲNG vào app Shopee/TikTok. Không mở tab mới (target=_blank làm kẹt ở trình duyệt);
 // điều hướng top-level mới kích hoạt universal link (iOS) / app-link (Android) để nhảy vào app.
 function openProduct(url){
@@ -821,8 +835,10 @@ function openProduct(url){
   try{ window.top.location.href=url; }catch(e){ window.location.href=url; }
   return false;
 }
-function setupZalo(){var q=document.getElementById('zaloQR');if(q)q.src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=6&data='+encodeURIComponent(ZALO_LINK);
-  var n=document.querySelectorAll('.zalo-name');for(var i=0;i<n.length;i++)n[i].textContent=ZALO_NAME;}
+function setupZalo(){var q=document.getElementById('zaloQR');if(q)q.src='https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=6&data='+encodeURIComponent(ZALO_LINK);
+  var n=document.querySelectorAll('.zalo-name');for(var i=0;i<n.length;i++)n[i].textContent=ZALO_NAME;
+  var pt=document.getElementById('zaloPhoneTxt');if(pt)pt.textContent=ZALO_PHONE;
+  var ph=document.querySelectorAll('.zalo-phone');for(var j=0;j<ph.length;j++)ph[j].textContent=ZALO_PHONE;}
 
 /* ---------- auth ---------- */
 var authMode='login';
@@ -1474,8 +1490,15 @@ function renderAdmPending(rows){var box=document.getElementById('admPending');
         +'<div class="t2">'+esc(phone)+' · '+fmtDT(it.created_at)+'</div></div>'
         +'<span class="badge b-pending">⏳ Chờ</span></div>'
       +'<div class="row" style="margin-top:8px">'
-        +'<button class="btn-line" onclick="window.open(decodeURIComponent(\''+encodeURIComponent(it.original_url)+'\'),\'_blank\')">🔗 Mở link gốc</button>'
-        +'<button class="sbtn" onclick="copyText(\''+it.code+'\',\'Copy mã Sub ID: '+it.code+'\')">Copy Sub ID</button></div>'
+        +'<button class="btn-line" onclick="window.open(decodeURIComponent(\''+encodeURIComponent(it.original_url)+'\'),\'_blank\')">🔗 Mở link gốc</button></div>'
+      +(it.platform==='shopee'
+        ? '<div style="background:var(--accent-soft);border:1px solid var(--accent);border-radius:11px;padding:10px 12px;margin-top:8px;font-size:.88rem;line-height:1.5">'
+          +'📌 <b>Để đơn TỰ khớp đúng khách:</b> khi tạo link trên <b>Shopee Affiliate</b>, dán mã này vào ô <b>Sub ID</b> (rồi mới tạo link):'
+          +'<div style="display:flex;gap:9px;align-items:center;margin-top:8px;flex-wrap:wrap">'
+          +'<span style="font-weight:800;font-size:1.15rem;color:var(--accent);letter-spacing:.6px">'+esc(it.code)+'</span>'
+          +'<button class="sbtn" onclick="copyText(\''+it.code+'\',\'📋 Đã copy Sub ID '+it.code+' — dán vào ô Sub ID trên Shopee\')">📋 Copy Sub ID</button></div></div>'
+        : '<div style="background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-top:8px;font-size:.88rem;line-height:1.5">'
+          +'💡 <b>TikTok không có Sub ID.</b> Cứ tạo link &amp; gửi khách — đơn khớp khi <b>khách dán mã đơn</b> sau khi mua (app đã lo sẵn).</div>')
       +'<input id="aff'+it.id+'" placeholder="Dán link affiliate vừa tạo…" style="margin-top:8px">'
       +'<div class="row" style="margin-top:8px">'
         +'<button class="btn-ok" onclick="completeReq('+it.id+')">✓ Hoàn tất & gửi khách</button></div>'

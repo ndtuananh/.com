@@ -1,0 +1,10 @@
+{
+  "name": "aff-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Trợ lý Affiliate Shopee — đổi link, ví, hoàn tiền 2%",
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}

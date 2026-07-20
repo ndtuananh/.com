@@ -1,0 +1,4 @@
+node_modules
+templates/*.xlsb
+_gen_template.mjs
+*.md

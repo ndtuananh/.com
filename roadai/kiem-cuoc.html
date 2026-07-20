@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1220" />
+  <title>Driver Radar — Bạn Uống Tôi Lái (AI định vị tài xế lái hộ TP.HCM)</title>
+  <meta name="description" content="Driver Radar cho tài xế Bạn Uống Tôi Lái tại TP.HCM: mở lên là biết TỐI NAY ĐỨNG ĐÂU. Điểm chờ tối ưu giữa cụm quán nhậu/bar/karaoke, đúng GIỜ VÀNG tan quán, lãi/giờ đã trừ chi phí quay về, Google Maps dẫn đường, học từ nhật ký cuốc của chính bạn. Giúp người đã uống rượu bia không tự lái xe." />
+  <link rel="manifest" href="radar.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/positioning.css" />
+</head>
+<body class="pos">
+  <!-- BẢN ĐỒ -->
+  <div id="map" aria-label="Bản đồ điểm đứng chờ lái hộ"></div>
+
+  <!-- THANH TRÊN -->
+  <header id="topbar" class="glass">
+    <div class="tb-row">
+      <button id="back-nav" class="mini" title="Về Chỉ đường">←</button>
+      <div class="brand-txt">
+        <b>🍺 Driver Radar</b>
+        <small>Bạn Uống Tôi Lái · tối nay đứng đâu?</small>
+      </div>
+      <button id="find-btn" class="mini" title="Tìm &amp; lọc quán">🔍</button>
+      <button id="online-toggle" class="pill-toggle" title="Bật/tắt nhận khách">Nhận khách</button>
+    </div>
+    <div id="status" class="status">Đang khởi động…</div>
+  </header>
+
+  <!-- CHÚ THÍCH (LEGEND) -->
+  <div id="legend" class="glass">
+    <span class="lg">🟢 ít</span>
+    <span class="lg">🟡 vừa</span>
+    <span class="lg">🟠 cao</span>
+    <span class="lg">🔴 rất cao</span>
+    <span class="lg">🔥 AI gợi ý</span>
+    <span class="lg">⭐ tốt cho bạn</span>
+  </div>
+
+  <!-- NÚT BẢN ĐỒ (cạnh phải, tránh đè thẻ đề xuất) -->
+  <button id="btn-center" class="map-fab" title="Về vị trí của tôi">◎</button>
+  <button id="btn-gps" class="map-fab" title="Dùng GPS">📍</button>
+
+  <!-- THẺ ĐỀ XUẤT (⭐) -->
+  <section id="reco" class="glass reco"></section>
+
+  <!-- DOCK ĐIỀU KHIỂN -->
+  <nav id="dock" class="glass">
+    <button id="btn-log" title="Ghi kết quả cuốc thật (nuôi Digital Twin)">📝<span>Ghi cuốc</span></button>
+    <button id="btn-dash" title="Trung tâm điều phối">📊<span>Điều phối</span></button>
+    <button id="btn-score" title="Điểm & Digital Twin">🎖️<span>Điểm của tôi</span></button>
+    <button id="btn-ff" title="Tua nhanh — AI học">⏩<span>Tua nhanh</span></button>
+    <button id="btn-set" title="Cài đặt mô phỏng">⚙️<span>Cài đặt</span></button>
+  </nav>
+
+  <!-- SHEET: TÌM & LỌC + TOP 20 -->
+  <div id="find-sheet" class="sheet glass big" hidden>
+    <div class="sheet-head"><b>🔍 Tìm &amp; lọc điểm</b><button class="mini sheet-close">✕</button></div>
+    <input id="find-search" class="key-input" type="search" placeholder="Tìm tên quán / quận…" autocomplete="off" />
+    <div id="find-chips" class="find-chips"></div>
+    <div id="find-body"></div>
+  </div>
+
+  <!-- SHEET: TRUNG TÂM ĐIỀU PHỐI -->
+  <div id="dash-sheet" class="sheet glass big" hidden>
+    <div class="sheet-head"><b>📊 Trung tâm điều phối thời gian thực</b><button class="mini sheet-close">✕</button></div>
+    <div id="dash-body"></div>
+  </div>
+
+  <!-- SHEET: DRIVER SCORE + DIGITAL TWIN -->
+  <div id="score-sheet" class="sheet glass big" hidden>
+    <div class="sheet-head"><b>⭐ Điểm tài xế &amp; Digital Twin</b><button class="mini sheet-close">✕</button></div>
+    <div id="score-body"></div>
+  </div>
+
+  <!-- SHEET: CÀI ĐẶT MÔ PHỎNG -->
+  <div id="set-sheet" class="sheet glass" hidden>
+    <div class="sheet-head"><b>⚙️ Cài đặt mô phỏng</b><button class="mini sheet-close">✕</button></div>
+    <button id="btn-install" class="primary" style="width:100%;margin-bottom:8px" hidden>📲 Cài Driver Radar vào máy</button>
+    <label class="set-row"><input id="notif-toggle" type="checkbox" /> 🔔 Thông báo điểm nóng (giờ vàng &amp; điểm gần dễ nổ cuốc)</label>
+    <p class="sheet-hint">Số liệu cầu là mô phỏng theo quy luật nghề lái hộ; <b>quán là thật</b> (OpenStreetMap, tự cập nhật). Chỉnh các nút dưới để xem AI điều phối lại tức thì.</p>
+    <label class="set-lbl">🕒 Khung giờ <b id="hour-lbl">Giờ thực</b></label>
+    <input id="hour-slider" class="slider" type="range" min="-1" max="23" step="1" value="-1" />
+    <label class="set-lbl">📅 Loại ngày (đẩy cầu lái hộ)</label>
+    <div id="day-seg" class="base-seg">
+      <button data-day="weekday" class="active">Thường</button>
+      <button data-day="weekend">Cuối tuần</button>
+      <button data-day="payday">Ngày lương</button>
+      <button data-day="holiday">Lễ/Tết</button>
+    </div>
+    <label class="set-row"><input id="match-toggle" type="checkbox" /> ⚽ Đêm có bóng đá lớn (khách xem bóng nhậu khuya)</label>
+    <label class="set-lbl">🌧️ Mưa <b id="rain-lbl">Tắt</b></label>
+    <input id="rain-slider" class="slider" type="range" min="0" max="100" step="5" value="0" />
+    <label class="set-lbl">🚗 Tài xế lái hộ khác trong khu <b id="fleet-lbl">24 xe</b></label>
+    <input id="fleet-slider" class="slider" type="range" min="0" max="120" step="2" value="24" />
+    <label class="set-row"><input id="fleet-toggle" type="checkbox" checked /> Hiện chấm tài xế trên bản đồ</label>
+    <label class="set-lbl">🗺️ Nền bản đồ</label>
+    <div id="base-seg" class="base-seg">
+      <button data-base="dark" class="active">🌙 Tối</button>
+      <button data-base="light">☀️ Sáng</button>
+    </div>
+    <button id="btn-event" class="ghost" style="margin-top:12px;width:100%">🎉 Mô phỏng tiệc lớn / sự kiện (demo)</button>
+    <button id="reset-twin" class="ghost" style="margin-top:8px;width:100%">🧹 Xoá Digital Twin (bắt đầu học lại)</button>
+  </div>
+
+  <!-- toast -->
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="js/spots.js"></script>
+  <script src="js/learned-spots.js"></script>
+  <script src="js/positioning.js"></script>
+</body>
+</html>

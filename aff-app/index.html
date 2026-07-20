@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12233D">
+<title>Hoàn Tiền Shopee</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hoàn Tiền">
+<meta name="mobile-web-app-capable" content="yes">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --ink:#12233D;--paper:#F7F8FA;--card:#fff;--accent:#EE4D2D;--accent-soft:#FDEAE5;
+  --ok:#0E8A5F;--ok-soft:#E3F4ED;--line:#E3E7EE;--muted:#6B7686;--radius:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;
+  padding-bottom:env(safe-area-inset-bottom)}
+header{background:var(--ink);color:#fff;padding:calc(14px + env(safe-area-inset-top)) 18px 46px;
+  display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+header h1{font-size:1.1rem;font-weight:700}
+header p{font-size:.78rem;opacity:.75;margin-top:2px}
+.hbtn{background:rgba(255,255,255,.12);color:#fff;border:none;border-radius:10px;
+  padding:8px 12px;font-size:.78rem;font-weight:600;cursor:pointer;flex:0 0 auto;min-width:0}
+main{max-width:520px;margin:-30px auto 0;padding:0 14px 90px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(18,35,61,.06)}
+h2{font-size:1.15rem;font-weight:700;margin-bottom:8px}
+label{font-size:.9rem;color:var(--muted);display:block;margin:12px 0 6px}
+input,textarea,select{width:100%;border:1.5px solid var(--line);border-radius:12px;
+  padding:15px;font-size:1.08rem;font-family:inherit;color:var(--ink);background:#fff;outline:none}
+input:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:100px;line-height:1.45}
+.row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+button{border:none;border-radius:12px;padding:15px 16px;font-size:1.06rem;font-weight:700;
+  font-family:inherit;cursor:pointer;flex:1;min-width:110px;transition:transform .05s}
+button:active{transform:scale(.98)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-dark{background:var(--ink);color:#fff}
+.btn-ghost{background:var(--accent-soft);color:var(--accent)}
+.btn-ok{background:var(--ok);color:#fff}
+.hint{font-size:.9rem;color:var(--muted);margin-top:8px;line-height:1.55}
+.hide{display:none!important}
+/* ví */
+.wallet{background:linear-gradient(135deg,#12233D,#1D3A63);color:#fff;border:none}
+.wallet .bal-label{font-size:.75rem;opacity:.7}
+.wallet .bal{font-size:1.9rem;font-weight:800;margin:4px 0 2px;letter-spacing:.5px}
+.wallet .phone{font-size:.8rem;opacity:.75}
+.wallet .row button{background:rgba(255,255,255,.14);color:#fff}
+/* kết quả */
+.result-link{background:var(--ok-soft);border-radius:12px;padding:11px 12px;margin-top:12px;
+  font-size:.82rem;color:#0a5c40;word-break:break-all;line-height:1.5}
+.result-link b{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;color:var(--ok);margin-bottom:3px}
+.result-link #outLink{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prod{display:flex;justify-content:space-between;gap:10px;background:#F1F4F9;border-radius:12px;
+  padding:12px 14px;margin-top:10px;font-size:.98rem;align-items:center}
+.prod .cb{color:var(--ok);font-weight:700;flex:0 0 auto}
+.chips{display:flex;gap:8px;margin:12px 0 8px;flex-wrap:wrap}
+.chip{flex:0 0 auto;min-width:0;padding:7px 13px;border-radius:999px;font-size:.8rem;font-weight:600;
+  background:#fff;border:1.5px solid var(--line);color:var(--muted);cursor:pointer}
+.chip.active{background:var(--ink);border-color:var(--ink);color:#fff}
+/* danh sách */
+.item{border-top:1px solid var(--line);padding:12px 2px;font-size:.95rem;
+  display:flex;justify-content:space-between;gap:10px;align-items:center}
+.item:first-of-type{border-top:none}
+.item .main{flex:1;min-width:0}
+.item .t1{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.item .t2{font-size:.82rem;color:var(--muted);margin-top:2px}
+.badge{flex:0 0 auto;font-size:.78rem;font-weight:700;padding:5px 11px;border-radius:999px}
+.b-pending{background:#FFF3E0;color:#B26A00}
+.b-ok{background:var(--ok-soft);color:var(--ok)}
+.b-created{background:#EEF1F6;color:var(--muted)}
+.sbtn{flex:0 0 auto;min-width:0;padding:8px 13px;font-size:.85rem;border-radius:10px;
+  background:var(--accent-soft);color:var(--accent)}
+.empty{font-size:.92rem;color:var(--muted);text-align:center;padding:16px 0}
+/* tab */
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);
+  display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:50}
+nav button{flex:1;background:none;color:var(--muted);font-size:.74rem;font-weight:600;
+  padding:10px 3px;border-radius:0;display:flex;flex-direction:column;gap:3px;align-items:center;min-width:0}
+nav button.active{color:var(--accent)}
+nav .ic{font-size:1.45rem}
+/* toast */
+#toast{position:fixed;left:50%;bottom:calc(70px + env(safe-area-inset-bottom));
+  transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;
+  padding:11px 20px;border-radius:999px;font-size:.85rem;font-weight:600;opacity:0;
+  transition:all .25s;pointer-events:none;z-index:99;max-width:92vw;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.auth-wrap{max-width:420px;margin:40px auto;padding:0 16px}
+.auth-logo{text-align:center;margin-bottom:20px}
+.auth-logo .z{font-size:2.4rem}
+.auth-logo h1{font-size:1.3rem;margin-top:6px}
+.auth-logo p{font-size:.82rem;color:var(--muted);margin-top:4px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:#F1F4F9;border-radius:12px;padding:13px 14px}
+.stat .v{font-size:1.35rem;font-weight:800;color:var(--ink);line-height:1.1;word-break:break-word}
+.stat .l{font-size:.72rem;color:var(--muted);margin-top:3px}
+.stat.hl{background:linear-gradient(135deg,#12233D,#1D3A63)}
+.stat.hl .v{color:#fff}.stat.hl .l{color:rgba(255,255,255,.75)}
+.stat.ok{background:var(--ok-soft)}.stat.ok .v{color:var(--ok)}
+.steps{background:var(--accent-soft);border-radius:12px;padding:12px 14px;margin:2px 0 8px;
+  font-size:.98rem;line-height:2;color:var(--ink)}
+.stepnum{display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--accent);
+  color:#fff;font-size:.82rem;font-weight:800;align-items:center;justify-content:center;
+  margin-right:9px;vertical-align:middle}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ================== MÀN ĐĂNG NHẬP ================== -->
+<div id="viewAuth" class="auth-wrap hide">
+  <div class="auth-logo">
+    <div class="z">⚡</div>
+    <h1>Trợ Lý Affiliate</h1>
+    <p>Đăng nhập bằng số điện thoại</p>
+  </div>
+  <div class="card">
+    <p class="hint" style="margin:0 0 10px;text-align:center">Lần đầu dùng? Bấm <b>Đăng ký</b>. Đã có tài khoản? Bấm <b>Đăng nhập</b>.</p>
+    <div class="chips" style="margin:0 0 12px">
+      <button class="chip active" id="modeLogin" onclick="setAuthMode('login')" style="padding:11px 18px;font-size:.95rem">Đăng nhập</button>
+      <button class="chip" id="modeReg" onclick="setAuthMode('reg')" style="padding:11px 18px;font-size:.95rem">Đăng ký</button>
+    </div>
+    <label>Số điện thoại</label>
+    <input type="text" id="authPhone" placeholder="09xxxxxxxx" inputmode="tel" autocomplete="tel">
+    <label>Mật khẩu</label>
+    <input type="password" id="authPass" placeholder="Ít nhất 6 ký tự">
+    <div id="confirmPassBox" class="hide">
+      <label>Xác nhận mật khẩu</label>
+      <input type="password" id="authPass2" placeholder="Nhập lại mật khẩu">
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;color:var(--ink)">
+      <input type="checkbox" id="rememberLogin" checked style="width:auto;margin:0">
+      Lưu đăng nhập (tự điền lần sau)
+    </label>
+    <div class="row">
+      <button class="btn-primary" id="authSubmit" onclick="doAuth()">Đăng nhập</button>
+    </div>
+    <p class="hint" id="authHint">Nhập SĐT + mật khẩu rồi bấm "Đăng nhập".</p>
+  </div>
+  <div class="card" style="text-align:center">
+    <div style="font-weight:700;margin-bottom:8px">👥 Nhóm Zalo <span class="zalo-name"></span></div>
+    <img class="zalo-qr" alt="QR nhóm Zalo" style="width:180px;max-width:62%;border-radius:12px;border:1px solid var(--line)">
+    <p class="hint">Quét QR hoặc bấm nút để vào nhóm nhận deal + hỗ trợ hoàn tiền.</p>
+    <div class="row"><button class="btn-primary" onclick="joinZalo()">Vào nhóm Zalo</button></div>
+  </div>
+</div>
+
+<!-- ================== APP CHÍNH ================== -->
+<div id="viewApp" class="hide">
+<header>
+  <div>
+    <h1>Trợ Lý Affiliate ⚡</h1>
+    <p>Dán link → ra link + hoàn tiền</p>
+  </div>
+  <button class="hbtn" onclick="logout()">Đăng xuất</button>
+</header>
+
+<main>
+
+<!-- TAB: CHUYỂN LINK -->
+<section id="tabConvert">
+  <div class="card wallet">
+    <div class="bal-label">Số dư của bạn</div>
+    <div class="bal" id="balText">0đ</div>
+    <div class="phone" id="phoneText"></div>
+    <div class="row">
+      <button onclick="showTab('tabWallet')">💸 Rút tiền</button>
+    </div>
+  </div>
+
+  <div class="card" style="display:flex;align-items:center;gap:12px">
+    <img class="zalo-qr" alt="QR nhóm Zalo" style="width:72px;height:72px;border-radius:10px;flex:0 0 auto;border:1px solid var(--line)">
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:700">👥 Nhóm Zalo <span class="zalo-name"></span></div>
+      <div class="hint" style="margin:3px 0 8px">Deal hot + hỗ trợ hoàn tiền mỗi ngày</div>
+      <button class="btn-primary" style="padding:8px 14px;font-size:.85rem" onclick="joinZalo()">Vào nhóm ngay</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🔗 Tạo link kiếm tiền</h2>
+    <div class="steps">
+      <div><span class="stepnum">1</span> Dán link sản phẩm</div>
+      <div><span class="stepnum">2</span> Bấm nút <b>Tạo link</b></div>
+      <div><span class="stepnum">3</span> Nhấn <b>Mở sản phẩm</b> để mua</div>
+    </div>
+    <label>Bước 1 — Dán link Shopee hoặc TikTok vào ô dưới:</label>
+    <input type="text" id="srcLink" placeholder="Bấm nút 📋 Dán link bên dưới" inputmode="url" autocomplete="off">
+    <div class="row">
+      <button class="btn-ghost" onclick="pasteTo('srcLink')">📋 Dán link</button>
+      <button class="btn-primary" onclick="convert()" id="btnConvert">⚡ Tạo link</button>
+    </div>
+
+    <div id="convertResult" class="hide">
+      <div class="prod">
+        <div class="main" style="flex:1;min-width:0">
+          <div class="t1" id="prodTitle">Sản phẩm</div>
+          <div class="t2"><span id="prodPlatform"></span>Đặt qua link này để nhận hoàn tiền</div>
+        </div>
+      </div>
+      <div class="result-link"><b>Link hoa hồng của bạn</b><span id="outLink"></span></div>
+      <div class="row">
+        <button class="btn-ghost" onclick="copyOut()">📋 Copy link</button>
+        <button class="btn-primary" onclick="openProduct()">🛒 Mở sản phẩm</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TAB: VÍ -->
+<section id="tabWallet" class="hide">
+  <div class="card wallet">
+    <div class="bal-label">Số dư của bạn</div>
+    <div class="bal" id="balText2">0đ</div>
+    <div class="phone" id="phoneText2"></div>
+  </div>
+
+  <div class="card">
+    <h2>Rút tiền</h2>
+    <p class="hint">Số dư được cộng theo nguyên tắc mỗi đơn giao thành công, không đổi hoàn hàng. Đủ tối thiểu <b>20.000đ</b> là rút được.</p>
+    <label>Số tiền muốn rút (đ)</label>
+    <input type="text" id="wdAmount" inputmode="numeric" placeholder="20000">
+    <label>Ngân hàng nhận tiền</label>
+    <select id="wdBankCode"></select>
+    <label>Số tài khoản</label>
+    <input type="text" id="wdAccountNo" inputmode="numeric" placeholder="0123456789" autocomplete="off">
+    <label>Tên chủ tài khoản (viết hoa, không dấu)</label>
+    <input type="text" id="wdAccountName" placeholder="NGUYEN VAN A" autocomplete="off">
+    <div class="row"><button class="btn-dark" onclick="createWithdrawal()">Tạo yêu cầu rút</button></div>
+    <div id="wdList"></div>
+  </div>
+
+  <div class="card">
+    <h2>💰 Lịch sử hoàn tiền</h2>
+    <p class="hint" style="margin-top:0">Từng đơn hoa hồng hợp lệ + rút tiền — rõ ngày giờ, số tiền, số dư sau.</p>
+    <div id="earnList"><div class="empty">Đang tải...</div></div>
+  </div>
+
+  <div class="card">
+    <h2>🔑 Đổi mật khẩu</h2>
+    <label>Mật khẩu mới</label>
+    <input type="password" id="npPass" placeholder="Ít nhất 6 ký tự">
+    <label>Xác nhận mật khẩu mới</label>
+    <input type="password" id="npPass2" placeholder="Nhập lại mật khẩu mới">
+    <div class="row"><button class="btn-dark" onclick="changePassword()">Đổi mật khẩu</button></div>
+  </div>
+</section>
+
+<!-- TAB: VOUCHER -->
+<section id="tabVoucher" class="hide">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px">
+      <h2 style="margin:0">🎟️ Voucher Shopee</h2>
+      <button class="sbtn" onclick="loadVouchers(true)">🔄 Mới</button>
+    </div>
+    <p class="hint">Voucher giảm giá cập nhật liên tục. Bấm <b>🎟️ Lấy</b> mở qua link hoàn tiền, hoặc <b>📋 Mã</b> để copy mã.</p>
+    <input type="text" id="voucherSearch" placeholder="🔍 Tìm theo tên shop / voucher..." oninput="renderVouchers()">
+    <div id="voucherList" style="margin-top:6px"><div class="empty">Đang tải voucher...</div></div>
+  </div>
+</section>
+
+<!-- TAB: LỊCH SỬ -->
+<section id="tabHistory" class="hide">
+  <div class="card">
+    <h2>🔗 Link đã tạo</h2>
+    <div id="linkList"><div class="empty">Chưa có link nào — hãy tạo link đầu tiên của bạn nhé! 🚀</div></div>
+  </div>
+</section>
+
+<!-- TAB: THỐNG KÊ -->
+<section id="tabStats" class="hide">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px">
+      <h2 style="margin:0">📈 Thống kê toàn app</h2>
+      <button class="sbtn" onclick="loadStats(true)">🔄</button>
+    </div>
+    <div id="statsBox"><div class="empty">Đang tải...</div></div>
+  </div>
+</section>
+
+<!-- TAB: ADMIN -->
+<section id="tabAdmin" class="hide">
+  <div class="card" id="pushCard">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <div style="flex:1;min-width:0">
+        <h2 style="margin:0">🔔 Thông báo rút tiền</h2>
+        <p class="hint" id="pushHint" style="margin:4px 0 0">Bật để nhận thông báo trên điện thoại khi có yêu cầu rút.</p>
+      </div>
+      <button class="sbtn" id="pushBtn" onclick="enablePush()" style="flex:0 0 auto">🔔 Bật</button>
+    </div>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <h2 style="margin:0">🩺 Sức khỏe hệ thống</h2>
+      <button class="sbtn" id="healthBtn" onclick="checkHealth()" style="flex:0 0 auto">Kiểm tra</button>
+    </div>
+    <div id="healthBox"><p class="hint" style="margin:6px 0 0">Bấm "Kiểm tra" để tự soát toàn bộ hệ thống (DB, AccessTrade, email, thông báo, các hàm tài chính).</p></div>
+  </div>
+  <div class="card">
+    <h2>💸 Chi trả (duyệt rút tiền)</h2>
+    <p class="hint">Bấm "QR" → mở app MBBank quét chuyển tiền → bấm "Đã chuyển" để trừ số dư.</p>
+    <div id="admWithdrawals"><div class="empty">Không có yêu cầu chờ.</div></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <h2 style="margin:0">📊 Đối soát đơn Shopee</h2>
+      <span class="hint" id="syncStatus" style="margin:0;white-space:nowrap">🟢 Tự động</span>
+    </div>
+    <p class="hint">TỰ ĐỘNG kéo đơn AccessTrade mỗi 10 phút (Shopee + TikTok). Đơn "đã duyệt" tự cộng 50% hoa hồng thật cho đúng khách — anh không cần thao tác gì.</p>
+    <div id="admOrders"><div class="empty">Chưa có đơn nào.</div></div>
+  </div>
+
+</section>
+
+</main>
+
+<nav>
+  <button class="active" id="nav-tabConvert" onclick="showTab('tabConvert')"><span class="ic">⚡</span>Chuyển link</button>
+  <button id="nav-tabVoucher" onclick="showTab('tabVoucher')"><span class="ic">🎟️</span>Voucher</button>
+  <button id="nav-tabWallet" onclick="showTab('tabWallet')"><span class="ic">👛</span>Ví</button>
+  <button id="nav-tabHistory" onclick="showTab('tabHistory')"><span class="ic">🕘</span>Lịch sử</button>
+  <button id="nav-tabStats" class="hide" onclick="showTab('tabStats')"><span class="ic">📈</span>Thống kê</button>
+  <button id="nav-tabAdmin" class="hide" onclick="showTab('tabAdmin')"><span class="ic">🛠</span>Admin</button>
+</nav>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   CẤU HÌNH — SỬA 4 DÒNG NÀY TRƯỚC KHI DEPLOY
+============================================================ */
+var SUPABASE_URL = 'https://nxvcsotzybjxykadbxbr.supabase.co';   // Supabase > Settings > API
+var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54dmNzb3R6eWJqeHlrYWRieGJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3NDg5MzIsImV4cCI6MjA5OTMyNDkzMn0.JtKX-tQIoI3NaGh6aul0XC3nSLOMgSe26aS9DAvmo_4'; // anon public key
+var PUB_ID  = '6082601354278872829';              // pub_id AccessTrade
+// Các nền tảng hỗ trợ — app tự nhận diện link để chọn đúng chiến dịch
+var CAMPAIGNS = {
+  // Shopee: shopee.vn, s.shopee.vn, m.shopee.vn, vn.shp.ee, shp.ee, shope.ee (share app), shopee.com.* ...
+  shopee: { camp:'4751584435713464237', label:'Shopee',      match:/\bshopee\.[a-z]|\bshope\.ee\b|\bshp\.ee\b/i, hasPrice:true  },
+  // TikTok: www/vt/vm/m/shop.tiktok.com, tiktok.vn, tiktokv.com ...
+  tiktok: { camp:'6648523843406889655', label:'TikTok Shop', match:/\btiktok\.[a-z]|\btiktokv\.[a-z]/i,      hasPrice:true }
+};
+var ZALO_GROUP = 'https://zalo.me/g/vsqf5d6tqpuvvnmgxnel'; // link nhóm Zalo
+var ZALO_NAME  = 'SHOPEE 24/7';                   // tên nhóm hiển thị
+/* ============================================================ */
+
+var DEEPLINK_HOST='https://go.isclix.com/deep_link/v6/';
+var VAPID_PUBLIC='BLq9PzFMi0EtQE9lLh00MeL1WaY5KztqhSWW8hDkku2lylF-Yq2QY4LA63oABqMGtQudmfp_fYYfTpDL-0Rso2Y';
+var sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+var me=null, myProfile=null, currentLink='', currentPrice=null, currentTitle=null, currentRowId=null;
+var busyConvert=false;   // chống bấm/dán tạo link 2 lần cùng lúc
+
+/* ---------- tiện ích ---------- */
+var toastTimer;
+function toast(t){var el=document.getElementById('toast');el.textContent=t;el.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(function(){el.classList.remove('show')},2200);}
+function fmt(n){return (n==null?'—':Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.')+'đ');}
+function num(s){return parseFloat((s||'').replace(/[^\d]/g,''))||0;}
+function p2(n){return (n<10?'0':'')+n;}
+function fmtDT(iso){var d=new Date(iso);return p2(d.getHours())+':'+p2(d.getMinutes())+' '+p2(d.getDate())+'/'+p2(d.getMonth()+1)+'/'+d.getFullYear();}
+function phoneToEmail(p){return p.replace(/\D/g,'')+'@hoantienshopee.com';}
+function copyText(t,msg){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(function(){toast(msg)}).catch(function(){fallbackCopy(t,msg)});
+  }else fallbackCopy(t,msg);
+}
+function fallbackCopy(t,msg){var ta=document.createElement('textarea');ta.value=t;
+  ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');toast(msg);}catch(e){toast('Không sao chép được');}
+  document.body.removeChild(ta);}
+function pasteTo(id){
+  var el=document.getElementById(id);
+  if(el)el.focus();
+  function done(t){
+    t=(t||'').trim();
+    if(!t){toast('Bộ nhớ tạm trống — bấm giữ vào ô rồi chọn Dán');return;}
+    if(el)el.value=t;
+    if(id==='srcLink'){toast('Đã dán — đang tạo link…');convert();}   // 1 chạm: dán xong tạo link luôn
+    else toast('Đã dán');
+  }
+  if(navigator.clipboard&&navigator.clipboard.readText){
+    navigator.clipboard.readText().then(done).catch(function(){
+      if(el&&el.select)el.select();
+      toast('Trình duyệt chặn dán tự động — bấm giữ vào ô rồi chọn Dán, xong bấm Tạo link');
+    });
+  }else{
+    if(el&&el.select)el.select();
+    toast('Bấm giữ vào ô trên rồi chọn Dán, xong bấm Tạo link');
+  }
+}
+function escapeHtml(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+// base64 chuẩn UTF-8 cho tham số url_enc của AccessTrade (link có tiếng Việt vẫn đúng)
+function b64utf8(s){try{return btoa(unescape(encodeURIComponent(s)));}catch(e){return btoa(s);}}
+// mã đối soát riêng cho mỗi link (dùng khớp đơn AccessTrade → đúng khách)
+function newTrackCode(){return 'AF'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+// Nhóm Zalo: đổ mã QR + tên nhóm vào mọi chỗ hiển thị
+function setupZalo(){
+  var src='https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data='+encodeURIComponent(ZALO_GROUP);
+  var qrs=document.querySelectorAll('.zalo-qr');
+  for(var i=0;i<qrs.length;i++)qrs[i].src=src;
+  var names=document.querySelectorAll('.zalo-name');
+  for(var j=0;j<names.length;j++)names[j].textContent=ZALO_NAME;
+}
+function joinZalo(){window.open(ZALO_GROUP,'_blank');}
+// Danh sách ngân hàng (mã VietQR) cho ô rút tiền + tạo QR chi trả
+var BANKS=[
+  ['VCB','Vietcombank'],['MB','MB Bank'],['TCB','Techcombank'],['ICB','VietinBank'],
+  ['BIDV','BIDV'],['VBA','Agribank'],['ACB','ACB'],['VPB','VPBank'],['STB','Sacombank'],
+  ['TPB','TPBank'],['HDB','HDBank'],['VIB','VIB'],['SHB','SHB'],['MSB','MSB'],['OCB','OCB'],
+  ['SEAB','SeABank'],['EIB','Eximbank'],['LPB','LPBank'],['NAB','Nam A Bank'],['SCB','SCB'],
+  ['PVCB','PVcomBank'],['BAB','Bac A Bank'],['CAKE','Cake by VPBank'],['TIMO','Timo']
+];
+function bankName(code){for(var i=0;i<BANKS.length;i++)if(BANKS[i][0]===code)return BANKS[i][1];return code||'';}
+// Bỏ dấu tiếng Việt (nội dung chuyển khoản nên là không dấu)
+function noAccent(s){return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D');}
+// Link ảnh VietQR điền sẵn: ngân hàng + STK + số tiền + nội dung + tên người nhận
+function vietQR(bankCode,accountNo,amount,name,info){
+  return 'https://img.vietqr.io/image/'+bankCode+'-'+accountNo+'-compact2.png'
+    +'?amount='+amount+'&addInfo='+encodeURIComponent(noAccent(info))
+    +'&accountName='+encodeURIComponent(noAccent(name));
+}
+
+/* ---------- auth ---------- */
+async function doRegister(){
+  var p=document.getElementById('authPhone').value.trim();
+  var pw=document.getElementById('authPass').value;
+  var pw2=document.getElementById('authPass2').value;
+  if(!/^0\d{9,10}$/.test(p)){toast('Bạn nhập lại số điện thoại giúp nhé 😊');return;}
+  if(pw.length<6){toast('Mật khẩu cần từ 6 ký tự trở lên nhé');return;}
+  var cbox=document.getElementById('confirmPassBox');
+  if(cbox&&!cbox.classList.contains('hide')&&pw!==pw2){toast('Hai ô mật khẩu chưa giống nhau, thử lại nhé');return;}
+  var r=await sb.auth.signUp({email:phoneToEmail(p),password:pw,options:{data:{phone:p}}});
+  if(r.error){toast(r.error.message.indexOf('already')>-1?'Số này đã có tài khoản — bạn bấm Đăng nhập nhé':'Có chút trục trặc, thử lại giúp nhé');return;}
+  saveLogin(p,pw);
+  toast('🎉 Chào mừng bạn! Tạo tài khoản thành công');
+  init();
+}
+async function doLogin(){
+  var p=document.getElementById('authPhone').value.trim();
+  var pw=document.getElementById('authPass').value;
+  var r=await sb.auth.signInWithPassword({email:phoneToEmail(p),password:pw});
+  if(r.error){toast('SĐT hoặc mật khẩu chưa đúng, thử lại nhé 😊');return;}
+  saveLogin(p,pw);
+  toast('👋 Chào mừng bạn quay lại!');
+  init();
+}
+async function logout(){await sb.auth.signOut();location.reload();}
+// Lưu / tự điền đăng nhập (localStorage trên thiết bị này)
+function saveLogin(phone,pass){
+  try{
+    var cb=document.getElementById('rememberLogin');
+    if(cb&&cb.checked){ localStorage.setItem('htLogin',JSON.stringify({p:phone,w:pass})); }
+    else{ localStorage.removeItem('htLogin'); }
+  }catch(e){}
+}
+function prefillLogin(){
+  try{
+    var s=JSON.parse(localStorage.getItem('htLogin')||'null');
+    if(s){
+      var ph=document.getElementById('authPhone'); if(ph)ph.value=s.p||'';
+      var pw=document.getElementById('authPass'); if(pw)pw.value=s.w||'';
+    }
+  }catch(e){}
+}
+// Chuyển giữa Đăng nhập / Đăng ký (chỉ Đăng ký mới hiện xác nhận mật khẩu)
+var authMode='login';
+function setAuthMode(m){
+  authMode=m;
+  document.getElementById('modeLogin').classList.toggle('active',m==='login');
+  document.getElementById('modeReg').classList.toggle('active',m==='reg');
+  document.getElementById('confirmPassBox').classList.toggle('hide',m!=='reg');
+  document.getElementById('authSubmit').textContent = m==='reg'?'Tạo tài khoản':'Đăng nhập';
+  document.getElementById('authHint').textContent = m==='reg'
+    ? 'Nhập SĐT + mật khẩu + xác nhận rồi bấm "Tạo tài khoản".'
+    : 'Nhập SĐT + mật khẩu rồi bấm "Đăng nhập".';
+}
+function doAuth(){ if(authMode==='reg')doRegister(); else doLogin(); }
+async function changePassword(){
+  var p1=document.getElementById('npPass').value;
+  var p2=document.getElementById('npPass2').value;
+  if(p1.length<6){toast('Mật khẩu ít nhất 6 ký tự');return;}
+  if(p1!==p2){toast('Mật khẩu xác nhận không khớp');return;}
+  var r=await sb.auth.updateUser({password:p1});
+  if(r.error){toast('Lỗi: '+r.error.message);return;}
+  document.getElementById('npPass').value='';
+  document.getElementById('npPass2').value='';
+  toast('✓ Đổi mật khẩu thành công');
+}
+function urlB64ToUint8(s){
+  var pad='='.repeat((4-s.length%4)%4);
+  var b=(s+pad).replace(/-/g,'+').replace(/_/g,'/');
+  var raw=atob(b),arr=new Uint8Array(raw.length);
+  for(var i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);
+  return arr;
+}
+async function enablePush(){
+  var btn=document.getElementById('pushBtn'),hint=document.getElementById('pushHint');
+  try{
+    if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window)){
+      toast('Thiết bị/trình duyệt không hỗ trợ thông báo');return;
+    }
+    var perm=await Notification.requestPermission();
+    if(perm!=='granted'){toast('Bạn chưa cho phép thông báo');return;}
+    var reg=await navigator.serviceWorker.ready;
+    var sub=await reg.pushManager.getSubscription();
+    if(!sub){ sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8(VAPID_PUBLIC)}); }
+    var r=await sb.rpc('save_push_sub',{sub:sub.toJSON?sub.toJSON():sub});
+    if(r.error){toast('Lỗi lưu: '+r.error.message);return;}
+    if(btn){btn.textContent='✓ Đã bật';btn.disabled=true;}
+    if(hint)hint.textContent='✅ Đã bật thông báo trên thiết bị này.';
+    toast('✓ Đã bật thông báo điện thoại');
+  }catch(e){toast('Không bật được: '+(e.message||e));}
+}
+
+/* ---------- khởi động ---------- */
+async function init(){
+  var s=await sb.auth.getSession();
+  if(!s.data.session){
+    document.getElementById('viewAuth').classList.remove('hide');
+    document.getElementById('viewApp').classList.add('hide');
+    prefillLogin();
+    return;
+  }
+  me=s.data.session.user;
+  document.getElementById('viewAuth').classList.add('hide');
+  document.getElementById('viewApp').classList.remove('hide');
+  fillBanks();
+  prefillBank();
+  await loadProfile();
+  loadLinks();loadWithdrawals();loadEarnings();
+  var isAdmin=myProfile&&myProfile.is_admin;
+  document.getElementById('nav-tabAdmin').classList.toggle('hide',!isAdmin);
+  document.getElementById('nav-tabStats').classList.toggle('hide',!isAdmin);
+  document.getElementById('pushCard').classList.toggle('hide',!isAdmin);
+  if(isAdmin){ startAutoSync(); }
+}
+async function loadProfile(){
+  var r=await sb.from('profiles').select('*').eq('id',me.id).single();
+  if(r.data){
+    myProfile=r.data;
+    var b=fmt(r.data.balance);
+    document.getElementById('balText').textContent=b;
+    document.getElementById('balText2').textContent=b;
+    document.getElementById('phoneText').textContent='SĐT: '+r.data.phone;
+    document.getElementById('phoneText2').textContent='SĐT: '+r.data.phone;
+  }
+}
+
+/* ---------- tab ---------- */
+function showTab(id){
+  var tabs=['tabConvert','tabVoucher','tabWallet','tabHistory','tabStats','tabAdmin'];
+  for(var i=0;i<tabs.length;i++){
+    document.getElementById(tabs[i]).classList.toggle('hide',tabs[i]!==id);
+    var nb=document.getElementById('nav-'+tabs[i]);
+    if(nb)nb.classList.toggle('active',tabs[i]===id);
+  }
+  if(id==='tabVoucher')loadVouchers();
+  if(id==='tabWallet')loadEarnings();
+  if(id==='tabStats')loadStats();
+}
+/* ---------- thống kê (admin) ---------- */
+var statsLoaded=false;
+async function loadStats(force){
+  if(statsLoaded&&!force)return;
+  var box=document.getElementById('statsBox');
+  try{
+    var r=await sb.rpc('admin_stats');
+    if(r.error){box.innerHTML='<div class="empty">Lỗi: '+escapeHtml(r.error.message)+'</div>';return;}
+    var d=r.data||{};
+    function c(v,l,cls){return '<div class="stat'+(cls?' '+cls:'')+'"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';}
+    box.innerHTML='<div class="stats">'
+      +c(d.so_khach||0,'Khách hàng')
+      +c(d.so_link||0,'Link đã tạo')
+      +c(fmt(d.tong_so_du||0),'Số dư đang giữ','hl')
+      +c(d.link_hom_nay||0,'Link hôm nay')
+      +c(d.so_don||0,'Đơn đối soát')
+      +c(d.rut_cho||0,'Rút chờ xử lý')
+      +c(fmt(d.tong_hoan||0),'Đã hoàn khách','ok')
+      +c(fmt(d.tong_chi||0),'Đã chi trả','ok')
+      +'</div>';
+    statsLoaded=true;
+  }catch(e){box.innerHTML='<div class="empty">Không tải được thống kê.</div>';}
+}
+/* ---------- voucher ---------- */
+var vouchersLoaded=false, allVouchers=[];
+async function loadVouchers(force){
+  if(vouchersLoaded&&!force)return;
+  var box=document.getElementById('voucherList');
+  box.innerHTML='<div class="empty">Đang tải voucher...</div>';
+  try{
+    var r=await fetch('/api/vouchers?merchant=shopee');
+    var j=await r.json();
+    allVouchers=j.vouchers||[];
+    vouchersLoaded=true;
+    renderVouchers();
+  }catch(e){box.innerHTML='<div class="empty">Không tải được voucher, thử lại sau.</div>';}
+}
+function renderVouchers(){
+  var box=document.getElementById('voucherList');
+  var qEl=document.getElementById('voucherSearch');
+  var q=(qEl&&qEl.value||'').toLowerCase().trim();
+  var list=allVouchers.filter(function(v){
+    return !q || (v.name||'').toLowerCase().indexOf(q)>-1 || (v.code||'').toLowerCase().indexOf(q)>-1;
+  });
+  if(!list.length){box.innerHTML='<div class="empty">'+(q?'Không tìm thấy voucher phù hợp 🔍':'Chưa có voucher lúc này.')+'</div>';return;}
+  var html='';
+  for(var i=0;i<list.length;i++){
+    var v=list[i];
+    html+='<div class="item">'
+      +(v.image?'<img src="'+escapeHtml(v.image)+'" loading="lazy" alt="" style="width:48px;height:48px;border-radius:8px;object-fit:cover;flex:0 0 auto">':'')
+      +'<div class="main"><div class="t1">'+escapeHtml(v.name)+'</div>'
+      +'<div class="t2">'+(v.end?('HSD '+escapeHtml(v.end)):'')+(v.code?(' · Mã: <b>'+escapeHtml(v.code)+'</b>'):'')+'</div></div>'
+      +'<div style="display:flex;flex-direction:column;gap:5px;flex:0 0 auto">'
+      +(v.code?'<button class="sbtn" onclick="copyText(decodeURIComponent(\''+encodeURIComponent(v.code)+'\'),\'📋 Đã copy mã voucher\')">📋 Mã</button>':'')
+      +'<button class="sbtn btn-primary" style="color:#fff" onclick="window.open(decodeURIComponent(\''+encodeURIComponent(v.link)+'\'),\'_blank\')">🎟️ Lấy</button>'
+      +'</div></div>';
+  }
+  box.innerHTML=html;
+}
+
+/* ---------- chuyển link ---------- */
+function detectPlatform(u){
+  for(var k in CAMPAIGNS){ if(CAMPAIGNS[k].match.test(u)) return k; }
+  return null;
+}
+// BÓC LINK: gỡ sạch tracking của người khác (share_channel_code, af_, utm cũ...) trước khi
+// áp link affiliate của mình -> đảm bảo 100% hoa hồng về đúng anh, không dính mã ai khác.
+function cleanLink(u){
+  try{
+    var url=new URL(u);
+    if(/shopee\.|shp\.ee/i.test(url.hostname)){
+      // link ĐẦY ĐỦ có mã sản phẩm -> bỏ hết query (share_channel_code, af, utm người khác)
+      if(/i\.\d+\.\d+|\/product\/\d+\/\d+/i.test(url.pathname)) return url.origin+url.pathname;
+      return u; // link rút gọn (s.shopee.vn/xxx) -> giữ nguyên, AccessTrade vẫn áp affiliate_id
+    }
+    if(/tiktok/i.test(url.hostname)){
+      // TikTok: bỏ param tracking, giữ path + param cần thiết của sản phẩm
+      var drop=/^(utm_|share|af_|_r$|_t$|_d$|enter_from|tt_from|source|region|iid|checksum|social_sharing)/i;
+      var keep=new URLSearchParams();
+      url.searchParams.forEach(function(v,k){ if(!drop.test(k)) keep.set(k,v); });
+      return url.origin+url.pathname+(keep.toString()?'?'+keep.toString():'');
+    }
+  }catch(e){}
+  return u;
+}
+async function convert(){
+  if(busyConvert)return;                        // đang tạo link rồi -> bỏ qua lần bấm/dán trùng
+  var raw=document.getElementById('srcLink').value.trim();
+  if(!raw){toast('Bạn dán link sản phẩm vào trước nhé 😊');return;}
+  var m=raw.match(/https?:\/\/[^\s"'<>]+/i);   // tách URL nếu dán kèm chữ (share app hay kèm text)
+  if(m)raw=m[0];
+  if(raw.indexOf('http')!==0)raw='https://'+raw;
+  var plat=detectPlatform(raw);
+  if(!plat){
+    // dán nhầm link tiếp thị (shorten.asia / onelink / accesstrade / isclix) -> nhắc dán link SẢN PHẨM gốc
+    if(/shorten\.asia|onelink\.me|accesstrade|isclix/i.test(raw))
+      toast('Đây là link tiếp thị rồi — hãy dán LINK SẢN PHẨM gốc từ app Shopee/TikTok (vd shope.ee/…) nhé');
+    else
+      toast('Chưa nhận ra link — hãy dán link sản phẩm Shopee/TikTok (vd shope.ee/… hoặc shopee.vn/…) nhé');
+    return;
+  }
+  var cfg=CAMPAIGNS[plat];
+  busyConvert=true;
+  raw=cleanLink(raw);   // bóc sạch tracking người khác -> chỉ áp affiliate của mình
+
+  // Tự động lấy SĐT của user đang đăng nhập -> gắn vào utm_content để đối soát về đúng người
+  var phoneTag=(myProfile&&myProfile.phone)?myProfile.phone.replace(/\D/g,''):'';
+
+  var btn=document.getElementById('btnConvert');
+  btn.disabled=true;btn.textContent='Đang xử lý...';
+  currentRowId=null;   // reset để nút "Cập nhật giá" không sửa nhầm link cũ nếu lưu lỗi
+
+  // MÃ ĐỐI SOÁT riêng của link này — sub1 (khớp API) + utm_content=SĐT (khớp CSV)
+  var trackCode=newTrackCode();
+  currentLink=DEEPLINK_HOST+PUB_ID+'/'+cfg.camp
+    +'?sub1='+encodeURIComponent(trackCode)+'&sub4=app'
+    +'&utm_source=app&utm_content='+encodeURIComponent(phoneTag)
+    +'&url_enc='+encodeURIComponent(b64utf8(raw));
+
+  document.getElementById('outLink').textContent=currentLink;
+  document.getElementById('prodPlatform').textContent=cfg.label+' · ';
+  document.getElementById('prodTitle').textContent='Sản phẩm '+cfg.label;
+  document.getElementById('convertResult').classList.remove('hide');
+
+  // link đã tạo & copy cho khách NGAY — không phụ thuộc bước lưu DB (lưu lỗi cũng không mất link)
+  copyText(currentLink,'🎉 Tuyệt vời! Đã tạo & copy link — gửi khách ngay nhé');
+  btn.disabled=false;btn.textContent='⚡ Tạo link';
+  busyConvert=false;
+
+  // lưu vào database (tiền hoàn thật chốt khi đối soát báo cáo AccessTrade)
+  try{
+    if(me){
+      var ins=await sb.from('links').insert({
+        user_id:me.id,original_url:raw,aff_url:currentLink,track_code:trackCode
+      }).select('id').single();
+      if(ins&&ins.data)currentRowId=ins.data.id;
+      loadLinks();
+    }
+  }catch(e){}
+}
+/* ---------- link ---------- */
+function copyOut(){if(!currentLink){toast('Chưa có link');return;}copyText(currentLink,'Đã copy link');}
+function openProduct(){if(!currentLink){toast('Chưa có link');return;}window.open(currentLink,'_blank');}
+
+/* ---------- lịch sử link ---------- */
+async function loadLinks(){
+  var r=await sb.from('links').select('*').eq('user_id',me.id).order('created_at',{ascending:false}).limit(50);
+  var box=document.getElementById('linkList');
+  if(!r.data||!r.data.length){box.innerHTML='<div class="empty">Chưa có link nào — hãy tạo link đầu tiên của bạn nhé! 🚀</div>';return;}
+  var html='';
+  for(var i=0;i<r.data.length;i++){
+    var it=r.data[i];
+    var badge=it.status==='credited'?'<span class="badge b-ok">Đã hoàn</span>'
+             :'<span class="badge b-created">Đã tạo</span>';
+    html+='<div class="item"><div class="main">'
+      +'<div class="t1">'+escapeHtml(it.product_title||it.original_url)+'</div>'
+      +'<div class="t2">'+(it.price?('Giá '+fmt(it.price)+' · Hoàn 50% HH'):'Hoàn 50% HH khi đối soát')
+      +' · '+fmtDT(it.created_at)+'</div>'
+      +'</div>'+badge
+      +'<button class="sbtn" onclick="copyText(decodeURIComponent(\''+encodeURIComponent(it.aff_url)+'\'),\'Đã copy link\')">Copy</button>'
+      +'</div>';
+  }
+  box.innerHTML=html;
+}
+// Lịch sử hoàn tiền của khách (từng đồng vào/ra ví) — minh bạch
+async function loadEarnings(){
+  var box=document.getElementById('earnList');
+  var r=await sb.from('balance_log').select('*').eq('user_id',me.id).order('created_at',{ascending:false}).limit(40);
+  if(r.error||!r.data||!r.data.length){box.innerHTML='<div class="empty">Chưa có hoàn tiền nào — mua qua link để nhận nhé! 🛍️</div>';return;}
+  var html='';
+  for(var i=0;i<r.data.length;i++){
+    var it=r.data[i], pos=it.change>0;
+    var label=it.reason==='cashback'?'💵 Hoàn tiền đơn':it.reason==='reverse'?'↩️ Thu hồi (đơn hủy)':it.reason==='withdraw'?'💸 Rút tiền':'✏️ Điều chỉnh';
+    html+='<div class="item"><div class="main">'
+      +'<div class="t1">'+label+(it.ref?' · '+escapeHtml(it.ref):'')+'</div>'
+      +'<div class="t2">'+fmtDT(it.created_at)
+      +' · Số dư: '+fmt(it.balance_after)+'</div></div>'
+      +'<span style="font-weight:800;flex:0 0 auto;color:'+(pos?'var(--ok)':'var(--accent)')+'">'+(pos?'+':'')+fmt(it.change)+'</span></div>';
+  }
+  box.innerHTML=html;
+}
+
+/* ---------- rút tiền ---------- */
+function fillBanks(){
+  var sel=document.getElementById('wdBankCode');
+  if(!sel||sel.options.length)return;
+  var html='';
+  for(var i=0;i<BANKS.length;i++)html+='<option value="'+BANKS[i][0]+'">'+BANKS[i][1]+'</option>';
+  sel.innerHTML=html;
+}
+// Tự điền ngân hàng + STK + tên từ lần rút gần nhất (đỡ phải nhập lại)
+async function prefillBank(){
+  try{
+    var r=await sb.from('withdrawals').select('bank_code,account_no,account_name')
+      .eq('user_id',me.id).order('created_at',{ascending:false}).limit(1);
+    var w=r.data&&r.data[0]; if(!w)return;
+    var bc=document.getElementById('wdBankCode'); if(bc&&w.bank_code)bc.value=w.bank_code;
+    var an=document.getElementById('wdAccountNo'); if(an&&!an.value&&w.account_no)an.value=w.account_no;
+    var nm=document.getElementById('wdAccountName'); if(nm&&!nm.value&&w.account_name)nm.value=w.account_name;
+  }catch(e){}
+}
+async function createWithdrawal(){
+  var a=num(document.getElementById('wdAmount').value);
+  var code=document.getElementById('wdBankCode').value;
+  var acc=document.getElementById('wdAccountNo').value.trim();
+  var name=document.getElementById('wdAccountName').value.trim();
+  if(a<20000){toast('Rút tối thiểu 20.000đ bạn nhé 😊');return;}
+  if(!/^\d{6,19}$/.test(acc)){toast('Bạn kiểm tra lại số tài khoản giúp nhé');return;}
+  if(!name){toast('Bạn nhập tên chủ tài khoản giúp nhé');return;}
+  if(myProfile&&a>myProfile.balance){toast('Số dư chưa đủ — bạn tạo thêm link để tích tiền nhé 💪');return;}
+  var bankInfo=bankName(code)+' — '+acc+' — '+noAccent(name).toUpperCase();
+  var r=await sb.from('withdrawals').insert({
+    user_id:me.id,amount:a,bank_code:code,account_no:acc,
+    account_name:noAccent(name).toUpperCase(),bank_info:bankInfo
+  });
+  if(r.error){toast('Lỗi: '+r.error.message);return;}
+  // gửi email báo admin (không chặn giao diện)
+  try{
+    var sess=await sb.auth.getSession();
+    var tok=sess.data.session?sess.data.session.access_token:'';
+    var qr=vietQR(code,acc,a,noAccent(name).toUpperCase(),'HOAN TIEN '+myProfile.phone);
+    fetch('/api/notify-withdrawal',{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+      body:JSON.stringify({phone:myProfile.phone,amount:a,bank:bankName(code),acc:acc,name:noAccent(name).toUpperCase(),qr:qr})
+    }).catch(function(){});
+  }catch(e){}
+  toast('✅ Đã nhận yêu cầu rút — bọn mình xử lý ngay cho bạn nhé!');
+  document.getElementById('wdAmount').value='';
+  // giữ lại ngân hàng + STK + tên để lần rút sau khỏi nhập lại
+  loadWithdrawals();
+}
+async function loadWithdrawals(){
+  var r=await sb.from('withdrawals').select('*').eq('user_id',me.id).order('created_at',{ascending:false}).limit(10);
+  renderReqList('wdList',r.data,'Rút');
+}
+function renderReqList(boxId,list,label){
+  var box=document.getElementById(boxId);
+  if(!list||!list.length){box.innerHTML='';return;}
+  var html='';
+  for(var i=0;i<list.length;i++){
+    var it=list[i];
+    var badge=it.status==='approved'?'<span class="badge b-ok">✓ Hoàn thành</span>'
+      :it.status==='rejected'?'<span class="badge b-created">Từ chối</span>'
+      :'<span class="badge b-pending">Đang thực hiện</span>';
+    html+='<div class="item"><div class="main">'
+      +'<div class="t1">'+label+' '+fmt(it.amount)+'</div>'
+      +'<div class="t2">'+fmtDT(it.created_at)+'</div>'
+      +'</div>'+badge+'</div>';
+  }
+  box.innerHTML=html;
+}
+
+/* ---------- admin ---------- */
+async function loadAdmin(){
+  var w=await sb.from('withdrawals').select('*, profiles(phone)').eq('status','pending').order('created_at');
+  renderAdminWithdrawals(w.data);
+  var o=await sb.from('report_orders').select('*').order('created_at',{ascending:false}).limit(50);
+  renderAdminOrders(o.data);
+}
+function renderAdminWithdrawals(list){
+  var box=document.getElementById('admWithdrawals');
+  if(!list||!list.length){box.innerHTML='<div class="empty">Không có yêu cầu chờ.</div>';return;}
+  var html='';
+  for(var i=0;i<list.length;i++){
+    var it=list[i];
+    var phone=(it.profiles&&it.profiles.phone)||'';
+    var qr=(it.bank_code&&it.account_no)
+      ?vietQR(it.bank_code,it.account_no,it.amount,it.account_name||'','HOAN TIEN '+phone):'';
+    html+='<div class="item" style="flex-direction:column;align-items:stretch">'
+      +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:center">'
+        +'<div class="main"><div class="t1">Rút '+fmt(it.amount)+' — '+escapeHtml(phone)+'</div>'
+        +'<div class="t2">'+escapeHtml(it.bank_info||'(chưa có TK)')+'</div></div>'
+        +(qr?'<button class="sbtn" onclick="toggleQR('+it.id+')">📲 QR</button>':'')
+      +'</div>'
+      +(qr?'<div id="qr'+it.id+'" class="hide" style="text-align:center;margin-top:10px">'
+        +'<img src="'+qr+'" alt="QR chuyển tiền" style="max-width:230px;width:100%;border-radius:12px;border:1px solid var(--line)">'
+        +'</div>':'')
+      +'<div class="row" style="margin-top:10px">'
+        +'<button class="btn-ok" onclick="adminApprove(\'approve_withdrawal\',\'withdrawal_id\','+it.id+')">✓ Đã chuyển — trừ số dư</button>'
+      +'</div></div>';
+  }
+  box.innerHTML=html;
+}
+function toggleQR(id){var el=document.getElementById('qr'+id);if(el)el.classList.toggle('hide');}
+function renderAdminOrders(list){
+  var box=document.getElementById('admOrders');
+  if(!list||!list.length){box.innerHTML='<div class="empty">Chưa có đơn nào đối soát về.</div>';return;}
+  var unmatched=list.filter(function(it){return it.no_user;}).length;
+  var html='';
+  if(unmatched>0){
+    html+='<div style="background:#FFF3E0;border:1px solid #FCD9B6;color:#B26A00;border-radius:10px;padding:11px 13px;margin-bottom:10px;font-size:.92rem;line-height:1.5">⚠️ <b>Cảnh báo:</b> có <b>'+unmatched+'</b> đơn có hoa hồng nhưng SĐT chưa có tài khoản app. Khách đăng ký xong hệ thống tự cộng.</div>';
+  }
+  for(var i=0;i<list.length;i++){
+    var it=list[i];
+    var st=(it.at_status||'').toLowerCase();
+    var badge=st==='approved'?'<span class="badge b-ok">Đã duyệt</span>'
+      :(st==='cancelled'||st==='rejected'||st==='huy')?'<span class="badge b-created">Hủy</span>'
+      :'<span class="badge b-pending">Chờ duyệt</span>';
+    var credited=it.credited?' · <b style="color:var(--ok)">đã cộng '+fmt(it.cashback)+'</b>':'';
+    html+='<div class="item"><div class="main">'
+      +'<div class="t1">Đơn '+escapeHtml(it.order_code)+'</div>'
+      +'<div class="t2">'+escapeHtml(it.phone||'chưa khớp khách')
+        +' · HH '+fmt(it.commission)+credited+'</div>'
+      +'</div>'+badge+'</div>';
+  }
+  box.innerHTML=html;
+}
+var syncTimer=null;
+// Tự động đối soát: chạy ngầm, không cần bấm tay
+async function autoSync(){
+  var st=document.getElementById('syncStatus');
+  try{
+    if(st)st.textContent='🔄 Đang đồng bộ...';
+    var s=await sb.auth.getSession();
+    var token=s.data.session?s.data.session.access_token:'';
+    await fetch('/api/sync-orders',{headers:{Authorization:'Bearer '+token}});
+    await loadAdmin();await loadProfile();
+    if(st)st.textContent='🟢 Tự động';
+  }catch(e){ if(st)st.textContent='🟢 Tự động'; }
+}
+function startAutoSync(){
+  autoSync(); checkHealth();                      // đồng bộ + tự kiểm ngay khi admin mở app
+  if(syncTimer)clearInterval(syncTimer);
+  syncTimer=setInterval(function(){ autoSync(); checkHealth(); }, 5*60*1000); // tự lặp mỗi 5 phút
+}
+async function checkHealth(){
+  var btn=document.getElementById('healthBtn'), box=document.getElementById('healthBox');
+  btn.disabled=true;btn.textContent='Đang kiểm...';
+  try{
+    var s=await sb.auth.getSession();
+    var tok=s.data.session?s.data.session.access_token:'';
+    var r=await fetch('/api/health',{headers:{Authorization:'Bearer '+tok}});
+    var j=await r.json();
+    var html='<div style="margin:8px 0 4px;font-weight:800;font-size:1.05rem;color:'+(j.ok?'var(--ok)':'#B26A00')+'">'+(j.ok?'🟢 ':'🔴 ')+escapeHtml(j.summary||'')+'</div>';
+    (j.checks||[]).forEach(function(c){
+      html+='<div class="item" style="padding:9px 2px"><div class="main"><div class="t1" style="font-weight:500;white-space:normal">'+escapeHtml(c.name)+'</div>'
+        +(c.note?'<div class="t2">'+escapeHtml(c.note)+'</div>':'')+'</div><span style="font-size:1.1rem">'+(c.ok?'✅':'❌')+'</span></div>';
+    });
+    box.innerHTML=html;
+  }catch(e){box.innerHTML='<div class="empty">Không kiểm tra được, thử lại sau.</div>';}
+  btn.disabled=false;btn.textContent='Kiểm tra';
+}
+async function adminApprove(rpc,param,id){
+  var args={};args[param]=id;
+  var r=await sb.rpc(rpc,args);
+  if(r.error){toast('Lỗi: '+r.error.message);return;}
+  toast('Đã duyệt ✓');
+  loadAdmin();loadProfile();
+}
+
+setupZalo();
+init();
+// Khách dán TAY trực tiếp vào ô link (không bấm nút) -> vẫn tự tạo link luôn (chống "dán không ăn")
+(function(){
+  var el=document.getElementById('srcLink');
+  if(el)el.addEventListener('paste',function(){ setTimeout(function(){ if(el.value.trim())convert(); },60); });
+})();
+// PWA: đăng ký service worker để cài app lên điện thoại
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}
+</script>
+</body>
+</html>

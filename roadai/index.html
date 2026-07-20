@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1220" />
+  <title>RoadAI — Điều hướng thông minh cho tài xế Việt</title>
+  <meta name="description" content="Chỉ đường ưu tiên đường nhanh nhất theo kinh nghiệm tài xế: né camera phạt nguội, CSGT, ngập, kẹt xe, đường cấm giờ. Cảnh báo giọng nói tiếng Việt." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+
+  <!-- Leaflet (bản đồ OpenStreetMap) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- ============ BẢN ĐỒ ============ -->
+  <div id="map" aria-label="Bản đồ"></div>
+
+  <!-- ============ THANH TÌM KIẾM (trên cùng) ============ -->
+  <header id="searchbar" class="glass">
+    <div class="brand">
+      <span class="logo">🛣️</span>
+      <div class="brand-txt">
+        <b>RoadAI</b>
+        <small id="brand-sub">Lái nhanh kiểu tài xế Việt</small>
+      </div>
+      <a id="dispatch-btn" class="mini" href="kiem-cuoc.html" title="Driver Radar — Bạn Uống Tôi Lái (tối nay đứng đâu?)">🍺</a>
+      <button id="pro-btn" class="mini" title="RoadAI Premium">⭐</button>
+      <button id="settings-btn" class="mini" title="Cài đặt / VietMap API key">⚙️</button>
+    </div>
+
+    <div class="fields">
+      <div class="field">
+        <span class="dot dot-a"></span>
+        <input id="from" type="text" placeholder="Điểm đi — bấm 📍 để dùng GPS" autocomplete="off" />
+        <button id="use-gps" class="mini" title="Dùng vị trí hiện tại">📍</button>
+      </div>
+      <div class="field">
+        <span class="dot dot-b"></span>
+        <input id="to" type="text" placeholder="Điểm đến…" autocomplete="off" />
+        <button id="swap" class="mini" title="Đảo chiều">⇅</button>
+      </div>
+      <div id="suggests" class="suggests" hidden></div>
+    </div>
+
+    <div class="vehicles" id="vehicles">
+      <button class="veh active" data-veh="motorbike">🏍️ Xe máy</button>
+      <button class="veh" data-veh="car">🚗 Ô tô</button>
+      <button class="veh" data-veh="delivery">📦 Giao hàng</button>
+      <button class="veh" data-veh="taxi">🚕 Taxi</button>
+    </div>
+
+    <button id="find" class="primary">Tìm đường thông minh</button>
+  </header>
+
+  <!-- ============ LỚP HIỂN THỊ / BỘ LỌC (góc phải) ============ -->
+  <div id="layers" class="glass">
+    <label><input type="checkbox" data-layer="camera" checked /> 📷 Camera</label>
+    <label><input type="checkbox" data-layer="police" checked /> 👮 CSGT</label>
+    <label><input type="checkbox" data-layer="restrict" checked /> 🚫 Cấm/biển báo</label>
+    <label><input type="checkbox" data-layer="hazard" checked /> ⚠️ Ngập/Tai nạn</label>
+    <label><input type="checkbox" data-layer="traffic" checked /> 🚦 Kẹt xe</label>
+    <label class="voice-row"><input type="checkbox" id="voice-toggle" checked /> 🔊 Giọng nói</label>
+    <div id="base-seg" class="base-seg">
+      <button data-base="light" class="active">☀️ Sáng</button>
+      <button data-base="dark">🌙 Tối</button>
+    </div>
+    <label class="voice-row"><input type="checkbox" id="datasaver-toggle" /> 💾 Tiết kiệm dữ liệu</label>
+  </div>
+
+  <!-- nút về vị trí của tôi -->
+  <button id="locate" class="map-fab" title="Về vị trí của tôi">◎</button>
+
+  <!-- ============ BẢNG KẾT QUẢ ROUTE (dưới cùng) ============ -->
+  <section id="routes" class="glass" hidden>
+    <div class="routes-head">
+      <div id="compare"></div>
+      <button id="routes-close" class="mini">✕</button>
+    </div>
+    <div id="route-list"></div>
+    <button id="start-nav" class="primary" hidden>▶ Bắt đầu dẫn đường</button>
+  </section>
+
+  <!-- ============ HUD DẪN ĐƯỜNG (khi đang chạy) ============ -->
+  <section id="hud" class="glass" hidden>
+    <div class="hud-main">
+      <div class="hud-arrow" id="hud-arrow">↑</div>
+      <div class="hud-txt">
+        <b id="hud-instr">Đang định vị…</b>
+        <small id="hud-next"></small>
+      </div>
+    </div>
+    <div class="hud-stats">
+      <span id="hud-eta">-- phút</span>
+      <span id="hud-dist">-- km</span>
+      <button id="stop-nav" class="danger mini">Dừng</button>
+    </div>
+    <div id="hud-alert" class="hud-alert" hidden></div>
+  </section>
+
+  <!-- ============ NÚT + BÁO CÁO CỘNG ĐỒNG ============ -->
+  <button id="fab" class="fab" title="Báo cáo cộng đồng">＋</button>
+  <div id="report-sheet" class="sheet glass" hidden>
+    <div class="sheet-head">
+      <b>Báo cáo tại vị trí này</b>
+      <button id="sheet-close" class="mini">✕</button>
+    </div>
+    <p class="sheet-hint">Chạm nút — điểm sẽ đặt ở vị trí GPS (hoặc giữa bản đồ). Cộng đồng cùng xác minh.</p>
+    <div class="report-grid">
+      <button class="rep" data-type="camera">📷<span>Camera</span></button>
+      <button class="rep" data-type="police">👮<span>CSGT</span></button>
+      <button class="rep" data-type="restrict">🚫<span>Đường cấm</span></button>
+      <button class="rep" data-type="accident">💥<span>Tai nạn</span></button>
+      <button class="rep" data-type="flood">🌊<span>Ngập nước</span></button>
+      <button class="rep" data-type="jam">🚦<span>Kẹt xe</span></button>
+    </div>
+  </div>
+
+  <!-- ============ CÀI ĐẶT (VietMap API key) ============ -->
+  <div id="settings-sheet" class="sheet glass" hidden>
+    <div class="sheet-head">
+      <b>⚙️ Nguồn bản đồ</b>
+      <button id="settings-close" class="mini">✕</button>
+    </div>
+    <p class="sheet-hint">VietMap có <b>2 key riêng</b> (không thay thế nhau). Dán key nào có key đó; bỏ trống phần nào sẽ dùng OpenStreetMap cho phần đó. Lấy key ở <b>maps.vietmap.vn</b> → Console.</p>
+    <label class="key-label">🗺️ Tilemap Key <small>— hiển thị bản đồ VietMap</small></label>
+    <input id="vm-tilekey" type="text" class="key-input" placeholder="Tilemap Key (bản đồ)…" autocomplete="off" spellcheck="false" />
+    <label class="key-label">🔎 Default Key <small>— tìm kiếm + chỉ đường (xe máy)</small></label>
+    <input id="vm-apikey" type="text" class="key-input" placeholder="Default/API Key (dữ liệu)…" autocomplete="off" spellcheck="false" />
+    <div class="key-actions">
+      <button id="vm-save" class="primary">Lưu &amp; bật VietMap</button>
+      <button id="vm-clear" class="mini ghost">Xoá</button>
+    </div>
+  </div>
+
+  <!-- ============ TÀI KHOẢN + GÓI DỊCH VỤ ============ -->
+  <div id="pro-sheet" class="sheet glass" hidden>
+    <div class="sheet-head">
+      <b>👤 Tài khoản &amp; Gói dịch vụ</b>
+      <button id="pro-close" class="mini">✕</button>
+    </div>
+    <div id="acc-box"></div>
+    <div id="plans-list" class="plans-list"></div>
+    <p class="sheet-hint" style="margin-top:8px">Chuyển khoản để nâng cấp — nhận mã kích hoạt mở gói ngay. Hạn mức tính theo lượt tìm đường/tháng.</p>
+  </div>
+
+  <!-- ============ ĐĂNG NHẬP ============ -->
+  <div id="login-sheet" class="sheet glass" hidden>
+    <div class="sheet-head">
+      <b>🔑 Đăng nhập RoadAI</b>
+      <button id="login-close" class="mini">✕</button>
+    </div>
+    <p class="sheet-hint">Nhập email để lưu hạn mức &amp; lịch sử. Miễn phí, bắt đầu ngay — mỗi email có hạn mức dùng thử riêng.</p>
+    <input id="login-email" type="email" class="key-input" placeholder="email của bạn…" autocomplete="email" />
+    <input id="login-name" type="text" class="key-input" placeholder="Tên hiển thị (tuỳ chọn)…" autocomplete="name" />
+    <button id="login-go" class="primary">Bắt đầu dùng thử miễn phí</button>
+  </div>
+
+  <!-- ============ THANH TOÁN (QR) ============ -->
+  <div id="pay-sheet" class="sheet glass" hidden>
+    <div class="sheet-head">
+      <b>💳 Thanh toán nâng cấp</b>
+      <button id="pay-close" class="mini">✕</button>
+    </div>
+    <div id="pay-body"></div>
+  </div>
+
+  <!-- ============ DASHBOARD ============ -->
+  <div id="dash-sheet" class="sheet glass" hidden>
+    <div class="sheet-head">
+      <b>📊 Dashboard của tôi</b>
+      <button id="dash-close" class="mini">✕</button>
+    </div>
+    <div id="dash-stats" class="dash-stats"></div>
+    <div id="dash-list" class="dash-list"></div>
+  </div>
+
+  <!-- toast -->
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

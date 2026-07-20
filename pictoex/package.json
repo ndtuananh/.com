@@ -1,0 +1,11 @@
+{
+  "name": "pictoex",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pictoex — chụp ảnh phiếu cắt → OCR bằng Claude Vision → soát lỗi → xuất Lệnh Sản Xuất (Excel) giữ nguyên mẫu.",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "exceljs": "^4.4.0"
+  }
+}

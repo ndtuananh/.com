@@ -1,0 +1,15 @@
+{
+  "name": "RoadAI — Điều hướng thông minh cho tài xế Việt",
+  "short_name": "RoadAI",
+  "description": "Chỉ đường ưu tiên đường nhanh theo kinh nghiệm tài xế: né camera phạt nguội, CSGT, ngập, kẹt xe, đường cấm giờ. Cảnh báo giọng nói tiếng Việt.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "lang": "vi",
+  "categories": ["navigation", "travel", "maps"],
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

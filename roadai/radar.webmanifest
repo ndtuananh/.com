@@ -1,0 +1,16 @@
+{
+  "name": "Driver Radar — Bạn Uống Tôi Lái",
+  "short_name": "Driver Radar",
+  "description": "Radar AI cho tài xế lái hộ TP.HCM: tối nay đứng đâu để nổ cuốc. Điểm chờ tối ưu, giờ vàng, thông báo điểm nóng.",
+  "start_url": "/kiem-cuoc",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "lang": "vi",
+  "categories": ["navigation", "travel", "business"],
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RoadAI — Cấp mã kích hoạt (Admin)</title>
+<style>
+  :root{color-scheme:dark}
+  *{box-sizing:border-box;font-family:system-ui,Segoe UI,Roboto,sans-serif}
+  body{margin:0;min-height:100vh;background:#0b1220;color:#e8eef7;display:grid;place-items:center;padding:20px}
+  .card{width:100%;max-width:460px;background:#111827;border:1px solid rgba(148,163,184,.2);border-radius:18px;padding:22px;box-shadow:0 12px 34px rgba(0,0,0,.5)}
+  h1{font-size:20px;margin:0 0 4px}
+  p.sub{color:#9fb0c7;font-size:13px;margin:0 0 18px}
+  label{display:block;font-size:12.5px;font-weight:600;margin:12px 2px 5px}
+  input,select{width:100%;padding:12px;border-radius:12px;background:#1e293b;border:1px solid rgba(148,163,184,.2);color:#e8eef7;font-size:14px;outline:0}
+  input:focus,select:focus{border-color:#2dd4bf}
+  button{width:100%;margin-top:18px;padding:13px;border:0;border-radius:12px;font-size:15px;font-weight:700;color:#04121a;background:linear-gradient(135deg,#2dd4bf,#38bdf8);cursor:pointer}
+  .out{margin-top:16px;padding:14px;border-radius:12px;background:#0f1729;border:1px solid rgba(148,163,184,.2);display:none}
+  .out.show{display:block}
+  .token{word-break:break-all;font-family:ui-monospace,monospace;font-size:13px;background:#1e293b;padding:10px;border-radius:10px;margin:8px 0}
+  .row{display:flex;gap:8px}.row>*{flex:1}
+  .copy{margin-top:8px;padding:9px;font-size:13px;background:#1e293b;color:#2dd4bf;border:1px solid rgba(148,163,184,.2);border-radius:10px;cursor:pointer;font-weight:600}
+  .err{color:#fca5a5;font-size:13px;margin-top:10px}
+  .hint{color:#9fb0c7;font-size:12px;margin-top:14px}
+  a{color:#38bdf8}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>🔐 Cấp mã kích hoạt</h1>
+    <p class="sub">Dùng cho chủ shop: khách chuyển khoản xong, tạo mã ở đây rồi gửi khách dán vào app.</p>
+
+    <label>Admin secret</label>
+    <input id="admin" type="password" placeholder="ROADAI_ADMIN_SECRET…" />
+
+    <label>Email khách (đúng email họ đăng nhập app)</label>
+    <input id="email" type="email" placeholder="khach@gmail.com" />
+
+    <div class="row">
+      <div>
+        <label>Gói</label>
+        <select id="plan">
+          <option value="basic">Cơ bản (39k)</option>
+          <option value="pro" selected>Phổ biến (69k)</option>
+          <option value="max">Không giới hạn (99k)</option>
+        </select>
+      </div>
+      <div>
+        <label>Số ngày</label>
+        <input id="days" type="number" value="31" min="1" max="400" />
+      </div>
+    </div>
+
+    <button id="go">Tạo mã kích hoạt</button>
+
+    <div id="out" class="out">
+      <div>Mã kích hoạt cho <b id="o-email"></b> · gói <b id="o-plan"></b>:</div>
+      <div class="token" id="o-token"></div>
+      <button class="copy" id="copy">📋 Copy mã</button>
+    </div>
+    <div id="err" class="err"></div>
+    <p class="hint">Secret & mã không lưu ở trình duyệt. Giữ admin secret bí mật. Mã hết hạn sau số ngày đã chọn.</p>
+  </div>
+<script>
+const $=s=>document.querySelector(s);
+$('#go').onclick=async()=>{
+  $('#err').textContent=''; $('#out').classList.remove('show');
+  const admin=$('#admin').value.trim(), email=$('#email').value.trim(), plan=$('#plan').value, days=$('#days').value;
+  if(!admin||!email) return $('#err').textContent='Nhập admin secret và email.';
+  try{
+    const r=await fetch(`/api/license?action=issue&email=${encodeURIComponent(email)}&plan=${plan}&days=${days}`, { headers:{ 'x-roadai-admin': admin } });
+    const j=await r.json();
+    if(!j.ok){ $('#err').textContent='❌ '+(j.error||'Lỗi'); return; }
+    $('#o-email').textContent=j.email; $('#o-plan').textContent=j.plan; $('#o-token').textContent=j.token;
+    $('#out').classList.add('show');
+  }catch(e){ $('#err').textContent='Lỗi kết nối.'; }
+};
+$('#copy').onclick=()=>{ navigator.clipboard.writeText($('#o-token').textContent).then(()=>{ $('#copy').textContent='✓ Đã copy'; setTimeout(()=>$('#copy').textContent='📋 Copy mã',1500); }); };
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "name": "roadai",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "RoadAI — điều hướng thông minh cho tài xế Việt (VietMap/OSM, driver AI scoring, cảnh báo giọng nói).",
+  "engines": { "node": ">=18" }
+}
