@@ -16,7 +16,9 @@ export async function loadHistory() {
     const l = await list({ token, prefix: 'xsmn/' });
     const b = l.blobs.find((x) => x.pathname === KEY);
     if (!b) return { token, days: [] };
-    const arr = await (await fetch(b.url)).json();
+    // Chống cache CDN của Blob URL (nếu không sẽ đọc bản cũ → kho không lớn được).
+    const bust = b.url + (b.url.includes('?') ? '&' : '?') + 't=' + Date.now();
+    const arr = await (await fetch(bust, { cache: 'no-store' })).json();
     return { token, days: Array.isArray(arr) ? arr : [] };
   } catch (_) { return { token, days: [] }; }
 }
