@@ -175,6 +175,19 @@ body.busy .loader{display:flex}
 .balls.mini .ball{width:26px; height:26px; font-size:.74rem; border-width:1px}
 .prize-tag.none{background:#5a2020; color:#ffd9d4}
 
+/* Xổ số Miền Nam (trang tách riêng) + nav */
+.nav-toggle{display:flex; gap:6px}
+.nav-toggle a{text-decoration:none}
+.xsmn-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; margin-top:8px}
+.xsmn-prov{background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:14px}
+.xsmn-prov-head{display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:6px}
+.xsmn-name{font-weight:800; font-size:1.02rem; color:var(--gold)}
+.xsmn-de{font-size:1.35rem; font-weight:800; color:var(--red2); margin:6px 0 4px}
+.xsmn-de b{color:#fff; background:var(--red); padding:2px 12px; border-radius:8px; margin-left:6px; letter-spacing:1px}
+.lo-chips{display:flex; flex-wrap:wrap; gap:5px; margin-top:6px}
+.lo-chip{background:var(--card); border:1px solid var(--line); border-radius:6px; padding:3px 7px; font-size:.82rem; font-family:ui-monospace,Consolas,monospace; color:var(--ink)}
+.lo-chip.de{background:var(--red); color:#fff; border-color:var(--red2); font-weight:700}
+
 /* Module 13 — thời điểm vàng (EV theo jackpot) */
 .ev-controls{display:flex; gap:14px; flex-wrap:wrap; margin:10px 0}
 .ev-inp{display:flex; flex-direction:column; gap:4px; font-size:.8rem; color:var(--muted)}
