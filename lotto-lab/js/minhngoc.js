@@ -66,6 +66,65 @@ export async function fetchXSMNByDate(ymd) {
 // KHÔNG phải xác suất kỳ tới — mỗi kỳ độc lập. Baseline: đề đều = deN/100, lô đều = loN/100.
 const _rank = (arr) => arr.map((c, n) => ({ n: String(n).padStart(2, '0'), c })).sort((a, b) => b.c - a.c || Number(a.n) - Number(b.n));
 
+// ============================================================================
+// BACKTEST KHÔNG RÒ RỈ — "chỉ số hiệu quả khớp với thực tế".
+// Mỗi ngày CHỈ dùng lịch sử TRƯỚC ngày đó để xếp hạng nóng, rồi so với kết quả THẬT
+// của chính ngày đó, đối chiếu baseline NGẪU NHIÊN. Nếu công cụ không có sức dự đoán
+// (đúng bản chất xổ số công bằng), mọi tỉ số sẽ ≈ mức ngẫu nhiên.
+//   • Lô: chơi top-K cặp nóng → tỉ số (số trúng thực tế / kỳ vọng ngẫu nhiên). ~1.0 = vô ích.
+//   • Đề: top-1 nóng có khớp đề thật hơn 1/100 không? top-5 có hơn 5/100 không?
+// ============================================================================
+export function xsmnBacktest(days, { warmup = 14, K = 10 } = {}) {
+  const asc = [...days].sort((a, b) => (a.date < b.date ? -1 : 1)); // cũ → mới
+  const loFreq = new Array(100).fill(0), deFreq = new Array(100).fill(0);
+  let stratHits = 0, randExp = 0, provDraws = 0, anyHitStrat = 0;
+  let deMatch = 0, deTop5 = 0, deTrials = 0, tested = 0;
+  for (let i = 0; i < asc.length; i++) {
+    const d = asc[i];
+    if (i >= warmup) {
+      const topK = new Set(_rank(loFreq).slice(0, K).map((x) => Number(x.n)));
+      const deRank = _rank(deFreq).map((x) => Number(x.n));
+      const deTop = deRank[0], deTop5set = new Set(deRank.slice(0, 5));
+      for (const p of d.provinces) {
+        const actual = new Set(p.lo2.map(Number));
+        const dDistinct = actual.size;
+        let hits = 0; for (const n of topK) if (actual.has(n)) hits++;
+        stratHits += hits; randExp += K * dDistinct / 100; provDraws++;
+        if (hits > 0) anyHitStrat++;
+        const deA = Number(p.de);
+        if (deTop === deA) deMatch++;
+        if (deTop5set.has(deA)) deTop5++;
+        deTrials++;
+      }
+      tested++;
+    }
+    for (const p of d.provinces) { deFreq[Number(p.de)]++; for (const l of p.lo2) loFreq[Number(l)]++; }
+  }
+  // Kiểm định ý nghĩa thống kê (đã tính đến đa so sánh bằng ngưỡng thận trọng |z|≥2.5).
+  const loZ = randExp > 0 ? (stratHits - randExp) / Math.sqrt(randExp) : 0;
+  const deMean = deTrials * 0.01;
+  const deZ = deMean > 0 ? (deMatch - deMean) / Math.sqrt(deMean * 0.99) : 0;
+  const evidence = Math.abs(loZ) >= 2.5 || Math.abs(deZ) >= 2.5;
+  return {
+    warmup, K, testedDays: tested, provinceDraws: provDraws,
+    lo: {
+      strategyHitsPerDraw: provDraws ? stratHits / provDraws : 0,
+      randomHitsPerDraw: provDraws ? randExp / provDraws : 0,
+      ratio: randExp > 0 ? stratHits / randExp : 0, // ≈ 1.0 nghĩa là KHÔNG hơn ngẫu nhiên
+      anyHitRate: provDraws ? anyHitStrat / provDraws : 0,
+    },
+    de: {
+      matchRate: deTrials ? deMatch / deTrials : 0, baselineMatch: 0.01,
+      top5Rate: deTrials ? deTop5 / deTrials : 0, baselineTop5: 0.05, trials: deTrials,
+    },
+    significance: { loZ, deZ },
+    effective: evidence,
+    verdict: evidence
+      ? 'Có tín hiệu nhỉnh hơn ngẫu nhiên trên dữ liệu HIỆN CÓ, nhưng mẫu còn nhỏ — CHƯA đủ cơ sở để đặt tiền. Cần thêm dữ liệu để xác nhận.'
+      : 'KHÔNG có bằng chứng vượt ngẫu nhiên. Xếp hạng nóng/lạnh KHÔNG giúp trúng nhiều hơn — đúng bản chất xổ số công bằng. Đừng đặt tiền kỳ vọng có lợi thế.',
+  };
+}
+
 export function xsmnStats(days) {
   const deFreq = new Array(100).fill(0), loFreq = new Array(100).fill(0);
   let deN = 0, loN = 0;

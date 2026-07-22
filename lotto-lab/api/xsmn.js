@@ -5,7 +5,7 @@
 //  → (khi ?sync=1) crawl LÙI thêm vài trang để kho dày dần → lưu lại → thống kê
 //  trên TOÀN BỘ lịch sử tích luỹ (tổng hợp + theo từng đài). KHÔNG dự đoán.
 // ============================================================================
-import { fetchXSMN, fetchXSMNByDate, xsmnStats } from '../js/minhngoc.js';
+import { fetchXSMN, fetchXSMNByDate, xsmnStats, xsmnBacktest } from '../js/minhngoc.js';
 import { loadHistory, saveHistory, mergeHistory, addDays } from '../js/xsmn-store.js';
 
 let cache = { at: 0, payload: null };
@@ -45,6 +45,7 @@ export default async function handler(req, res) {
     // Thống kê trên toàn bộ kho (nếu có), ngược lại trên 7 ngày mới nhất.
     const historyForStats = merged.length ? merged : fresh;
     const stats = xsmnStats(historyForStats);
+    const backtest = xsmnBacktest(historyForStats); // chỉ số hiệu quả thực tế (không rò rỉ)
 
     const payload = {
       region: 'mien-nam',
@@ -63,6 +64,7 @@ export default async function handler(req, res) {
         backfilledThisRun: backfilled,
       },
       stats,
+      backtest,
     };
     cache = { at: Date.now(), payload };
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=86400');

@@ -188,6 +188,11 @@ body.busy .loader{display:flex}
 .lo-chip{background:var(--card); border:1px solid var(--line); border-radius:6px; padding:3px 7px; font-size:.82rem; font-family:ui-monospace,Consolas,monospace; color:var(--ink)}
 .lo-chip.de{background:var(--red); color:#fff; border-color:var(--red2); font-weight:700}
 
+.effect-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:10px 0}
+.effect-cell{background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:14px; text-align:center}
+.effect-val{font-size:1.6rem; font-weight:800; color:var(--gold)}
+.effect-lab{font-size:.82rem; margin-top:4px}
+
 /* Module 13 — thời điểm vàng (EV theo jackpot) */
 .ev-controls{display:flex; gap:14px; flex-wrap:wrap; margin:10px 0}
 .ev-inp{display:flex; flex-direction:column; gap:4px; font-size:.8rem; color:var(--muted)}

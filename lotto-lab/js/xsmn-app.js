@@ -36,6 +36,22 @@ function fillRank(sel, list) {
   }
 }
 
+function renderEffect(bt) {
+  const box = $('#xsmn-effect'); if (!box) return; box.innerHTML = '';
+  if (!bt || !bt.provinceDraws) { box.appendChild(el('div', 'muted small', 'Đang tích luỹ dữ liệu để đo hiệu quả…')); return; }
+  const eff = bt.effective;
+  box.appendChild(el('div', 'ev-verdict ' + (eff ? 'mid' : 'bad'),
+    eff ? '🟡 Có tín hiệu nhỏ trên mẫu hiện tại — CHƯA đủ cơ sở để đặt tiền'
+      : '🔴 KHÔNG vượt ngẫu nhiên — xếp hạng nóng/lạnh không giúp trúng nhiều hơn'));
+  const g = el('div', 'effect-grid');
+  g.innerHTML = `
+    <div class="effect-cell"><div class="effect-val">${bt.lo.ratio.toFixed(2)}×</div><div class="effect-lab">Lô: trúng thực tế / ngẫu nhiên<br><span class="muted small">1.00× = không hơn ngẫu nhiên</span></div></div>
+    <div class="effect-cell"><div class="effect-val">${(bt.de.matchRate * 100).toFixed(1)}%</div><div class="effect-lab">Đề top-1 khớp thực tế<br><span class="muted small">ngẫu nhiên = 1.0%</span></div></div>
+    <div class="effect-cell"><div class="effect-val">${bt.testedDays}</div><div class="effect-lab">ngày đã kiểm thử<br><span class="muted small">${bt.provinceDraws} lượt đài</span></div></div>`;
+  box.appendChild(g);
+  box.appendChild(el('div', 'note small', `<b>Kết luận:</b> ${bt.verdict}`));
+}
+
 function render(data) {
   $('#xsmn-date').textContent = '· ' + data.latestDate;
   $('#xsmn-live').innerHTML = `<span class="dot"></span> ${data.source} · ${new Date(data.collectedAt).toLocaleTimeString('vi-VN')}`;
@@ -43,6 +59,8 @@ function render(data) {
   const today = data.days[0];
   const box = $('#xsmn-today'); box.innerHTML = '';
   for (const p of today.provinces) box.appendChild(provinceCard(p));
+
+  renderEffect(data.backtest);
 
   const st = data.stats;
   const dbTxt = data.db && data.db.totalDays ? ` · 💾 kho: ${data.db.totalDays} ngày (${data.db.oldest}→${data.db.newest})` : '';
