@@ -9,6 +9,17 @@
 const SRC = 'https://www.minhngoc.net.vn/ket-qua-xo-so/mien-nam.html';
 const GIAI = ['giai8', 'giai7', 'giai6', 'giai5', 'giai4', 'giai3', 'giai2', 'giai1', 'giaidb'];
 
+// Lịch mở thưởng XSMN theo thứ (0=CN … 6=T7) → [slug, tên đài].
+export const XSMN_SCHEDULE = {
+  0: [['tien-giang', 'Tiền Giang'], ['kien-giang', 'Kiên Giang'], ['da-lat', 'Đà Lạt']],
+  1: [['tp-hcm', 'TP. HCM'], ['dong-thap', 'Đồng Tháp'], ['ca-mau', 'Cà Mau']],
+  2: [['ben-tre', 'Bến Tre'], ['vung-tau', 'Vũng Tàu'], ['bac-lieu', 'Bạc Liêu']],
+  3: [['dong-nai', 'Đồng Nai'], ['can-tho', 'Cần Thơ'], ['soc-trang', 'Sóc Trăng']],
+  4: [['tay-ninh', 'Tây Ninh'], ['an-giang', 'An Giang'], ['binh-thuan', 'Bình Thuận']],
+  5: [['vinh-long', 'Vĩnh Long'], ['binh-duong', 'Bình Dương'], ['tra-vinh', 'Trà Vinh']],
+  6: [['tp-hcm', 'TP. HCM'], ['long-an', 'Long An'], ['binh-phuoc', 'Bình Phước'], ['hau-giang', 'Hậu Giang']],
+};
+
 export function parseXSMN(html) {
   const days = [];
   const tables = html.split(/<table[^>]*class="bkqmiennam"/i).slice(1);

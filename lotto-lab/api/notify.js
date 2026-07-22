@@ -16,6 +16,8 @@ import {
   buildFeatures, backtest, monteCarlo, prizeFor, PRIZES, DEFAULT_WEIGHTS, specialFor,
 } from '../js/engine.js';
 import { mergeFreshDraws } from '../js/vietlott.js';
+import { fetchXSMN, xsmnStats, xsmnBacktest, XSMN_SCHEDULE } from '../js/minhngoc.js';
+import { loadHistory as loadXsmnHistory, saveHistory as saveXsmnHistory, mergeHistory as mergeXsmnHistory } from '../js/xsmn-store.js';
 
 const PRODUCTS = {
   power655: { file: 'power655.jsonl', mainCount: 6, mainMax: 55, special: true,  specialMax: 55, label: 'Power 6/55' },
@@ -184,6 +186,51 @@ async function sendEmail(subject, html) {
   return { sent: true, to };
 }
 
+// Báo cáo XSMN TRUNG THỰC hằng ngày: kết quả hôm nay + sổ theo dõi (≈ ngẫu nhiên) +
+// gợi ý NGHIÊN CỨU cho ngày mai (KHÔNG phải "số chắc trúng"). Không cam kết thu nhập.
+async function buildXsmnReport() {
+  const fresh = await fetchXSMN();
+  if (!fresh.length) return { ok: false };
+  const { token, days: stored } = await loadXsmnHistory();
+  let merged = stored;
+  if (stored.length || token) { const m = mergeXsmnHistory(stored, fresh); merged = m.merged; if (token) await saveXsmnHistory(token, merged); }
+  const history = merged.length ? merged : fresh;
+  const stats = xsmnStats(history);
+  const bt = xsmnBacktest(history);
+  const today = fresh[0];
+
+  let html = `<div style="font-family:Segoe UI,Arial,sans-serif;max-width:640px;margin:18px auto 0;color:#1a1a1a;border-top:2px solid #e6483c;padding-top:12px">
+    <h2 style="color:#e6483c">🎲 Xổ số Miền Nam — báo cáo hôm nay (${today.date})</h2>`;
+  for (const p of today.provinces) {
+    html += `<div style="border:1px solid #e3e3e8;border-radius:10px;padding:10px 12px;margin:8px 0">
+      <b>${p.province}</b> <span style="color:#888;font-size:12px">${p.code}</span> — ĐỀ: <b style="color:#e6483c;font-size:16px">${p.de}</b>
+      <div style="font-size:12px;color:#555;margin-top:4px">Lô: ${p.lo2.join(' ')}</div></div>`;
+  }
+  const s = bt.suggestion;
+  if (s && s.total) {
+    const diff = (s.hitRate - s.randomRate) * 100;
+    html += `<div style="background:#f4f4f6;border:1px solid #e3e3e8;border-radius:10px;padding:10px 12px;margin:10px 0">
+      📒 <b>Sổ theo dõi gợi ý (backtest không rò rỉ):</b> đã về <b>${s.hits}/${s.total}</b> = <b>${(s.hitRate * 100).toFixed(1)}%</b> · mức ngẫu nhiên ≈ <b>${(s.randomRate * 100).toFixed(1)}%</b> (chênh ${diff >= 0 ? '+' : ''}${diff.toFixed(1)} điểm — ${Math.abs(diff) < 3 ? '≈ ngẫu nhiên' : 'đáng xem'}).</div>`;
+  }
+  const tmrWd = new Date(Date.now() + 7 * 3600 * 1000 + 86400 * 1000).getUTCDay();
+  const provStats = new Map((stats.provinces || []).map((p) => [p.slug || p.name, p]));
+  const tmrProvs = XSMN_SCHEDULE[tmrWd] || [];
+  if (tmrProvs.length) {
+    html += `<div style="margin:10px 0"><b>🎯 Gợi ý nghiên cứu cho ngày mai (2 số/đài — KHÔNG cam kết):</b><div style="font-size:14px;margin-top:4px;line-height:1.8">`;
+    for (const [slug, name] of tmrProvs) {
+      const ps = provStats.get(slug);
+      const top = (ps ? ps.loHot : stats.loHot).slice(0, 2).map((x) => x.n);
+      html += `${name}: <code>${top.join(' · ')}</code>&nbsp;&nbsp; `;
+    }
+    html += `</div></div>`;
+  }
+  if (s && s.total) {
+    html += `<p style="font-size:12px;color:#666">💸 <b>Sự thật cho tiền của anh:</b> gợi ý "về" ${(s.hitRate * 100).toFixed(1)}% — gần y hệt bốc số ngẫu nhiên ${(s.randomRate * 100).toFixed(1)}%. Chọn số "nóng" KHÔNG trúng nhiều hơn; đường dài đặt tiền chắc chắn lỗ. Đây là báo cáo nghiên cứu, KHÔNG phải số chắc trúng.</p>`;
+  }
+  html += `<p style="font-size:11px;color:#999;border-top:1px solid #eee;padding-top:8px">⚠️ Thống kê nghiên cứu trên dữ liệu quá khứ (nguồn: minhngoc.net.vn). Xổ số ngẫu nhiên độc lập — không dự đoán, không cam kết thu nhập. Chơi có trách nhiệm.</p></div>`;
+  return { ok: true, html, dateKey: today.date };
+}
+
 export default async function handler(req, res) {
   // Bảo vệ endpoint: Vercel Cron gửi Authorization: Bearer <CRON_SECRET>; cho phép ?key= để test tay.
   const secret = process.env.CRON_SECRET;
@@ -202,55 +249,56 @@ export default async function handler(req, res) {
       results = results.concat(r);
     }
 
-    // Cho phép ?test=1 để gửi email + push thử ngay cả khi hôm nay chưa có kỳ.
-    if (results.length === 0 && q.test) {
+    // Báo cáo XSMN trung thực (1 lần/ngày): kết quả + sổ theo dõi ≈ ngẫu nhiên.
+    let xsmn = { ok: false };
+    try { xsmn = await buildXsmnReport(); } catch (_) { /* nguồn lỗi → bỏ qua, vẫn gửi Vietlott */ }
+
+    if (results.length === 0 && !xsmn.ok && q.test) {
       const email = await sendEmail('🎯 Lotto Lab — email thử hoạt động ✅',
-        `<p>Kênh thông báo qua email đã hoạt động. Khi có kết quả, anh sẽ nhận email dò số tự động tại đây (${todayICT()}).</p>`);
-      const push = await sendPush('🎯 Lotto Lab — thử thông báo ✅', 'Nếu anh thấy thông báo này thì Web Push đã hoạt động. Khi trúng, điện thoại sẽ tự báo.');
+        `<p>Kênh email đã hoạt động (${todayICT()}). Anh sẽ nhận báo cáo kết quả + đối chiếu tự động tại đây.</p>`);
+      const push = await sendPush('🎯 Lotto Lab — thử thông báo ✅', 'Web Push hoạt động.');
       res.status(200).json({ ok: true, mode: 'test', email, push });
       return;
     }
 
-    if (results.length === 0) {
-      res.status(200).json({ ok: true, drawsToday: 0, emailed: false });
-      return;
-    }
-
-    // Chống trùng: chỉ báo những kỳ CHƯA từng báo (an toàn khi cron/ping chạy nhiều lần).
+    // Chống trùng: Vietlott theo kỳ, XSMN theo ngày.
     const { set: notified, token: blobToken } = await loadNotified();
-    const freshOnly = results.filter((r) => !notified.has(`${r.product}-${r.target.id}`));
-    if (freshOnly.length === 0) {
-      res.status(200).json({ ok: true, drawsToday: results.length, emailed: false, reason: 'các kỳ này đã báo trước đó' });
+    const freshViet = results.filter((r) => !notified.has(`${r.product}-${r.target.id}`));
+    const xsmnKey = xsmn.ok ? `xsmn-${xsmn.dateKey}` : null;
+    const xsmnNew = !!xsmnKey && !notified.has(xsmnKey);
+
+    if (freshViet.length === 0 && !xsmnNew) {
+      res.status(200).json({ ok: true, emailed: false, reason: 'không có kỳ/báo cáo mới' });
       return;
     }
-    results = freshOnly;
 
-    const best = results.map((r) => r.bestPrize).filter(Boolean).sort((a, b) => a.rank - b.rank)[0];
+    // Email GỘP, trung thực: Vietlott (nếu có kỳ mới) + báo cáo Miền Nam (1 lần/ngày).
+    const best = freshViet.map((r) => r.bestPrize).filter(Boolean).sort((a, b) => a.rank - b.rank)[0];
     const meaningful = best && best.label !== 'Giải KK';
-    const anyWin = !!best;
-    // Thông báo VUI VẺ, ấm áp — nhưng đúng mức: reo hò cho giải thật, nhẹ nhàng cho KK.
+    let html = '';
+    if (freshViet.length) html += renderEmail(freshViet);
+    if (xsmnNew) html += xsmn.html;
     const subject = best && best.jackpot
-      ? `🎊🎉 KHÔNG THỂ TIN NỔI — bộ gợi ý chạm ${best.label}! 🎉🎊`
+      ? `🎊 Vietlott chạm ${best.label}! + báo cáo Miền Nam`
       : meaningful
-        ? `🎉 Chúc mừng anh! Bộ gợi ý hôm nay TRÚNG ${best.label} 🎉`
-        : best
-          ? `😊 Lotto Lab — hôm nay có tin vui nho nhỏ (${best.label})`
-          : `🎯 Lotto Lab — kết quả & dò số hôm nay (${results.length} kỳ)`;
-    const email = await sendEmail(subject, renderEmail(results));
+        ? `🎉 Vietlott: ${best.label} + báo cáo Miền Nam hôm nay`
+        : `🎯 Lotto Lab — kết quả & đối chiếu hôm nay (${todayICT()})`;
+    const email = await sendEmail(subject, html);
 
-    const pushTitle = best && best.jackpot ? `🎊 Chạm ${best.label}! Không thể tin nổi!`
-      : meaningful ? `🎉 Chúc mừng anh! Trúng ${best.label}`
-      : best ? `😊 Có tin vui nho nhỏ hôm nay (${best.label})`
-      : '🎯 Đã có kết quả — đã dò số';
-    const pushBody = results.map((r) => `${r.label} #${r.target.id}: ${r.bestPrize ? r.bestPrize.label : Math.max(0, ...r.evalPicks.map((p) => p.hits)) + '/' + r.cfg.mainCount + ' số'}`).join(' · ');
-    const push = await sendPush(pushTitle, pushBody);
+    const pushTitle = best && best.jackpot ? `🎊 Vietlott chạm ${best.label}!`
+      : meaningful ? `🎉 Vietlott trúng ${best.label}`
+      : '🎯 Đã có kết quả — báo cáo hôm nay';
+    const pushParts = [];
+    if (freshViet.length) pushParts.push(...freshViet.map((r) => `${r.label} #${r.target.id}: ${r.bestPrize ? r.bestPrize.label : Math.max(0, ...r.evalPicks.map((p) => p.hits)) + '/' + r.cfg.mainCount}`));
+    if (xsmnNew) pushParts.push('Miền Nam: kết quả + sổ theo dõi (≈ ngẫu nhiên)');
+    const push = await sendPush(pushTitle, pushParts.join(' · '));
 
-    // Ghi nhận đã báo để lần chạy sau không lặp lại.
-    for (const r of results) notified.add(`${r.product}-${r.target.id}`);
+    // Ghi nhận đã báo để lần sau không lặp lại.
+    for (const r of freshViet) notified.add(`${r.product}-${r.target.id}`);
+    if (xsmnNew) notified.add(xsmnKey);
     await saveNotified(blobToken, notified);
 
-    res.status(200).json({ ok: true, drawsToday: results.length, anyWin, email, push,
-      summary: results.map((r) => ({ product: r.product, id: r.target.id, prize: r.bestPrize ? r.bestPrize.label : null })) });
+    res.status(200).json({ ok: true, vietlott: freshViet.length, xsmnReported: xsmnNew, email, push });
   } catch (e) {
     res.status(500).json({ error: 'notify failed', detail: String(e.message || e) });
   }
