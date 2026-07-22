@@ -545,3 +545,42 @@ export function poolHitProb(N, K, P, m) {
   let p = 0; for (let k = m; k <= Math.min(K, P); k++) p += Math.exp(logC(P, k) + logC(N - P, K - k) - logC(N, K));
   return p;
 }
+
+// ============================================================================
+// MODULE 13 — THỜI ĐIỂM VÀNG (EV theo jackpot). Nguyên lý MIT Cash WinFall:
+//  xác suất trúng KHÔNG đổi, nhưng EV/vé TĂNG theo jackpot. Chơi khi jackpot lớn
+//  = thời điểm toán học ít tệ nhất; vượt "điểm hòa vốn" ⇒ EV ≥ giá vé (TRƯỚC khi
+//  chia giải). Đây là đòn bẩy "kết quả" thật của giới chuyên gia thế giới.
+// ============================================================================
+function _logCg(n, k) { if (k < 0 || k > n) return -Infinity; let s = 0; for (let i = 0; i < k; i++) s += Math.log(n - i) - Math.log(i + 1); return s; }
+function _hypEq(N, K, k) { return Math.exp(_logCg(K, k) + _logCg(N - K, K - k) - _logCg(N, K)); } // P(đúng k số chính trùng)
+
+// EV/vé 10.000đ ở một mức jackpot. jackpots: {j1,j2} (Power) hoặc {j} (Mega/Lotto).
+export function evPerTicket(product, jackpots = {}) {
+  const T = 10000; let ev = 0, pWin = 0;
+  if (product === 'power655') {
+    const N = 55, K = 6, p5 = _hypEq(N, K, 5);
+    const pJ1 = _hypEq(N, K, 6), pJ2 = p5 * (1 / 49), pG1 = p5 * (48 / 49), p4 = _hypEq(N, K, 4), p3 = _hypEq(N, K, 3);
+    ev = pJ1 * (jackpots.j1 || 0) + pJ2 * (jackpots.j2 || 0) + pG1 * 40e6 + p4 * 500e3 + p3 * 50e3;
+    pWin = pJ1 + p5 + p4 + p3;
+  } else if (product === 'power645') {
+    const N = 45, K = 6, pJ = _hypEq(N, K, 6), p5 = _hypEq(N, K, 5), p4 = _hypEq(N, K, 4), p3 = _hypEq(N, K, 3);
+    ev = pJ * (jackpots.j || 0) + p5 * 10e6 + p4 * 300e3 + p3 * 30e3;
+    pWin = pJ + p5 + p4 + p3;
+  } else if (product === 'power535') {
+    const N = 35, K = 5, ps = 1 / 12, pn = 11 / 12;
+    const P5 = _hypEq(N, K, 5), P4 = _hypEq(N, K, 4), P3 = _hypEq(N, K, 3), Ple2 = _hypEq(N, K, 0) + _hypEq(N, K, 1) + _hypEq(N, K, 2);
+    ev = P5 * ps * (jackpots.j || 0) + P5 * pn * 10e6 + P4 * ps * 5e6 + P4 * pn * 500e3 + P3 * ps * 100e3 + P3 * pn * 30e3 + Ple2 * ps * 10e3;
+    pWin = ps + pn * (P3 + P4 + P5);
+  }
+  return { ev, rtp: ev / T, pWin, ticket: T };
+}
+
+// Mức jackpot để EV = giá vé (hòa vốn, bỏ qua chia giải). Trả về {value, feasibleHint}.
+export function breakEvenJackpot(product, otherJackpots = {}) {
+  const T = 10000;
+  if (product === 'power655') { const pJ1 = _hypEq(55, 6, 6); const evNo = evPerTicket(product, { j1: 0, j2: otherJackpots.j2 || 4e9 }).ev; return (T - evNo) / pJ1; }
+  if (product === 'power645') { const pJ = _hypEq(45, 6, 6); const evNo = evPerTicket(product, { j: 0 }).ev; return (T - evNo) / pJ; }
+  if (product === 'power535') { const pJ = _hypEq(35, 5, 5) * (1 / 12); const evNo = evPerTicket(product, { j: 0 }).ev; return (T - evNo) / pJ; }
+  return null;
+}

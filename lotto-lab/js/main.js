@@ -8,6 +8,7 @@ import {
   STRATEGIES, DEFAULT_WEIGHTS, rng, generateCandidate,
   prizeFor, PRIZES, specialFor,
   buildWheel, diversifiedTickets, suggestPool, simulateTickets, poolHitProb,
+  evPerTicket, breakEvenJackpot,
 } from './engine.js';
 
 const PRODUCTS = {
@@ -109,6 +110,7 @@ async function run(preloaded = null) {
   renderHitReport(data); // cập nhật trạng thái "đang chờ kỳ tiếp theo" sau khi lưu phiếu
   renderResultsTable();  // bảng kết quả & giải ở cuối app (kể cả khi chưa có kỳ nào)
   renderExpertDiversify(); renderExpertWheel(); // Module 12 — dàn vé & bao số mặc định
+  renderEVTiming(); // Module 13 — thời điểm vàng (EV theo jackpot)
   updateLive();
   setBusy(false);
   logAI('Hoàn tất phân tích. Mọi con số chỉ mang tính tham khảo thống kê.', 'ok');
@@ -366,6 +368,48 @@ function renderExpertWheel() {
   const grid = el('div', 'ticket-grid');
   wheel.tickets.forEach((tk, i) => { const c = el('div', 'ticket'); c.appendChild(el('span', 'ticket-no', `#${i + 1}`)); c.appendChild(balls(tk, null, 'mini')); grid.appendChild(c); });
   out.appendChild(grid);
+}
+
+// --- Module 13: Thời điểm vàng (EV theo jackpot) ---------------------------
+const evKey = () => `lotto-lab:${state.product}:jackpot`;
+function defaultJackpot(product) {
+  if (product === 'power655') return { j1: 38e9, j2: 3.2e9 };
+  if (product === 'power645') return { j: 30e9 };
+  return { j: 8e9 };
+}
+function loadJackpot() {
+  let saved = null; try { saved = JSON.parse(localStorage.getItem(evKey()) || 'null'); } catch (_) { /* ignore */ }
+  return { ...defaultJackpot(state.product), ...(saved || {}) };
+}
+function renderEVTiming() {
+  if (!state.data) return;
+  const product = state.product;
+  const jk = loadJackpot();
+  const out = $('#ev-out'); const ctl = $('#ev-controls'); if (!out || !ctl) return;
+  const tyStr = (v) => (v / 1e9).toLocaleString('vi-VN', { maximumFractionDigits: 0 }) + ' tỷ';
+  const paint = () => {
+    const { rtp } = evPerTicket(product, jk);
+    const be = breakEvenJackpot(product);
+    let verdict, cls;
+    if (rtp >= 1) { verdict = '🟢 THỜI ĐIỂM VÀNG — nên dồn vé (kèm số ít người chọn + bao số)'; cls = 'good'; }
+    else if (rtp >= 0.65) { verdict = '🟡 Khá — cân nhắc; càng gần hòa vốn càng đáng chơi'; cls = 'mid'; }
+    else { verdict = '🔴 Nghèo — toán học nói nên BỎ QUA kỳ này'; cls = 'bad'; }
+    const note = product === 'power535'
+      ? ' — Lotto 5/35 jackpot quá nhỏ để chạm mốc này; thế mạnh của nó là TỈ LỆ TRÚNG. Muốn săn EV, chuyển sang Power/Mega.'
+      : ` — dồn vé khi jackpot ≥ ${tyStr(be)}, kỳ thường nên bỏ qua.`;
+    out.innerHTML = `<div class="ev-verdict ${cls}">${verdict}</div>
+      <div class="ev-stat">EV hiện tại ≈ <b>${(rtp * 100).toFixed(1)}%</b> giá vé · điểm hòa vốn (EV=100%): jackpot ≈ <b>${be > 0 ? tyStr(be) : '—'}</b>${note}</div>`;
+  };
+  ctl.innerHTML = '';
+  const mkInput = (label, key) => {
+    const wrap = el('label', 'ev-inp'); wrap.appendChild(el('span', null, `${label} (tỷ đồng)`));
+    const inp = el('input'); inp.type = 'number'; inp.min = '0'; inp.step = '0.5'; inp.value = String(jk[key] / 1e9);
+    inp.oninput = () => { jk[key] = Math.max(0, Number(inp.value)) * 1e9; localStorage.setItem(evKey(), JSON.stringify(jk)); paint(); };
+    wrap.appendChild(inp); ctl.appendChild(wrap);
+  };
+  if (product === 'power655') { mkInput('Jackpot 1 hiện tại', 'j1'); mkInput('Jackpot 2 hiện tại', 'j2'); }
+  else mkInput('Jackpot/Độc đắc hiện tại', 'j');
+  paint();
 }
 
 function renderLog() {
