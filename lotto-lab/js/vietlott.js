@@ -32,7 +32,8 @@ export function parseVietlott(html, cfg) {
 export async function fetchVietlottLatest(product, cfg) {
   const code = PAGE[product]; if (!code) return [];
   const url = `https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/winning-number-${code}`;
-  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 20000);
+  // 4s fail-fast: vietlott.vn CHẶN IP máy chủ (Vercel) → sẽ fail; chạy được ở máy dev.
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 4000);
   try {
     const r = await fetch(url, {
       signal: ctrl.signal,
@@ -50,10 +51,32 @@ export async function fetchVietlottLatest(product, cfg) {
   } catch (_) { return []; } finally { clearTimeout(t); }
 }
 
-// Gộp kết quả tươi từ vietlott vào danh sách draws (theo id), giữ nguyên nếu lỗi.
+// Nguồn dự phòng TỪ MÁY CHỦ ĐỌC ĐƯỢC: minhngoc server-render Mega 6/45 (Power & 5/35
+// bị load bằng JS / không có → không lấy được). Trả kỳ mới nhất của Mega.
+function parseMinhngocMega(html) {
+  const m = html.match(/id="DT6X45_KY_VE">\s*#?(\d+)\s*<\/span>[\s\S]*?quay thưởng\s*(\d{2}\/\d{2}\/\d{4})[\s\S]*?<ul class="result-number">([\s\S]*?)<\/ul>/);
+  if (!m) return [];
+  const nums = [...m[3].matchAll(/class="finnish\d+[^"]*">\s*(\d+)\s*<\/div>/g)].map((x) => Number(x[1])).slice(0, 6);
+  if (nums.length !== 6 || new Set(nums).size !== 6 || nums.some((n) => n < 1 || n > 45)) return [];
+  const [d, mo, y] = m[2].split('/');
+  return [{ id: String(m[1]).padStart(5, '0'), date: `${y}-${mo}-${d}`, main: nums.slice().sort((a, b) => a - b), special: null }];
+}
+export async function fetchMinhngocVietlott(product) {
+  if (product !== 'power645') return []; // chỉ Mega server-render trên minhngoc
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 12000);
+  try {
+    const r = await fetch('https://www.minhngoc.net.vn/ket-qua-xo-so/dien-toan-vietlott.html', { signal: ctrl.signal, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; lotto-lab/1.0)' } });
+    if (!r.ok) return [];
+    return parseMinhngocMega(await r.text());
+  } catch (_) { return []; } finally { clearTimeout(t); }
+}
+
+// Gộp kết quả tươi vào danh sách draws (theo id). Ưu tiên vietlott.vn (chạy ở dev),
+// dự phòng minhngoc (Mega, chạy trên Vercel). Giữ nguyên nếu cả hai lỗi.
 export async function mergeFreshDraws(product, cfg, draws) {
   try {
-    const fresh = await fetchVietlottLatest(product, cfg);
+    let fresh = await fetchVietlottLatest(product, cfg);
+    if (!fresh.length) fresh = await fetchMinhngocVietlott(product);
     if (!fresh.length) return 0;
     const have = new Set(draws.map((d) => d.id));
     let added = 0;
