@@ -110,6 +110,8 @@ function renderEffect(bt) {
     <div class="effect-cell"><div class="effect-val">${bt.testedDays}</div><div class="effect-lab">ngày đã kiểm thử<br><span class="muted small">${bt.provinceDraws} lượt đài</span></div></div>`;
   box.appendChild(g);
   box.appendChild(el('div', 'note small', `<b>Kết luận:</b> ${bt.verdict}`));
+  const s = bt.suggestion;
+  if (s && s.total) box.appendChild(el('div', 'muted small', `💸 <b>Nghĩa cho tiền của anh:</b> gợi ý "về" ${(s.hitRate * 100).toFixed(1)}% — gần y hệt bốc số ngẫu nhiên ${(s.randomRate * 100).toFixed(1)}%. Chọn số "nóng" KHÔNG trúng nhiều hơn; cộng phần nhà cái ăn chặn, đặt tiền đường dài <b>chắc chắn lỗ</b> dù chọn số nào. Kho càng nhiều dữ liệu, kết luận này càng chắc — không đảo chiều.`));
 }
 
 function render(data) {
