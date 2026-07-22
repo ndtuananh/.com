@@ -4,7 +4,7 @@
   "functions": {
     "api/data.js": { "maxDuration": 20 },
     "api/notify.js": { "maxDuration": 60 },
-    "api/xsmn.js": { "maxDuration": 40 }
+    "api/xsmn.js": { "maxDuration": 60 }
   },
   "crons": [
     { "path": "/api/xsmn?warm=1&sync=1", "schedule": "30 6 * * *" },

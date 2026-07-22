@@ -10,7 +10,7 @@ import { loadHistory, saveHistory, mergeHistory, addDays } from '../js/xsmn-stor
 
 let cache = { at: 0, payload: null };
 const TTL_MS = 5 * 60 * 1000;
-const BACKFILL_STEPS = 12; // mỗi lần sync crawl lùi ~12 trang (~84 ngày); gọi vài lần → tới ~1 năm
+const BACKFILL_STEPS = 32; // crawl lùi sâu (~224 ngày/lần); cron ngày sau lấp tiếp tới ~1 năm
 
 export default async function handler(req, res) {
   const q = req.query || {};
