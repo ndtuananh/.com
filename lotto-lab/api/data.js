@@ -30,7 +30,7 @@ const SOURCES = [
 
 // Cache trong bộ nhớ tiến trình để giảm số lần gọi ra ngoài (hết hạn sau 30').
 const cache = new Map(); // product -> { at:number, payload:object }
-const TTL_MS = 5 * 60 * 1000; // 5 phút — để kết quả mới từ vietlott.vn xuất hiện nhanh ("báo ngay")
+const TTL_MS = 60 * 1000; // 60s — cập nhật kết quả Vietlott gần như tức thời, không để trễ
 
 async function fetchText(url) {
   const ctrl = new AbortController();
@@ -116,7 +116,7 @@ export default async function handler(req, res) {
   const warm = req.query && req.query.warm;
   const hit = cache.get(product);
   if (hit && !warm && Date.now() - hit.at < TTL_MS) {
-    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=86400');
+    res.setHeader('Cache-Control', 's-maxage=45, stale-while-revalidate=45');
     res.setHeader('X-Cache', 'HIT');
     res.status(200).json(hit.payload);
     return;
@@ -150,7 +150,7 @@ export default async function handler(req, res) {
     };
 
     cache.set(product, { at: Date.now(), payload });
-    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=86400');
+    res.setHeader('Cache-Control', 's-maxage=45, stale-while-revalidate=45');
     res.setHeader('X-Cache', 'MISS');
     res.status(200).json(payload);
   } catch (e) {

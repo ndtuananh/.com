@@ -38,7 +38,7 @@ function logAI(msg, kind = 'info') {
 async function loadData(product) {
   const cfg = PRODUCTS[product];
   try {
-    const r = await fetch(`/api/data?product=${product}`, { cache: 'no-store' });
+    const r = await fetch(`/api/data?product=${product}&_t=${Date.now()}`, { cache: 'no-store' });
     if (r.ok) { const j = await r.json(); if (j.draws && j.draws.length) return j; }
     throw new Error('api-empty');
   } catch (_) {
@@ -286,6 +286,9 @@ function renderMonteCarlo(res, strategy) {
 
 function renderDashboardPicks(res) {
   const box = $('#ai-picks'); box.innerHTML = '';
+  // Ghi RÕ 2 bộ số gợi ý này là cho KỲ NÀO (kỳ kế tiếp = mã mới nhất + 1) → tránh nhầm.
+  const kyEl = $('#picks-ky');
+  if (kyEl && state.data) kyEl.textContent = 'cho kỳ #' + String(Number(state.data.meta.latestId) + 1).padStart(5, '0');
   res.top.slice(0, 2).forEach((t, i) => box.appendChild(pickCard(t, i, true)));
   // Lưu "phiếu dự đoán" nhắm tới KỲ TIẾP THEO để tự dò khi có kết quả.
   savePending(res.top.slice(0, 2).map((t) => t.set));
@@ -642,7 +645,7 @@ async function toggleNotif() {
 
 // ---- Tự cập nhật liên tục ---------------------------------------------------
 let pollTimer = null;
-const POLL_MS = 3 * 60 * 1000; // 3 phút
+const POLL_MS = 90 * 1000; // 90s — kiểm kết quả Vietlott mới thường xuyên hơn
 
 function updateLive(checked = false) {
   const live = $('#live'); if (!live) return;
@@ -653,7 +656,7 @@ function updateLive(checked = false) {
 async function poll() {
   if (document.body.classList.contains('busy')) return;
   try {
-    const r = await fetch(`/api/data?product=${state.product}`, { cache: 'no-store' });
+    const r = await fetch(`/api/data?product=${state.product}&_t=${Date.now()}`, { cache: 'no-store' });
     if (!r.ok) return;
     const j = await r.json();
     updateLive(true);
