@@ -32,9 +32,17 @@ export function parseVietlott(html, cfg) {
 export async function fetchVietlottLatest(product, cfg) {
   const code = PAGE[product]; if (!code) return [];
   const url = `https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong/winning-number-${code}`;
-  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 12000);
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 20000);
   try {
-    const r = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; lotto-lab/1.0)' } });
+    const r = await fetch(url, {
+      signal: ctrl.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.8',
+        'Referer': 'https://vietlott.vn/vi/trung-thuong/ket-qua-trung-thuong',
+      },
+    });
     if (!r.ok) return [];
     const draws = parseVietlott(await r.text(), cfg);
     draws.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : Number(a.id) - Number(b.id)));

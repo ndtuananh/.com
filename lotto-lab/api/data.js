@@ -13,7 +13,7 @@
 // mà dùng bản đã chuẩn hoá + đối chiếu 2 nguồn để đảm bảo tính toàn vẹn.
 // ============================================================================
 
-import { mergeFreshDraws } from '../js/vietlott.js';
+import { mergeFreshDraws, fetchVietlottLatest } from '../js/vietlott.js';
 
 // Cấu hình từng sản phẩm: số lượng số chính, biên độ, có số đặc biệt hay không.
 const PRODUCTS = {
@@ -109,6 +109,13 @@ export default async function handler(req, res) {
   const cfg = PRODUCTS[product];
   if (!cfg) {
     res.status(400).json({ error: 'Sản phẩm không hợp lệ', products: Object.keys(PRODUCTS) });
+    return;
+  }
+
+  // Chẩn đoán: ?vldebug=1 → thử fetch vietlott.vn trực tiếp, báo về kết quả/lỗi.
+  if (req.query && req.query.vldebug) {
+    try { const fr = await fetchVietlottLatest(product, cfg); res.status(200).json({ vietlottCount: fr.length, latest: fr.slice(-2).map((d) => ({ id: d.id, date: d.date })) }); }
+    catch (e) { res.status(200).json({ vietlottError: String(e && e.message || e) }); }
     return;
   }
 
