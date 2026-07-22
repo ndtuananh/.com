@@ -92,11 +92,15 @@ export function xsmnBacktest(days, { warmup = 14, K = 10 } = {}) {
   const loFreq = new Array(100).fill(0), deFreq = new Array(100).fill(0);
   let stratHits = 0, randExp = 0, provDraws = 0, anyHitStrat = 0;
   let deMatch = 0, deTop5 = 0, deTrials = 0, tested = 0;
+  let s2hit = 0, s2rand = 0; const sugLedger = [];
+  const provLo = new Map(), provCount = new Map();
   const dePred = [], deAct = [];
   for (let i = 0; i < asc.length; i++) {
     const d = asc[i];
     if (i >= warmup) {
-      const topK = new Set(_rank(loFreq).slice(0, K).map((x) => Number(x.n)));
+      const loOrdered = _rank(loFreq).map((x) => Number(x.n));
+      const topK = new Set(loOrdered.slice(0, K));
+      const top2 = loOrdered.slice(0, 2);
       const deRank = _rank(deFreq).map((x) => Number(x.n));
       const deTop = deRank[0], deTop5set = new Set(deRank.slice(0, 5));
       for (const p of d.provinces) {
@@ -105,6 +109,14 @@ export function xsmnBacktest(days, { warmup = 14, K = 10 } = {}) {
         let hits = 0; for (const n of topK) if (actual.has(n)) hits++;
         stratHits += hits; randExp += K * dDistinct / 100; provDraws++;
         if (hits > 0) anyHitStrat++;
+        // Gợi ý "2 số/đài" theo LỊCH SỬ TỪNG ĐÀI (đủ ≥4 kỳ); mới thì tạm dùng top toàn miền.
+        const slug = p.slug || p.province;
+        const pf = provLo.get(slug);
+        const pTop2 = (pf && (provCount.get(slug) || 0) >= 4) ? _rank(pf).slice(0, 2).map((x) => Number(x.n)) : top2;
+        const hit2 = pTop2.some((n) => actual.has(n));
+        if (hit2) s2hit++;
+        s2rand += 1 - ((100 - dDistinct) / 100) * ((99 - dDistinct) / 99);
+        sugLedger.push({ date: d.date, prov: p.province, sug: pTop2.map((n) => String(n).padStart(2, '0')), hit: hit2 });
         const deA = Number(p.de);
         dePred.push(deTop); deAct.push(deA);
         if (deTop === deA) deMatch++;
@@ -113,7 +125,13 @@ export function xsmnBacktest(days, { warmup = 14, K = 10 } = {}) {
       }
       tested++;
     }
-    for (const p of d.provinces) { deFreq[Number(p.de)]++; for (const l of p.lo2) loFreq[Number(l)]++; }
+    for (const p of d.provinces) {
+      deFreq[Number(p.de)]++; for (const l of p.lo2) loFreq[Number(l)]++;
+      const slug = p.slug || p.province;
+      let pf = provLo.get(slug); if (!pf) { pf = new Array(100).fill(0); provLo.set(slug, pf); }
+      for (const l of p.lo2) pf[Number(l)]++;
+      provCount.set(slug, (provCount.get(slug) || 0) + 1);
+    }
   }
   // Ý nghĩa thống kê ĐÚNG: lô dùng z; đề dùng PERMUTATION (baseline trung thực).
   // Ngưỡng thận trọng, đã tính đa so sánh: cần bằng chứng mạnh mới dám nói "có lợi thế".
@@ -132,6 +150,12 @@ export function xsmnBacktest(days, { warmup = 14, K = 10 } = {}) {
       matchRate: deTrials ? deMatch / deTrials : 0, baselineMatch: 0.01,
       top5Rate: deTrials ? deTop5 / deTrials : 0, baselineTop5: 0.05, trials: deTrials,
       permP: dePerm.p,
+    },
+    suggestion: {
+      hitRate: provDraws ? s2hit / provDraws : 0,
+      randomRate: provDraws ? s2rand / provDraws : 0,
+      hits: s2hit, total: provDraws,
+      ledger: sugLedger.slice(-24).reverse(),
     },
     significance: { loZ, dePermP: dePerm.p },
     effective: evidence,

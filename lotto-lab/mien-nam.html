@@ -22,6 +22,7 @@
         <a href="index.html" class="btn ghost">🎯 Vietlott</a>
         <a href="mien-nam.html" class="btn">🎲 Miền Nam</a>
       </nav>
+      <button id="xsmn-notif" class="btn ghost">🔔 Bật báo</button>
       <button id="xsmn-refresh" class="btn">↻ Làm mới</button>
     </div>
   </header>
@@ -31,6 +32,17 @@
       <h2 class="sec-title">Kết quả hôm nay <small id="xsmn-date"></small></h2>
       <p class="muted small">Số lớn màu đỏ là <b>ĐỀ</b> (2 số cuối Giải Đặc Biệt). Dãy phía dưới là <b>lô</b> — 2 số cuối của cả 18 giải mỗi đài.</p>
       <div id="xsmn-today" class="xsmn-grid"></div>
+    </section>
+
+    <section class="card">
+      <h2 class="sec-title">🎯 Gợi ý cho ngày mai <small>(2 số/đài — nghiên cứu, không cam kết)</small></h2>
+      <p class="note small">⚠️ 2 cặp lô xếp hạng cao nhất theo LỊCH SỬ TỪNG ĐÀI — <b>gợi ý nghiên cứu, KHÔNG phải dự đoán chắc trúng</b>. Xem "sổ theo dõi" ngay dưới để biết tỉ lệ về THẬT so với ngẫu nhiên trước khi bỏ tiền.</p>
+      <div id="xsmn-tomorrow"></div>
+    </section>
+
+    <section class="card">
+      <h2 class="sec-title">📒 Sổ theo dõi gợi ý <small>(về/trượt thật — cập nhật mỗi ngày)</small></h2>
+      <div id="xsmn-track"></div>
     </section>
 
     <section class="card">
@@ -51,11 +63,6 @@
       <div id="xsmn-heatmap" class="heatmap"></div>
     </section>
 
-    <section class="card">
-      <h2 class="sec-title">🔬 Cặp số xếp hạng cao <small>(nghiên cứu thống kê)</small></h2>
-      <p class="note small">⚠️ Đây là các cặp số có tần suất lô cao nhất trong cửa sổ gần đây — <b>xếp hạng thống kê, KHÔNG phải dự đoán</b>. Về dài hạn tỉ lệ khớp dao động quanh mức ngẫu nhiên. Phiên sau sẽ bổ sung: xếp hạng theo từng đài (lịch sử sâu), backtest, và email tự động hằng ngày.</p>
-      <div id="xsmn-research" class="xsmn-grid"></div>
-    </section>
   </main>
 
   <footer class="foot">

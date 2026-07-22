@@ -36,6 +36,66 @@ function fillRank(sel, list) {
   }
 }
 
+// Lịch mở thưởng XSMN theo thứ (0=CN … 6=T7) → [slug, tên đài].
+const SCHEDULE = {
+  0: [['tien-giang', 'Tiền Giang'], ['kien-giang', 'Kiên Giang'], ['da-lat', 'Đà Lạt']],
+  1: [['tp-hcm', 'TP. HCM'], ['dong-thap', 'Đồng Tháp'], ['ca-mau', 'Cà Mau']],
+  2: [['ben-tre', 'Bến Tre'], ['vung-tau', 'Vũng Tàu'], ['bac-lieu', 'Bạc Liêu']],
+  3: [['dong-nai', 'Đồng Nai'], ['can-tho', 'Cần Thơ'], ['soc-trang', 'Sóc Trăng']],
+  4: [['tay-ninh', 'Tây Ninh'], ['an-giang', 'An Giang'], ['binh-thuan', 'Bình Thuận']],
+  5: [['vinh-long', 'Vĩnh Long'], ['binh-duong', 'Bình Dương'], ['tra-vinh', 'Trà Vinh']],
+  6: [['tp-hcm', 'TP. HCM'], ['long-an', 'Long An'], ['binh-phuoc', 'Bình Phước'], ['hau-giang', 'Hậu Giang']],
+};
+
+function deviceNotify(title, body) {
+  try { if (('Notification' in window) && Notification.permission === 'granted') new Notification(title, { body, tag: 'xsmn' }); } catch (_) { /* bỏ qua */ }
+}
+
+function renderTomorrow(data) {
+  const box = $('#xsmn-tomorrow'); if (!box) return; box.innerHTML = '';
+  const st = data.stats;
+  const provStats = new Map((st.provinces || []).map((p) => [p.slug || p.name, p]));
+  const tmr = new Date(Date.now() + 86400000);
+  const provs = SCHEDULE[tmr.getDay()] || [];
+  box.appendChild(el('div', 'muted small', `Đài mở thưởng ngày mai (${tmr.toLocaleDateString('vi-VN')}):`));
+  const grid = el('div', 'xsmn-grid');
+  for (const [slug, name] of provs) {
+    const ps = provStats.get(slug);
+    const top = (ps ? ps.loHot : st.loHot).slice(0, 2).map((x) => x.n);
+    const c = el('div', 'xsmn-prov');
+    c.appendChild(el('div', 'xsmn-prov-head', `<span class="xsmn-name">${name}</span><span class="muted small">${ps ? ps.draws + ' kỳ' : 'toàn miền'}</span>`));
+    const pair = el('div', 'balls'); for (const n of top) pair.appendChild(el('span', 'ball', n));
+    c.appendChild(pair);
+    grid.appendChild(c);
+  }
+  box.appendChild(grid);
+}
+
+function renderTrack(data) {
+  const box = $('#xsmn-track'); if (!box) return; box.innerHTML = '';
+  const s = data.backtest && data.backtest.suggestion;
+  if (!s || !s.total) { box.appendChild(el('div', 'muted small', 'Đang tích luỹ dữ liệu để chấm gợi ý…')); return; }
+  const diff = (s.hitRate - s.randomRate) * 100;
+  box.appendChild(el('div', 'hit-summary', `📒 Gợi ý 2 số/đài đã <b>về ${s.hits}/${s.total}</b> lần = <b>${(s.hitRate * 100).toFixed(1)}%</b> · mức ngẫu nhiên ≈ <b>${(s.randomRate * 100).toFixed(1)}%</b> (chênh ${diff >= 0 ? '+' : ''}${diff.toFixed(1)} điểm — ${Math.abs(diff) < 3 ? '≈ ngẫu nhiên' : 'đáng xem'}).`));
+  const hist = el('div', 'hit-hist');
+  for (const e of s.ledger) {
+    const chip = el('span', 'hit-chip' + (e.hit ? ' good' : ''), `${e.prov} ${e.sug.join('·')} ${e.hit ? '✓' : '✗'}`);
+    chip.title = `${e.date} · ${e.prov}: gợi ý ${e.sug.join(', ')} — ${e.hit ? 'VỀ' : 'trượt'}`;
+    hist.appendChild(chip);
+  }
+  box.appendChild(hist);
+  box.appendChild(el('div', 'note small', '⚠️ "Về" = ≥1 trong 2 số gợi ý xuất hiện trong 18 lô của đài. Đây là hiệu quả THẬT; nếu ≈ ngẫu nhiên thì gợi ý không giúp thắng nhiều hơn — đừng đặt tiền kỳ vọng có lợi thế.'));
+  // Báo về máy khi có gợi ý VỀ ở ngày mới nhất (một lần / ngày).
+  try {
+    const latest = s.ledger.length ? s.ledger[0].date : null;
+    const hitsLatest = s.ledger.filter((e) => e.date === latest && e.hit);
+    if (latest && hitsLatest.length && localStorage.getItem('xsmn:notified') !== latest) {
+      deviceNotify(`🎯 Gợi ý VỀ ${hitsLatest.length} đài (${latest})`, hitsLatest.map((e) => `${e.prov}: ${e.sug.join(',')}`).join(' · '));
+      localStorage.setItem('xsmn:notified', latest);
+    }
+  } catch (_) { /* bỏ qua */ }
+}
+
 function renderEffect(bt) {
   const box = $('#xsmn-effect'); if (!box) return; box.innerHTML = '';
   if (!bt || !bt.provinceDraws) { box.appendChild(el('div', 'muted small', 'Đang tích luỹ dữ liệu để đo hiệu quả…')); return; }
@@ -81,24 +141,8 @@ function render(data) {
     heat.appendChild(cell);
   }
 
-  // Cặp số nghiên cứu THEO TỪNG ĐÀI (từ lịch sử tích luỹ) — trung thực, không dự đoán
-  const rbox = $('#xsmn-research'); rbox.innerHTML = '';
-  const provStats = new Map((st.provinces || []).map((p) => [p.slug || p.name, p]));
-  const todayProvs = data.today ? data.today.provinces : (today ? today.provinces : []);
-  for (const tp of todayProvs) {
-    const ps = provStats.get(tp.slug || tp.province);
-    const deep = ps && ps.draws >= 8;
-    const top = (deep ? ps.loHot : st.loHot).slice(0, 2);
-    const c = el('div', 'xsmn-prov');
-    c.appendChild(el('div', 'xsmn-prov-head', `<span class="xsmn-name">${tp.province}</span><span class="muted small">${ps ? ps.draws + ' kỳ' : 'nghiên cứu'}</span>`));
-    const pair = el('div', 'balls');
-    for (const x of top) pair.appendChild(el('span', 'ball', x.n));
-    c.appendChild(pair);
-    c.appendChild(el('div', 'muted small', deep
-      ? `Top 2 lô theo lịch sử ĐÀI này (${ps.draws} kỳ). Xếp hạng thống kê — không dự đoán.`
-      : 'Đang tích luỹ lịch sử đài (tạm dùng top toàn miền). Kho lớn dần mỗi ngày. Không dự đoán.'));
-    rbox.appendChild(c);
-  }
+  renderTomorrow(data);
+  renderTrack(data);
 
   document.body.classList.remove('busy');
 }
@@ -110,6 +154,12 @@ async function run() {
 }
 
 $('#xsmn-refresh').onclick = run;
+const nb = $('#xsmn-notif');
+if (nb) nb.onclick = async () => {
+  if (!('Notification' in window)) return;
+  const p = await Notification.requestPermission();
+  nb.textContent = p === 'granted' ? '🔔 Đã bật báo' : '🔔 Bật báo';
+};
 document.addEventListener('visibilitychange', () => { if (!document.hidden) run(); });
 run();
 setInterval(() => { if (!document.hidden) run(); }, 3 * 60 * 1000);
