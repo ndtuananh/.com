@@ -6,7 +6,7 @@
     "api/notify.js": { "maxDuration": 60 }
   },
   "crons": [
-    { "path": "/api/data?product=power655&warm=1", "schedule": "30 12 * * *" },
-    { "path": "/api/notify", "schedule": "30 1 * * *" }
+    { "path": "/api/data?product=power535&warm=1", "schedule": "30 6 * * *" },
+    { "path": "/api/notify", "schedule": "30 15 * * *" }
   ]
 }

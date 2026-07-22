@@ -11,10 +11,11 @@
 // ============================================================================
 import nodemailer from 'nodemailer';
 import webpush from 'web-push';
-import { list } from '@vercel/blob';
+import { list, put } from '@vercel/blob';
 import {
   buildFeatures, backtest, monteCarlo, prizeFor, PRIZES, DEFAULT_WEIGHTS, specialFor,
 } from '../js/engine.js';
+import { mergeFreshDraws } from '../js/vietlott.js';
 
 const PRODUCTS = {
   power655: { file: 'power655.jsonl', mainCount: 6, mainMax: 55, special: true,  specialMax: 55, label: 'Power 6/55' },
@@ -67,6 +68,7 @@ function reconstructPicks(history, cfg, product) {
 async function evalProductToday(product) {
   const cfg = PRODUCTS[product];
   const draws = await loadDraws(cfg);
+  await mergeFreshDraws(product, cfg, draws); // kết quả TƯƠI từ vietlott.vn → báo ngay trong đêm
   if (draws.length < 130) return [];
   const dates = recentDates();
   const out = [];
@@ -103,8 +105,10 @@ function renderEmail(results) {
   const meaningful = best && best.label !== 'Giải KK';
   let html = `<div style="font-family:Segoe UI,Arial,sans-serif;max-width:640px;margin:0 auto;color:#1a1a1a">
     <h2 style="color:#e6483c">🎯 Lotto Lab — Kết quả & dò số hôm nay (${todayICT()})</h2>`;
-  if (best && (meaningful || best.jackpot)) html += `<p style="font-size:16px;background:#fff7e0;border:1px solid #ffcc4d;padding:10px 14px;border-radius:10px">🎯 <b>Bộ gợi ý đạt tới ${best.label}${best.jackpot ? ' 🏆' : ''}.</b> Đối chiếu chi tiết bên dưới.</p>`;
-  else if (best) html += `<p style="font-size:13px;color:#666;background:#f4f4f6;border:1px solid #e3e3e8;padding:8px 12px;border-radius:10px">Hôm nay bộ gợi ý chỉ chạm giải Khuyến khích (10.000đ — chủ yếu may rủi do trùng số đặc biệt). Đối chiếu bên dưới.</p>`;
+  if (best && best.jackpot) html += `<p style="font-size:17px;background:#fff0c2;border:1px solid #e0a91f;padding:12px 16px;border-radius:10px;color:#7a5200">🎊 <b>Trời ơi anh ơi — bộ gợi ý chạm ${best.label}!</b> 🎉 Quá tự hào, xem chi tiết bên dưới nhé!</p>`;
+  else if (meaningful) html += `<p style="font-size:16px;background:#e6f7ee;border:1px solid #37d67a;padding:11px 15px;border-radius:10px;color:#1f7a4d">🎉 <b>Chúc mừng anh! Bộ gợi ý hôm nay trúng ${best.label}.</b> Niềm vui nho nhỏ mỗi ngày 😊</p>`;
+  else if (best) html += `<p style="font-size:14px;background:#fff7e0;border:1px solid #ffcc4d;padding:9px 13px;border-radius:10px;color:#7a5200">😊 <b>Có tin vui nho nhỏ!</b> Hôm nay chạm giải Khuyến khích (10.000đ — trùng số đặc biệt, chủ yếu may rủi). Vẫn vui phải không anh!</p>`;
+  else html += `<p style="font-size:13px;color:#888;background:#f4f4f6;border:1px solid #e3e3e8;padding:8px 12px;border-radius:10px">Hôm nay chưa tới giải — nhưng mai lại có kỳ mới, cơ hội mới 💪 Cứ chơi vui và trong khả năng anh nhé.</p>`;
 
   for (const r of results) {
     const bp = r.bestPrize;
@@ -127,6 +131,23 @@ function renderEmail(results) {
   }
   html += `<p style="font-size:12px;color:#999;border-top:1px solid #eee;padding-top:10px">⚠️ Đối chiếu trung thực mang tính thống kê. Xổ số là ngẫu nhiên độc lập — công cụ không làm tăng xác suất trúng. Chơi có trách nhiệm.</p></div>`;
   return html;
+}
+
+// Sổ chống trùng (Vercel Blob): lưu các kỳ đã báo để cron/ping chạy nhiều lần không lặp.
+const NOTIFIED_KEY = 'notified/log.json';
+async function loadNotified() {
+  const token = process.env.BLOB_READ_WRITE_TOKEN; if (!token) return { set: new Set(), token: null };
+  try {
+    const l = await list({ token, prefix: 'notified/' });
+    const b = l.blobs.find((x) => x.pathname === NOTIFIED_KEY);
+    if (!b) return { set: new Set(), token };
+    const arr = await (await fetch(b.url)).json();
+    return { set: new Set(Array.isArray(arr) ? arr : []), token };
+  } catch (_) { return { set: new Set(), token }; }
+}
+async function saveNotified(token, set) {
+  if (!token) return;
+  try { await put(NOTIFIED_KEY, JSON.stringify([...set].slice(-800)), { access: 'public', token, addRandomSuffix: false, contentType: 'application/json' }); } catch (_) { /* bỏ qua */ }
 }
 
 // Gửi Web Push tới mọi thiết bị đã đăng ký (đọc từ Vercel Blob).
@@ -195,22 +216,38 @@ export default async function handler(req, res) {
       return;
     }
 
+    // Chống trùng: chỉ báo những kỳ CHƯA từng báo (an toàn khi cron/ping chạy nhiều lần).
+    const { set: notified, token: blobToken } = await loadNotified();
+    const freshOnly = results.filter((r) => !notified.has(`${r.product}-${r.target.id}`));
+    if (freshOnly.length === 0) {
+      res.status(200).json({ ok: true, drawsToday: results.length, emailed: false, reason: 'các kỳ này đã báo trước đó' });
+      return;
+    }
+    results = freshOnly;
+
     const best = results.map((r) => r.bestPrize).filter(Boolean).sort((a, b) => a.rank - b.rank)[0];
     const meaningful = best && best.label !== 'Giải KK';
     const anyWin = !!best;
+    // Thông báo VUI VẺ, ấm áp — nhưng đúng mức: reo hò cho giải thật, nhẹ nhàng cho KK.
     const subject = best && best.jackpot
-      ? `🎯 Lotto Lab — bộ gợi ý chạm ${best.label}! (đối chiếu thống kê)`
+      ? `🎊🎉 KHÔNG THỂ TIN NỔI — bộ gợi ý chạm ${best.label}! 🎉🎊`
       : meaningful
-        ? `🎯 Lotto Lab — dò số hôm nay: cao nhất ${best.label}`
-        : `🎯 Lotto Lab — kết quả & dò số hôm nay (${results.length} kỳ)`;
+        ? `🎉 Chúc mừng anh! Bộ gợi ý hôm nay TRÚNG ${best.label} 🎉`
+        : best
+          ? `😊 Lotto Lab — hôm nay có tin vui nho nhỏ (${best.label})`
+          : `🎯 Lotto Lab — kết quả & dò số hôm nay (${results.length} kỳ)`;
     const email = await sendEmail(subject, renderEmail(results));
 
-    // Nội dung push ngắn gọn, trung thực (không giật tít).
-    const pushTitle = best && best.jackpot ? `🎯 Bộ gợi ý chạm ${best.label}!`
-      : meaningful ? `🎯 Dò số: cao nhất ${best.label}`
+    const pushTitle = best && best.jackpot ? `🎊 Chạm ${best.label}! Không thể tin nổi!`
+      : meaningful ? `🎉 Chúc mừng anh! Trúng ${best.label}`
+      : best ? `😊 Có tin vui nho nhỏ hôm nay (${best.label})`
       : '🎯 Đã có kết quả — đã dò số';
     const pushBody = results.map((r) => `${r.label} #${r.target.id}: ${r.bestPrize ? r.bestPrize.label : Math.max(0, ...r.evalPicks.map((p) => p.hits)) + '/' + r.cfg.mainCount + ' số'}`).join(' · ');
     const push = await sendPush(pushTitle, pushBody);
+
+    // Ghi nhận đã báo để lần chạy sau không lặp lại.
+    for (const r of results) notified.add(`${r.product}-${r.target.id}`);
+    await saveNotified(blobToken, notified);
 
     res.status(200).json({ ok: true, drawsToday: results.length, anyWin, email, push,
       summary: results.map((r) => ({ product: r.product, id: r.target.id, prize: r.bestPrize ? r.bestPrize.label : null })) });

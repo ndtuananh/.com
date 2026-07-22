@@ -477,7 +477,13 @@ function evaluatePending(data) {
     const prizeMsg = bestPrize ? ` — 🏆 TRÚNG ${bestPrize.label}!` : ' (chưa tới bậc giải)';
     logAI(`🎟️ Đã có kết quả kỳ #${target.id} — tự dò: bộ trúng cao nhất ${best}/${data.config.mainCount} số${prizeMsg}`, bestPrize ? 'ok' : 'info');
     // Báo trúng NGAY trên thiết bị nếu đã bật thông báo (khi app đang mở).
-    if (bestPrize) deviceNotify(`🎉 Trúng ${bestPrize.label}!`, `${PRODUCTS[state.product].label} kỳ #${target.id}: bộ số gợi ý trúng ${best}/${data.config.mainCount} số (${bestPrize.amount}).`);
+    if (bestPrize) {
+      const jp = bestPrize.jackpot;
+      deviceNotify(jp ? `🎊 KHÔNG THỂ TIN NỔI — ${bestPrize.label}!` : `🎉 Chúc mừng anh! Trúng ${bestPrize.label}`,
+        `${PRODUCTS[state.product].label} kỳ #${target.id}: bộ gợi ý trúng ${best}/${data.config.mainCount} số (${bestPrize.amount}). 🎉`);
+    } else {
+      deviceNotify(`🎯 Đã có kết quả kỳ #${target.id}`, `${PRODUCTS[state.product].label}: bộ gợi ý cao nhất ${best}/${data.config.mainCount} số. Mai lại có kỳ mới 💪`);
+    }
   }
   localStorage.removeItem(pKey()); // phiếu đã được chấm
 }

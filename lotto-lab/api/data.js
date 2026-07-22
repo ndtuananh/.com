@@ -13,6 +13,8 @@
 // mà dùng bản đã chuẩn hoá + đối chiếu 2 nguồn để đảm bảo tính toàn vẹn.
 // ============================================================================
 
+import { mergeFreshDraws } from '../js/vietlott.js';
+
 // Cấu hình từng sản phẩm: số lượng số chính, biên độ, có số đặc biệt hay không.
 const PRODUCTS = {
   power655: { file: 'power655.jsonl', mainCount: 6, mainMax: 55, special: true,  specialMax: 55, label: 'Power 6/55' },
@@ -28,7 +30,7 @@ const SOURCES = [
 
 // Cache trong bộ nhớ tiến trình để giảm số lần gọi ra ngoài (hết hạn sau 30').
 const cache = new Map(); // product -> { at:number, payload:object }
-const TTL_MS = 30 * 60 * 1000;
+const TTL_MS = 5 * 60 * 1000; // 5 phút — để kết quả mới từ vietlott.vn xuất hiện nhanh ("báo ngay")
 
 async function fetchText(url) {
   const ctrl = new AbortController();
@@ -114,7 +116,7 @@ export default async function handler(req, res) {
   const warm = req.query && req.query.warm;
   const hit = cache.get(product);
   if (hit && !warm && Date.now() - hit.at < TTL_MS) {
-    res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=86400');
+    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=86400');
     res.setHeader('X-Cache', 'HIT');
     res.status(200).json(hit.payload);
     return;
@@ -124,6 +126,9 @@ export default async function handler(req, res) {
     const { text, sourceIndex } = await collect(cfg.file);
     const { draws, issues } = process(text, cfg);
     if (draws.length === 0) throw new Error('Không có kỳ quay hợp lệ nào sau khi kiểm định');
+
+    // Bơm kết quả MỚI NHẤT trực tiếp từ vietlott.vn (tươi hơn bản sao GitHub) → "báo ngay".
+    const freshAdded = await mergeFreshDraws(product, cfg, draws);
 
     const payload = {
       product,
@@ -137,7 +142,7 @@ export default async function handler(req, res) {
         firstDate: draws[0].date,
         lastDate: draws[draws.length - 1].date,
         latestId: draws[draws.length - 1].id,
-        source: sourceIndex === 0 ? 'primary' : 'fallback',
+        source: (sourceIndex === 0 ? 'primary' : 'fallback') + (freshAdded ? '+vietlott' : ''),
         quality: issues,
         collectedAt: new Date().toISOString(),
       },
@@ -145,7 +150,7 @@ export default async function handler(req, res) {
     };
 
     cache.set(product, { at: Date.now(), payload });
-    res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=86400');
+    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=86400');
     res.setHeader('X-Cache', 'MISS');
     res.status(200).json(payload);
   } catch (e) {
