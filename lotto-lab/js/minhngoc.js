@@ -74,11 +74,25 @@ const _rank = (arr) => arr.map((c, n) => ({ n: String(n).padStart(2, '0'), c }))
 //   • Lô: chơi top-K cặp nóng → tỉ số (số trúng thực tế / kỳ vọng ngẫu nhiên). ~1.0 = vô ích.
 //   • Đề: top-1 nóng có khớp đề thật hơn 1/100 không? top-5 có hơn 5/100 không?
 // ============================================================================
+// Permutation p-value cho đề: baseline ĐÚNG. "Số nóng" vốn hay khớp mẫu quá khứ nên
+// z ngây thơ (so 1/100) phóng đại; xáo trộn đề thật để dựng phân bố null trung thực.
+function _permP(pred, act, B = 3000) {
+  let obs = 0; for (let i = 0; i < pred.length; i++) if (pred[i] === act[i]) obs++;
+  const n = act.length, arr = act.slice(); let x = 123456789 >>> 0, ge = 0;
+  for (let b = 0; b < B; b++) {
+    for (let i = n - 1; i > 0; i--) { x = (1103515245 * x + 12345) >>> 0; const j = x % (i + 1); const t = arr[i]; arr[i] = arr[j]; arr[j] = t; }
+    let m = 0; for (let i = 0; i < n; i++) if (pred[i] === arr[i]) m++;
+    if (m >= obs) ge++;
+  }
+  return { obs, p: (ge + 1) / (B + 1) };
+}
+
 export function xsmnBacktest(days, { warmup = 14, K = 10 } = {}) {
   const asc = [...days].sort((a, b) => (a.date < b.date ? -1 : 1)); // cũ → mới
   const loFreq = new Array(100).fill(0), deFreq = new Array(100).fill(0);
   let stratHits = 0, randExp = 0, provDraws = 0, anyHitStrat = 0;
   let deMatch = 0, deTop5 = 0, deTrials = 0, tested = 0;
+  const dePred = [], deAct = [];
   for (let i = 0; i < asc.length; i++) {
     const d = asc[i];
     if (i >= warmup) {
@@ -92,6 +106,7 @@ export function xsmnBacktest(days, { warmup = 14, K = 10 } = {}) {
         stratHits += hits; randExp += K * dDistinct / 100; provDraws++;
         if (hits > 0) anyHitStrat++;
         const deA = Number(p.de);
+        dePred.push(deTop); deAct.push(deA);
         if (deTop === deA) deMatch++;
         if (deTop5set.has(deA)) deTop5++;
         deTrials++;
@@ -100,11 +115,11 @@ export function xsmnBacktest(days, { warmup = 14, K = 10 } = {}) {
     }
     for (const p of d.provinces) { deFreq[Number(p.de)]++; for (const l of p.lo2) loFreq[Number(l)]++; }
   }
-  // Kiểm định ý nghĩa thống kê (đã tính đến đa so sánh bằng ngưỡng thận trọng |z|≥2.5).
+  // Ý nghĩa thống kê ĐÚNG: lô dùng z; đề dùng PERMUTATION (baseline trung thực).
+  // Ngưỡng thận trọng, đã tính đa so sánh: cần bằng chứng mạnh mới dám nói "có lợi thế".
   const loZ = randExp > 0 ? (stratHits - randExp) / Math.sqrt(randExp) : 0;
-  const deMean = deTrials * 0.01;
-  const deZ = deMean > 0 ? (deMatch - deMean) / Math.sqrt(deMean * 0.99) : 0;
-  const evidence = Math.abs(loZ) >= 2.5 || Math.abs(deZ) >= 2.5;
+  const dePerm = deTrials ? _permP(dePred, deAct) : { obs: 0, p: 1 };
+  const evidence = dePerm.p < 0.01 || Math.abs(loZ) >= 3.5;
   return {
     warmup, K, testedDays: tested, provinceDraws: provDraws,
     lo: {
@@ -116,8 +131,9 @@ export function xsmnBacktest(days, { warmup = 14, K = 10 } = {}) {
     de: {
       matchRate: deTrials ? deMatch / deTrials : 0, baselineMatch: 0.01,
       top5Rate: deTrials ? deTop5 / deTrials : 0, baselineTop5: 0.05, trials: deTrials,
+      permP: dePerm.p,
     },
-    significance: { loZ, deZ },
+    significance: { loZ, dePermP: dePerm.p },
     effective: evidence,
     verdict: evidence
       ? 'Có tín hiệu nhỉnh hơn ngẫu nhiên trên dữ liệu HIỆN CÓ, nhưng mẫu còn nhỏ — CHƯA đủ cơ sở để đặt tiền. Cần thêm dữ liệu để xác nhận.'
