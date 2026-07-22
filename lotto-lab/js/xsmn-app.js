@@ -45,7 +45,8 @@ function render(data) {
   for (const p of today.provinces) box.appendChild(provinceCard(p));
 
   const st = data.stats;
-  $('#xsmn-window').textContent = `${st.days} ngày gần đây (${st.loN} lượt lô · ${st.deN} kỳ đề)`;
+  const dbTxt = data.db && data.db.totalDays ? ` · 💾 kho: ${data.db.totalDays} ngày (${data.db.oldest}→${data.db.newest})` : '';
+  $('#xsmn-window').textContent = `${st.days} ngày (${st.loN} lượt lô · ${st.deN} kỳ đề)${dbTxt}`;
   fillRank('#xsmn-hot', st.loHot);
   fillRank('#xsmn-cold', st.loCold);
   fillRank('#xsmn-dehot', st.deHot);
@@ -62,15 +63,24 @@ function render(data) {
     heat.appendChild(cell);
   }
 
-  // Cặp số nghiên cứu (Top lô nóng toàn miền) — trung thực, không dự đoán
+  // Cặp số nghiên cứu THEO TỪNG ĐÀI (từ lịch sử tích luỹ) — trung thực, không dự đoán
   const rbox = $('#xsmn-research'); rbox.innerHTML = '';
-  const card = el('div', 'xsmn-prov');
-  card.appendChild(el('div', 'xsmn-prov-head', '<span class="xsmn-name">Top 2 lô xếp hạng cao (toàn miền)</span><span class="muted small">nghiên cứu</span>'));
-  const pair = el('div', 'balls big');
-  for (const x of st.loHot.slice(0, 2)) pair.appendChild(el('span', 'ball', x.n));
-  card.appendChild(pair);
-  card.appendChild(el('div', 'muted small', `Hai cặp số có tần suất lô cao nhất trong ${st.days} ngày gần đây. Xếp hạng thống kê — KHÔNG dự đoán kỳ tới; dài hạn sẽ hồi quy về mức ngẫu nhiên.`));
-  rbox.appendChild(card);
+  const provStats = new Map((st.provinces || []).map((p) => [p.slug || p.name, p]));
+  const todayProvs = data.today ? data.today.provinces : (today ? today.provinces : []);
+  for (const tp of todayProvs) {
+    const ps = provStats.get(tp.slug || tp.province);
+    const deep = ps && ps.draws >= 8;
+    const top = (deep ? ps.loHot : st.loHot).slice(0, 2);
+    const c = el('div', 'xsmn-prov');
+    c.appendChild(el('div', 'xsmn-prov-head', `<span class="xsmn-name">${tp.province}</span><span class="muted small">${ps ? ps.draws + ' kỳ' : 'nghiên cứu'}</span>`));
+    const pair = el('div', 'balls');
+    for (const x of top) pair.appendChild(el('span', 'ball', x.n));
+    c.appendChild(pair);
+    c.appendChild(el('div', 'muted small', deep
+      ? `Top 2 lô theo lịch sử ĐÀI này (${ps.draws} kỳ). Xếp hạng thống kê — không dự đoán.`
+      : 'Đang tích luỹ lịch sử đài (tạm dùng top toàn miền). Kho lớn dần mỗi ngày. Không dự đoán.'));
+    rbox.appendChild(c);
+  }
 
   document.body.classList.remove('busy');
 }

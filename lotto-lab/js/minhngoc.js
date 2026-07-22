@@ -50,15 +50,42 @@ export async function fetchXSMN() {
   } catch (_) { return []; } finally { clearTimeout(t); }
 }
 
+// Trang theo ngày: trả 7 ngày KẾT THÚC ở ngày đó (ymd = 'YYYY-MM-DD') → dùng backfill lùi.
+export async function fetchXSMNByDate(ymd) {
+  const [y, m, d] = ymd.split('-'); if (!y || !m || !d) return [];
+  const url = `https://www.minhngoc.net.vn/ket-qua-xo-so/mien-nam/${d}-${m}-${y}.html`;
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; antigravity-research/1.0)' } });
+    if (!r.ok) return [];
+    return parseXSMN(await r.text());
+  } catch (_) { return []; } finally { clearTimeout(t); }
+}
+
 // Thống kê MÔ TẢ: tần suất 00–99 của ĐỀ và LÔ trên cửa sổ ngày gần đây (mọi đài).
 // KHÔNG phải xác suất kỳ tới — mỗi kỳ độc lập. Baseline: đề đều = deN/100, lô đều = loN/100.
+const _rank = (arr) => arr.map((c, n) => ({ n: String(n).padStart(2, '0'), c })).sort((a, b) => b.c - a.c || Number(a.n) - Number(b.n));
+
 export function xsmnStats(days) {
   const deFreq = new Array(100).fill(0), loFreq = new Array(100).fill(0);
   let deN = 0, loN = 0;
+  const byProv = new Map(); // slug -> {name, code, deFreq, loFreq, draws}
   for (const d of days) for (const p of d.provinces) {
-    deFreq[Number(p.de)]++; deN++;
+    const de = Number(p.de); deFreq[de]++; deN++;
     for (const l of p.lo2) { loFreq[Number(l)]++; loN++; }
+    const key = p.slug || p.province;
+    let pv = byProv.get(key);
+    if (!pv) { pv = { name: p.province, code: p.code || '', slug: p.slug || '', deFreq: new Array(100).fill(0), loFreq: new Array(100).fill(0), draws: 0 }; byProv.set(key, pv); }
+    pv.deFreq[de]++; pv.draws++;
+    for (const l of p.lo2) pv.loFreq[Number(l)]++;
   }
-  const rank = (arr) => arr.map((c, n) => ({ n: String(n).padStart(2, '0'), c })).sort((a, b) => b.c - a.c || Number(a.n) - Number(b.n));
-  return { deFreq, loFreq, deN, loN, days: days.length, loHot: rank(loFreq).slice(0, 10), loCold: rank(loFreq).slice(-10).reverse(), deHot: rank(deFreq).slice(0, 10) };
+  const provinces = [...byProv.values()].map((pv) => ({
+    name: pv.name, code: pv.code, slug: pv.slug, draws: pv.draws,
+    loHot: _rank(pv.loFreq).slice(0, 6), deHot: _rank(pv.deFreq).slice(0, 6),
+  })).sort((a, b) => b.draws - a.draws);
+  return {
+    deFreq, loFreq, deN, loN, days: days.length,
+    loHot: _rank(loFreq).slice(0, 10), loCold: _rank(loFreq).slice(-10).reverse(), deHot: _rank(deFreq).slice(0, 10),
+    provinces,
+  };
 }
