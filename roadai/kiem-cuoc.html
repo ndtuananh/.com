@@ -33,23 +33,17 @@
     <div id="status" class="status">Đang khởi động…</div>
   </header>
 
-  <!-- CHÚ THÍCH (LEGEND) -->
-  <div id="legend" class="glass">
-    <span class="lg">🔴 ≥50%</span>
-    <span class="lg">🟠 35–50%</span>
-    <span class="lg">🟡 22–35%</span>
-    <span class="lg">🟢 &lt;22%</span>
+  <!-- CHÚ THÍCH — rút còn 4 thứ hay dùng, chữ to. Bấm vào để xem đầy đủ. -->
+  <button id="legend" class="glass" title="Bấm để xem đầy đủ chú thích">
     <span class="lg">⭐ nên tới</span>
-    <span class="lg">📍 điểm đón thật (đã nổ cuốc)</span>
-    <span class="lg">🤝 quán đối tác BUTL</span>
-    <span class="lg">🅿️ chỗ đứng chờ</span>
-    <span class="lg">🛣️ cung đường rà</span>
-    <span class="lg">⭕ vùng phủ 5km</span>
-  </div>
+    <span class="lg">📍 đã nổ cuốc</span>
+    <span class="lg">🔴 đông</span>
+    <span class="lg">🟢 vắng</span>
+    <span class="lg lg-more">▾</span>
+  </button>
 
-  <!-- NÚT BẢN ĐỒ (cạnh phải, tránh đè thẻ đề xuất) -->
-  <button id="btn-center" class="map-fab" title="Về vị trí của tôi">◎</button>
-  <button id="btn-gps" class="map-fab" title="Dùng GPS">📍</button>
+  <!-- NÚT BẢN ĐỒ — gộp "về vị trí" và "dùng GPS" làm một, đỡ một nút phải nhớ -->
+  <button id="btn-center" class="map-fab" title="Về vị trí của tôi (bật GPS)">◎</button>
   <button id="btn-addhere" class="map-fab fab-add" title="Tôi đang ở quán — thêm điểm đón thật">➕</button>
 
   <!-- THẺ ĐỀ XUẤT (⭐) -->
@@ -58,10 +52,9 @@
   <!-- DOCK ĐIỀU KHIỂN -->
   <nav id="dock" class="glass">
     <button id="btn-log" title="Ghi kết quả cuốc thật (nuôi Digital Twin)">📝<span>Ghi cuốc</span></button>
-    <button id="btn-dash" title="Trung tâm điều phối">📊<span>Điều phối</span></button>
-    <button id="btn-score" title="Điểm & Digital Twin">🎖️<span>Điểm của tôi</span></button>
+    <button id="btn-dash" title="Trung tâm điều phối — có cả điểm của tôi">📊<span>Điều phối</span></button>
     <button id="btn-simple" title="Chế độ đơn giản — chữ to">👴<span>Đơn giản</span></button>
-    <button id="btn-set" title="Cài đặt mô phỏng">⚙️<span>Cài đặt</span></button>
+    <button id="btn-set" title="Cài đặt">⚙️<span>Cài đặt</span></button>
   </nav>
 
   <!-- SHEET: TÌM & LỌC + TOP 20 -->
@@ -75,6 +68,7 @@
   <!-- SHEET: TRUNG TÂM ĐIỀU PHỐI -->
   <div id="dash-sheet" class="sheet glass big" hidden>
     <div class="sheet-head"><b>📊 Trung tâm điều phối thời gian thực</b><button class="mini sheet-close">✕</button></div>
+    <button id="btn-score" class="ghost" style="width:100%;margin-bottom:8px">🎖️ Điểm của tôi &amp; Digital Twin</button>
     <div id="dash-body"></div>
   </div>
 
@@ -89,6 +83,8 @@
     <div class="sheet-head"><b>⚙️ Cài đặt mô phỏng</b><button class="mini sheet-close">✕</button></div>
     <button id="btn-install" class="primary" style="width:100%;margin-bottom:8px" hidden>📲 Cài Driver Radar vào máy</button>
     <label class="set-row"><input id="notif-toggle" type="checkbox" /> 🔔 Thông báo điểm nóng (giờ vàng &amp; điểm gần dễ nổ cuốc)</label>
+    <label class="set-row"><input id="all-toggle" type="checkbox" /> 🗺️ Hiện HẾT quán trên bản đồ (kể cả quán đang đóng &amp; ngoài 5km)</label>
+    <p class="sheet-hint" style="margin:-2px 0 8px">Mặc định tắt: bản đồ chỉ hiện quán <b>đang mở trong 5km</b> + chỗ đã nổ cuốc, cho đỡ rối mắt. Bật lên nếu anh muốn xem toàn bộ.</p>
     <button id="btn-testnotif" class="ghost" style="width:100%;margin:6px 0 2px">📨 Gửi thử thông báo ngay (test)</button>
     <p class="sheet-hint">Số liệu cầu là mô phỏng theo quy luật nghề lái hộ; <b>quán là thật</b> (OpenStreetMap, tự cập nhật). Chỉnh các nút dưới để xem AI điều phối lại tức thì.</p>
     <label class="set-lbl">🕒 Khung giờ <b id="hour-lbl">Giờ thực</b></label>

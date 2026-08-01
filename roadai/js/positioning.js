@@ -289,6 +289,7 @@ const G = {
   filter: 'all', base: 'dark', tick: 0,
   metrics: null, lastBestId: null, pendingLog: null, chainFrom: null,
   jobsN: 0, simpleMode: true, dataStatus: null, notifOn: false,
+  hienHet: false,        // ⚙️ "hiện hết quán (kể cả đang đóng)" — mặc định TẮT cho bản đồ dễ nhìn
   recoBig: false, recoOpen: true,   // thẻ gợi ý mặc định THU GỌN để bản đồ to
   // Hiệu chuẩn THẬT: điểm tốt nhất giờ vàng ~70–80%, điểm thường ~30%, điểm yếu ~10%.
   // (Bộ số cũ cho ra 96% cho gần như mọi điểm → vô nghĩa, và lệch hẳn với điểm trong danh sách.)
@@ -656,21 +657,40 @@ function drawMap(m) {
   // ĐÊM DỄ NHÌN: viền dày + sáng hơn, có viền tối lót dưới nên nổi hẳn trên nền bản đồ đen.
   L.circle([G.you.lat, G.you.lng], { radius: COVER_R, color: '#04121f', weight: 8, opacity: .55, fillOpacity: 0, interactive: false }).addTo(heatLayer);
   L.circle([G.you.lat, G.you.lng], { radius: COVER_R, color: '#7dd3fc', weight: 4, opacity: 1, dashArray: '14 10', fillColor: '#38bdf8', fillOpacity: .06, interactive: false }).addTo(heatLayer);
-  // Quầng nhiệt quanh quán: có VIỀN rõ nét (trước đây weight:0 nên nhoè, tối nhìn không ra),
-  // nhưng ruột NHẠT hơn bản cũ — zoom sát mà tô đậm là cả bản đồ đỏ lòm, che hết đường, càng khó nhìn.
-  for (const r of m.raw) {
+  /* ═══ CHỌN THỨ ĐÁNG VẼ ═══ (sửa 01/08/2026 — bản đồ trước đây vẽ HẾT hơn 400 quán,
+     kể cả quán đang đóng và quán cách 20km, thành ra 13h chiều mở app là một rừng vòng
+     tròn xám, bác tài 50 tuổi nhìn không ra cái gì. Giờ chỉ vẽ thứ đi được NGAY:
+       · Ngoài giờ lái hộ (trước 14h) → chỉ hiện ĐIỂM ĐÓN THẬT, còn lại ẩn sạch.
+       · Trong giờ → quán ĐANG MỞ trong vùng 5km, lấy 40 chỗ mạnh nhất.
+       · Quán đóng cửa / ngoài 5km → KHÔNG vẽ (mở lại ở ⚙️ Cài đặt nếu muốn xem hết). */
+  const trongVung = r => r.dist <= COVER_R;
+  const hopFilter = r => G.filter === 'all' || r.sp.cat === G.filter;
+  let ve;
+  if (G.hienHet) {
+    ve = m.raw.filter(hopFilter);
+  } else if (m.offHours) {
+    ve = m.raw.filter(r => hopFilter(r) && isZone(r.sp) && trongVung(r));
+  } else {
+    const manh = m.byHot.filter(r => hopFilter(r) && r.open && trongVung(r)).slice(0, 40);
+    const diemDon = m.raw.filter(r => hopFilter(r) && isZone(r.sp) && trongVung(r));
+    const ids = new Set();
+    ve = [...manh, ...diemDon, ...(m.best ? [m.best] : [])].filter(r => !ids.has(r.sp.id) && ids.add(r.sp.id));
+  }
+
+  // Quầng nhiệt: CHỈ cho 12 chỗ mạnh nhất đang mở — vẽ hết thì cả bản đồ là một đám mây,
+  // không còn phân biệt được chỗ nào hơn chỗ nào.
+  const quang = ve.filter(r => r.open).sort((a, b) => b.p - a.p).slice(0, 12);
+  for (const r of quang) {
     const col = TIER_COLOR[r.tier];
-    L.circle([r.sp.lat, r.sp.lng], { radius: 150 + r.sDemand * 320, color: col, weight: r.open ? 2.5 : 1.5, opacity: r.open ? .9 : .35, fillColor: col, fillOpacity: (0.05 + r.sDemand * 0.11) * (r.open ? 1 : .4), interactive: false }).addTo(heatLayer);
+    L.circle([r.sp.lat, r.sp.lng], { radius: 170 + r.sDemand * 300, color: col, weight: 2, opacity: .75, fillColor: col, fillOpacity: 0.05 + r.sDemand * 0.10, interactive: false }).addTo(heatLayer);
   }
-  // ĐIỂM ĐÓN THẬT (mình ĐÃ CÓ dữ liệu) = ĐỐM TRÒN teal nổi bật, luôn thấy dưới marker
-  // To hơn + nét đậm hơn + lót viền tối, để buổi tối mắt kém vẫn thấy rõ từng vòng.
-  for (const r of m.raw) {
-    if (!isZone(r.sp) || (G.filter !== 'all' && r.sp.cat !== G.filter)) continue;
-    L.circleMarker([r.sp.lat, r.sp.lng], { radius: 15, color: '#04121f', weight: 6, opacity: r.open ? .6 : .25, fill: false, interactive: false }).addTo(heatLayer);
-    L.circleMarker([r.sp.lat, r.sp.lng], { radius: 15, color: '#5eead4', weight: 4, opacity: r.open ? 1 : .45, fillColor: '#2dd4bf', fillOpacity: r.open ? .38 : .1, interactive: false }).addTo(heatLayer);
+  // ĐIỂM ĐÓN THẬT = vòng teal, luôn nổi nhất vì đây là chỗ ĐÃ nổ cuốc
+  for (const r of ve) {
+    if (!isZone(r.sp)) continue;
+    L.circleMarker([r.sp.lat, r.sp.lng], { radius: 15, color: '#04121f', weight: 6, opacity: .6, fill: false, interactive: false }).addTo(heatLayer);
+    L.circleMarker([r.sp.lat, r.sp.lng], { radius: 15, color: '#5eead4', weight: 4, opacity: 1, fillColor: '#2dd4bf', fillOpacity: .38, interactive: false }).addTo(heatLayer);
   }
-  for (const r of m.raw) {
-    if (G.filter !== 'all' && r.sp.cat !== G.filter) continue;
+  for (const r of ve) {
     const zone = isZone(r.sp);                       // điểm đón THẬT (đã nổ cuốc)
     const doitac = r.sp.source === 'doitac';         // quán đối tác BUTL
     const emoji = r.isBest ? '⭐' : r.isFlame ? '🔥' : zone ? '📍' : doitac ? '🤝' : TIER_EMOJI[r.tier];
@@ -1529,13 +1549,22 @@ function wire() {
   const on = (sel, fn) => { const el = $(sel); if (el) el.onclick = fn; };
   on('#back-nav', () => location.href = 'index.html');
   on('#online-toggle', () => setOnline(!G.online));
-  on('#btn-center', () => map.setView([G.you.lat, G.you.lng], Math.max(14, map.getZoom())));
-  on('#btn-gps', () => {
-    if (!navigator.geolocation) return toast('Thiết bị không hỗ trợ GPS');
+  /* MỘT nút vị trí thay vì hai (◎ về chỗ tôi + 📍 dùng GPS): bấm là vừa xin GPS vừa kéo
+     bản đồ về chỗ mình. Bác tài không phải nhớ nút nào làm gì. GPS hỏng thì vẫn về chấm xanh. */
+  on('#btn-center', () => {
+    map.setView([G.you.lat, G.you.lng], Math.max(14, map.getZoom()));
+    if (!navigator.geolocation) return;
     toast('Đang định vị…');
-    navigator.geolocation.getCurrentPosition(p => { G.hasGps = true; setYou(p.coords.latitude, p.coords.longitude, true, true); G.pendingLog = null; G.chainFrom = null; SKIPPED.clear(); G.lastBestId = null; recompute(); fetchWeather(); toast('📍 Đã lấy vị trí.'); },
-      () => toast('Không lấy được GPS — cho phép quyền vị trí, hoặc kéo chấm xanh.'), { enableHighAccuracy: true, timeout: 8000 });
+    navigator.geolocation.getCurrentPosition(p => { G.hasGps = true; setYou(p.coords.latitude, p.coords.longitude, true, true); G.pendingLog = null; G.chainFrom = null; SKIPPED.clear(); G.lastBestId = null; recompute(); fetchWeather(); toast('📍 Đã lấy đúng vị trí của anh.'); },
+      () => toast('Chưa lấy được GPS — cho phép quyền vị trí, hoặc kéo chấm xanh tới chỗ anh đứng.', 4200), { enableHighAccuracy: true, timeout: 8000 });
   });
+  // Chú thích: bấm vào mở bảng đầy đủ, khỏi chiếm chỗ trên bản đồ
+  on('#legend', () => toast('⭐ nên tới · 📍 chỗ đã nổ cuốc thật · 🤝 quán đối tác BUTL · 🅿️ chỗ đứng chờ giữa cụm quán · 🛣️ cung đường rà · ⭕ vùng phủ 5km · 🔴 đông khách → 🟢 vắng', 7000));
+  const at = $('#all-toggle');
+  if (at) {
+    at.checked = G.hienHet;
+    at.onchange = () => { G.hienHet = at.checked; try { localStorage.setItem('roadai_laiho_hienhet', at.checked ? '1' : '0'); } catch (e) {} recompute(); toast(at.checked ? '🗺️ Đang hiện HẾT quán.' : '✅ Chỉ hiện quán đang mở trong 5km — bản đồ dễ nhìn hơn.'); };
+  }
   on('#btn-log', () => { const m = G.metrics; if (!m || !m.best) return toast('Chưa có điểm.'); G.session.suggested++; G.pendingLog = m.best; setSimple(false); recompute(); });
   on('#btn-dash', () => openSheet('#dash-sheet'));
   on('#btn-score', () => openSheet('#score-sheet'));
@@ -1591,6 +1620,7 @@ buildSpots(_cache ? _cache.spots : null);
 G.jobsN = loadJobs().length;
 loadBrain();   // 🧠 nạp lại toàn bộ thứ AI đã học từ những ngày trước
 try { const s = localStorage.getItem('roadai_laiho_simple'); G.simpleMode = s == null ? true : s === '1'; } catch (e) { G.simpleMode = true; }
+try { G.hienHet = localStorage.getItem('roadai_laiho_hienhet') === '1'; } catch (e) { G.hienHet = false; }
 wire();
 document.body.classList.toggle('reco-mini', !G.recoBig);
 $$('#base-seg button').forEach(x => x.classList.toggle('active', x.dataset.base === G.base));
