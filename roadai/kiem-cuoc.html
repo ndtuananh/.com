@@ -35,17 +35,22 @@
 
   <!-- CHÚ THÍCH (LEGEND) -->
   <div id="legend" class="glass">
-    <span class="lg">🟢 ít</span>
-    <span class="lg">🟡 vừa</span>
-    <span class="lg">🟠 cao</span>
-    <span class="lg">🔴 rất cao</span>
-    <span class="lg">🔥 AI gợi ý</span>
-    <span class="lg">⭐ tốt cho bạn</span>
+    <span class="lg">🔴 ≥50%</span>
+    <span class="lg">🟠 35–50%</span>
+    <span class="lg">🟡 22–35%</span>
+    <span class="lg">🟢 &lt;22%</span>
+    <span class="lg">⭐ nên tới</span>
+    <span class="lg">📍 điểm đón thật (đã nổ cuốc)</span>
+    <span class="lg">🤝 quán đối tác BUTL</span>
+    <span class="lg">🅿️ chỗ đứng chờ</span>
+    <span class="lg">🛣️ cung đường rà</span>
+    <span class="lg">⭕ vùng phủ 5km</span>
   </div>
 
   <!-- NÚT BẢN ĐỒ (cạnh phải, tránh đè thẻ đề xuất) -->
   <button id="btn-center" class="map-fab" title="Về vị trí của tôi">◎</button>
   <button id="btn-gps" class="map-fab" title="Dùng GPS">📍</button>
+  <button id="btn-addhere" class="map-fab fab-add" title="Tôi đang ở quán — thêm điểm đón thật">➕</button>
 
   <!-- THẺ ĐỀ XUẤT (⭐) -->
   <section id="reco" class="glass reco"></section>
@@ -55,7 +60,7 @@
     <button id="btn-log" title="Ghi kết quả cuốc thật (nuôi Digital Twin)">📝<span>Ghi cuốc</span></button>
     <button id="btn-dash" title="Trung tâm điều phối">📊<span>Điều phối</span></button>
     <button id="btn-score" title="Điểm & Digital Twin">🎖️<span>Điểm của tôi</span></button>
-    <button id="btn-ff" title="Tua nhanh — AI học">⏩<span>Tua nhanh</span></button>
+    <button id="btn-simple" title="Chế độ đơn giản — chữ to">👴<span>Đơn giản</span></button>
     <button id="btn-set" title="Cài đặt mô phỏng">⚙️<span>Cài đặt</span></button>
   </nav>
 
@@ -84,6 +89,7 @@
     <div class="sheet-head"><b>⚙️ Cài đặt mô phỏng</b><button class="mini sheet-close">✕</button></div>
     <button id="btn-install" class="primary" style="width:100%;margin-bottom:8px" hidden>📲 Cài Driver Radar vào máy</button>
     <label class="set-row"><input id="notif-toggle" type="checkbox" /> 🔔 Thông báo điểm nóng (giờ vàng &amp; điểm gần dễ nổ cuốc)</label>
+    <button id="btn-testnotif" class="ghost" style="width:100%;margin:6px 0 2px">📨 Gửi thử thông báo ngay (test)</button>
     <p class="sheet-hint">Số liệu cầu là mô phỏng theo quy luật nghề lái hộ; <b>quán là thật</b> (OpenStreetMap, tự cập nhật). Chỉnh các nút dưới để xem AI điều phối lại tức thì.</p>
     <label class="set-lbl">🕒 Khung giờ <b id="hour-lbl">Giờ thực</b></label>
     <input id="hour-slider" class="slider" type="range" min="-1" max="23" step="1" value="-1" />
@@ -97,17 +103,40 @@
     <label class="set-row"><input id="match-toggle" type="checkbox" /> ⚽ Đêm có bóng đá lớn (khách xem bóng nhậu khuya)</label>
     <label class="set-lbl">🌧️ Mưa <b id="rain-lbl">Tắt</b></label>
     <input id="rain-slider" class="slider" type="range" min="0" max="100" step="5" value="0" />
-    <label class="set-lbl">🚗 Tài xế lái hộ khác trong khu <b id="fleet-lbl">24 xe</b></label>
-    <input id="fleet-slider" class="slider" type="range" min="0" max="120" step="2" value="24" />
-    <label class="set-row"><input id="fleet-toggle" type="checkbox" checked /> Hiện chấm tài xế trên bản đồ</label>
     <label class="set-lbl">🗺️ Nền bản đồ</label>
     <div id="base-seg" class="base-seg">
       <button data-base="dark" class="active">🌙 Tối</button>
       <button data-base="light">☀️ Sáng</button>
     </div>
-    <button id="btn-event" class="ghost" style="margin-top:12px;width:100%">🎉 Mô phỏng tiệc lớn / sự kiện (demo)</button>
+    <button id="btn-addpick" class="primary" style="width:100%;margin-top:12px">➕ Tôi đang ở quán — thêm điểm đón thật</button>
+    <p class="sheet-hint" style="margin-top:4px">Đang đứng ngay quán/khu hay có khách → bật GPS (📍) cho đúng chỗ rồi bấm. App lưu vào não, ưu tiên đứng đây & học liên tục. Cũng có nút <b>➕</b> ngay trên bản đồ.</p>
+    <button id="btn-unhide" class="ghost" style="margin-top:8px;width:100%">👁️ Bỏ ẩn tất cả điểm (đã báo đóng cửa)</button>
     <button id="reset-twin" class="ghost" style="margin-top:8px;width:100%">🧹 Xoá Digital Twin (bắt đầu học lại)</button>
   </div>
+
+  <!-- ============ CHẾ ĐỘ ĐƠN GIẢN (mặc định — chữ to, 3 nút, cho người lớn tuổi) ============ -->
+  <div id="simple" class="simple" hidden>
+    <div class="sp-top">
+      <button id="sp-online" class="sp-pill">🟢 Nhận khách</button>
+      <button id="sp-add" class="sp-link sp-add">➕ Tôi đang ở quán</button>
+      <button id="sp-full" class="sp-link">Chi tiết ▾</button>
+    </div>
+    <div class="sp-mid">
+      <div class="sp-label">TỐI NAY ĐỨNG ĐÂY</div>
+      <div id="sp-name" class="sp-name">Đang tìm…</div>
+      <div id="sp-meta" class="sp-meta"></div>
+      <div id="sp-chance" class="sp-chance"></div>
+      <div id="sp-warn" class="sp-warn"></div>
+    </div>
+    <a id="sp-nav" class="sp-nav" target="_blank" rel="noopener">🧭 CHỈ ĐƯỜNG</a>
+    <div class="sp-log">
+      <button id="sp-yes" class="sp-btn sp-yes">✅ CÓ<br>KHÁCH</button>
+      <button id="sp-no" class="sp-btn sp-no">❌ CHƯA<br>CÓ</button>
+    </div>
+  </div>
+
+  <!-- nút mở lại thẻ gợi ý (khi đã ẩn) -->
+  <button id="reco-reopen">⭐ Xem gợi ý</button>
 
   <!-- toast -->
   <div id="toast" class="toast" hidden></div>
@@ -115,6 +144,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="js/spots.js"></script>
+  <script src="js/butl-partners.js"></script>
   <script src="js/learned-spots.js"></script>
   <script src="js/positioning.js"></script>
 </body>
