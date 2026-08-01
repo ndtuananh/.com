@@ -135,8 +135,10 @@ body.pos .map-fab { left: auto; right: 10px; z-index: 18; }
 .sp-link { background: transparent; color: var(--sub); font-size: 16px; text-decoration: underline; padding: 8px; }
 .sp-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 12px; }
 .sp-label { color: var(--sub); font-size: 18px; letter-spacing: 1.5px; font-weight: 800; }
+/* TÊN QUÁN là chính (chữ to nhất), ĐỊA CHỈ chỉ là phụ (nhỏ, mờ hơn) — anh Long 01/08 */
 .sp-name { font-size: clamp(28px, 8vw, 40px); font-weight: 900; line-height: 1.12; }
-.sp-meta { font-size: 23px; font-weight: 800; }
+.sp-addr { font-size: 16px; font-weight: 600; color: var(--sub); line-height: 1.25; margin-top: 2px; }
+.sp-meta { font-size: 21px; font-weight: 800; }
 .sp-chance { font-size: 20px; font-weight: 800; padding: 8px 18px; border-radius: 999px; }
 .sp-chance.hi { background: rgba(34,197,94,.18); color: #86efac; }
 .sp-chance.mid { background: rgba(245,158,11,.18); color: #fcd34d; }

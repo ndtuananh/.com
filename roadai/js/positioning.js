@@ -257,7 +257,7 @@ function buildSpots(data) {
   // addr/prec/evi: địa chỉ nguyên văn BUTL, độ chính xác toạ độ, bằng chứng cuốc thật.
   // Có 3 thứ này thì app KHÔNG phải nói chung chung "tên có thể khác" nữa — nó chỉ ra
   // đúng địa chỉ và tự khai sai số, tài xế tự kiểm chứng được.
-  SPOTS = src.map(([name, cat0, lat, lng, size, homeKm, quan, source, pid, addr, prec, evi, gioMo, gioDong, sao, luot], i) => {
+  SPOTS = src.map(([name, cat0, lat, lng, size, homeKm, quan, source, pid, addr, prec, evi, gioMo, gioDong, sao, luot, ghiChu], i) => {
     const cat = autoCat(name, cat0);   // "Hội nghị Tiệc cưới White Palace" ≠ quán nhậu — phân loại lại theo tên
     /* CHỐT CHẶN CUỐI: dòng nào KHÔNG ghi rõ nguồn đã kiểm (butl/mine/doitac/osm) thì coi là
        CHƯA KIỂM ĐƯỢC TÊN → app tự thay tên bằng địa chỉ thật, không bao giờ hiện tên chưa tra.
@@ -268,7 +268,7 @@ function buildSpots(data) {
     const nameOut = src2 === 'osm-addr' ? (CAT_VI[cat] || 'Điểm') + ' · ' + (String(addr || '').split(',')[0].trim() || quan || 'chưa rõ địa chỉ') : name;
     return {
       id: 's' + i, pid: pid || null, name: nameOut, cat, cat0, lat, lng, size, homeKm, quan, source: src2,
-      addr: addr || '', prec: prec || '', evi: evi || '',
+      addr: addr || '', prec: prec || '', evi: evi || '', ghiChu: ghiChu || '',
       sao: sao || null, luot: luot || null, gioMo: isFinite(gioMo) ? +gioMo : null,
       // GIỜ TAN QUÁN: có giờ THẬT (Google) thì dùng giờ thật, không thì mới ước theo nhóm quán.
       // Đây là con số tài xế canh để tới đón đầu — có thật thì đừng đoán.
@@ -908,7 +908,7 @@ function renderReco(m) {
     ${gold}${areaSummary(m)}${strategyTip(m)}${routeStrip(m)}${waitStrip(m)}${chainStrip(m)}${warn}
     <div class="reco-head">
       <div class="reco-star">⭐</div>
-      <div class="reco-t"><b>${cleanName(r.sp)}</b><small>${TIER_EMOJI[r.tier]} ${CAT_VI[r.sp.cat]} · điểm đứng chờ tốt nhất</small></div>
+      <div class="reco-t"><b>${(() => { const x = xeCuaSpot(r.sp); return x ? XE_ICON[x.chinh] + ' ' : ''; })()}${cleanName(r.sp)}</b><small>${r.sp.addr ? '🏠 ' + r.sp.addr : TIER_EMOJI[r.tier] + ' ' + CAT_VI[r.sp.cat]}${r.sp.ghiChu ? ' · ' + r.sp.ghiChu : ''}</small></div>
       <div class="reco-p"><span class="reco-pv ${cls}">${p}%</span><small>khả năng có khách</small></div>
     </div>
     ${nameNote(r.sp)}
@@ -1037,6 +1037,7 @@ function openSpot(r) {
     <b>${r.isBest ? '⭐ ' : r.isFlame ? '🔥 ' : TIER_EMOJI[r.tier] + ' '}${cleanName(r.sp)}</b>
     <div class="sp-sub">${CAT_VI[r.sp.cat]} · ${r.sp.quan || ''}${r.open ? '' : ` · <span style="color:#fca5a5">${r.sp.cat === 'diemdon' ? 'ngoài khung giờ hay có khách' : 'đang đóng cửa'}</span>`}</div>
     ${r.sp.addr && !r.sp.name.includes(r.sp.addr) ? `<div class="sp-note">🏠 <b>Địa chỉ:</b> ${r.sp.addr}${r.sp.prec && !NGUON_TEN[r.sp.prec] ? ` <span style="color:${r.sp.prec === 'chuẩn' ? '#5eead4' : '#fcd34d'}">· vị trí ${r.sp.prec}</span>` : ''}</div>` : ''}
+    ${r.sp.ghiChu ? `<div class="sp-note" style="color:#cbd5e1">${r.sp.ghiChu}</div>` : ''}
     ${r.sp.sao ? `<div class="sp-note">⭐ <b>${String(r.sp.sao).replace('.', ',')}</b>/5 trên Google${r.sp.luot ? ` · ${r.sp.luot.toLocaleString('vi-VN')} lượt đánh giá` : ''}</div>` : ''}
     ${r.sp.source === 'butl' ? `<div class="sp-butl">✅ Điểm đón THẬT — bạn đã nổ cuốc ở đây${r.sp.evi ? ' (' + r.sp.evi + ')' : ''}</div>` : ''}
     ${r.sp.source === 'doitac' ? '<div class="sp-note" style="color:#93c5fd">🤝 <b>Quán đối tác BUTL</b> — khách quán này hay gọi lái hộ. Chưa có cuốc thật nào của bạn ở đây.</div>' : ''}
@@ -1194,9 +1195,14 @@ function renderSimple(m) {
     if (wn) wn.textContent = ''; if (nv) nv.removeAttribute('href');
     return;
   }
-  if (nm) nm.textContent = cleanName(r.sp);
-  // Chế độ đơn giản (chữ to): ưu tiên hiện ĐỊA CHỈ thật để bác tài đọc là biết chỗ nào
-  if (mt) mt.textContent = 'cách ' + dDist(r) + ' — ' + dEta(r) + (r.sp.addr ? ' · ' + r.sp.addr : '') + (r.sp.source === 'butl' ? ' · ✅ đã nổ cuốc' : '');
+  /* TÊN QUÁN to nhất · ĐỊA CHỈ nhỏ ngay dưới · khoảng cách + bằng chứng ở dòng kế.
+     Trước đây nhét địa chỉ chung vào dòng khoảng cách nên bác tài đọc rối, mà cái cần
+     thấy đầu tiên (tên quán) thì lại lẫn với cái phụ. */
+  const xe = xeCuaSpot(r.sp);
+  if (nm) nm.textContent = (xe ? XE_ICON[xe.chinh] + ' ' : '') + cleanName(r.sp);
+  const ad = $('#sp-addr');
+  if (ad) ad.textContent = [r.sp.addr, r.sp.ghiChu].filter(Boolean).join(' · ');
+  if (mt) mt.textContent = 'cách ' + dDist(r) + ' — ' + dEta(r) + (r.sp.source === 'butl' ? ' · ✅ đã nổ cuốc' : '');
   const [txt, cls] = chanceOf(r.p);
   if (ch) { ch.textContent = `Khả năng có khách: ${txt} · ${r.hotScore}%`; ch.className = 'sp-chance ' + cls; }
   if (nv) nv.href = navUrl(r.sp);
