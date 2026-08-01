@@ -29,6 +29,11 @@ body.pos { overflow: hidden; }
    nên không bị chìm vào bản đồ đen. Trước đây viền 1px mờ 35% — tối gần như không thấy. */
 .hp { position: relative; display: grid; place-items: center; width: 32px; height: 32px; font-size: 19px; border-radius: 50%; background: rgba(6, 12, 24, .82); border: 2px solid rgba(203,213,225,.72); box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 3px 9px rgba(0,0,0,.6); text-shadow: 0 1px 3px rgba(0,0,0,.9); }
 .fav-badge { position: absolute; top: -6px; right: -6px; font-size: 14px; font-style: normal; color: #fb7185; text-shadow: 0 1px 3px rgba(0,0,0,.9); }
+/* Ký hiệu LOẠI XE hay nổ ở điểm đó — góc dưới phải chấm, nền tối đặc để nổi trên bản đồ đêm */
+.xe-badge { position: absolute; bottom: -7px; right: -8px; font-size: 14px; font-style: normal; line-height: 1;
+  padding: 2px 4px; border-radius: 999px; background: rgba(6,12,24,.92); border: 1.5px solid rgba(203,213,225,.6);
+  box-shadow: 0 1px 4px rgba(0,0,0,.7); }
+.xe-badge.xe-ca2 { font-size: 10px; letter-spacing: -1px; padding: 3px 4px; }
 /* yêu thích + ghi chú trong popup */
 .sp-fav { display: flex; gap: 6px; margin-top: 8px; }
 .sp-fbtn { flex: 1; padding: 7px; border-radius: 9px; background: var(--panel2); border: 1px solid var(--line); color: var(--txt); font-size: 12px; font-weight: 600; }

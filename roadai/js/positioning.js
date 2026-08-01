@@ -407,6 +407,21 @@ function xeCua(key) {
   const oto = x[key + '|oto'] || 0, may = x[key + '|may'] || 0;
   return (oto || may) ? { oto, may } : null;
 }
+/* XE CỦA MỘT ĐIỂM — gộp 2 nguồn THẬT, không đoán theo loại quán:
+   · cuốc anh Long tự bấm ghi (🚗/🏍️) ở chính điểm này;
+   · các chuyến BUTL đọc từ ảnh: mỗi điểm đón thật đã kèm sẵn "xe hơi" hay "xe máy".
+   Điểm nào chưa có dữ liệu thì trả về null — bản đồ để trống, không gắn bừa ký hiệu. */
+function xeCuaSpot(sp) {
+  const t = xeCua(spotKey(sp)) || { oto: 0, may: 0 };
+  let oto = t.oto, may = t.may;
+  const e = String(sp.evi || '');
+  if (/xe hơi|xe hoi|ô ?tô|oto/i.test(e)) oto++;
+  else if (/xe máy|xe may/i.test(e)) may++;
+  if (!oto && !may) return null;
+  return { oto, may, chinh: oto === may ? 'ca2' : (oto > may ? 'oto' : 'may') };
+}
+const XE_ICON = { oto: '🚗', may: '🏍️', ca2: '🚗🏍️' };
+const XE_CHU = { oto: 'hay nổ cuốc Ô TÔ', may: 'hay nổ cuốc XE MÁY', ca2: 'nổ cả ô tô lẫn xe máy' };
 
 /* ═══ QUAN SÁT "QUÁN ĐANG ĐÔNG" (anh Long đề xuất 01/08) ═══
    Tài xế tới quán, chưa có cuốc nhưng thấy khách đang nhậu đông → bấm ghi nhận.
@@ -754,9 +769,14 @@ function drawMap(m) {
     const emoji = r.isBest ? '⭐' : r.isFlame ? '🔥' : zone ? '📍' : doitac ? '🤝' : TIER_EMOJI[r.tier];
     const cls = 'hp' + (r.isBest ? ' hp-best' : r.isFlame ? ' hp-flame' : zone ? ' hp-data' : '');
     const fav = FAV.has(spotKey(r.sp)) ? '<i class="fav-badge">♥</i>' : '';
+    /* KÝ HIỆU LOẠI XE ngay trên chấm bản đồ (anh Long yêu cầu 01/08): liếc bản đồ là biết
+       điểm này thường cần Ô TÔ hay XE MÁY, khỏi phải mở từng cái ra xem. Chỉ gắn khi CÓ
+       dữ liệu thật (cuốc đã ghi hoặc chuyến BUTL trong ảnh) — không có thì để trống. */
+    const xe = xeCuaSpot(r.sp);
+    const xeB = xe ? `<i class="xe-badge${xe.chinh === 'ca2' ? ' xe-ca2' : ''}">${XE_ICON[xe.chinh]}</i>` : '';
     // chấm to lên cho dễ nhìn ban đêm → khung icon phải to theo, không thì lệch khỏi đúng toạ độ
     const sz = r.isBest ? 48 : r.isFlame ? 38 : zone ? 36 : 32;
-    const icon = L.divIcon({ className: '', html: `<div class="${cls}"><span>${r.open ? emoji : '⚫'}</span>${fav}</div>`, iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
+    const icon = L.divIcon({ className: '', html: `<div class="${cls}"><span>${r.open ? emoji : '⚫'}</span>${fav}${xeB}</div>`, iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
     const mk = L.marker([r.sp.lat, r.sp.lng], { icon, zIndexOffset: r.isBest ? 1000 : r.isFlame ? 800 : zone ? 600 : doitac ? 400 : (r.open ? r.tier * 100 : -50) }).addTo(markerLayer);
     if (!r.open) mk.setOpacity(0.4);
     mk.on('click', () => openSpot(r));
@@ -802,8 +822,8 @@ function reasonsFor(r, golden) {
   if (cho && cho.n >= 2) out.unshift(cho.no * 2 >= cho.n
     ? `⏳ ĐÁNG CHỜ: ${cho.no}/${cho.n} lần anh thấy quán đông ở khung này là có cuốc trong 90′`
     : `🚶 Nên đi tiếp: ${cho.n} lần thấy đông mà chỉ ${cho.no} lần nổ cuốc trong 90′`);
-  const xe = xeCua(spotKey(r.sp));
-  if (xe && (xe.oto + xe.may) >= 2) out.push(xe.oto === xe.may ? `🚘 Quán này nổ cả ô tô lẫn xe máy` : (xe.oto > xe.may ? `🚗 Quán này chủ yếu nổ cuốc Ô TÔ (${xe.oto}/${xe.oto + xe.may})` : `🏍️ Quán này chủ yếu nổ cuốc XE MÁY (${xe.may}/${xe.oto + xe.may})`));
+  const xe = xeCuaSpot(r.sp);
+  if (xe) out.push(`${XE_ICON[xe.chinh]} Điểm này ${XE_CHU[xe.chinh]}${(xe.oto + xe.may) > 1 ? ` (${xe.oto > xe.may ? xe.oto : xe.may}/${xe.oto + xe.may} cuốc)` : ''}`);
   // bằng chứng theo KHUNG GIỜ lên trên cùng — đây là thứ tài xế cần nhất khi quyết định đứng đâu lúc này
   if (r.bl && r.bl.delta > 0.05) out.unshift(`🔺 ${BAND_VI[r.bl.band]} là cao điểm của quán này với bạn (${r.bl.win}/${r.bl.n})`);
   else if (r.bl && r.bl.delta < -0.05) out.push(`🔻 Khung này bạn hay hụt ở đây (${r.bl.win}/${r.bl.n})`);
@@ -1032,7 +1052,12 @@ function openSpot(r) {
       <span>Khách cần lái hộ</span><b>${TIER_EMOJI[r.tier]} ${['Thấp','Vừa','Cao','Rất cao'][r.tier]}</b>
       ${r.emp && r.emp.n ? `<span>Cuốc thật ở đây</span><b>✅ ${r.emp.win}/${r.emp.n} (${Math.round(r.emp.rate * 100)}%)</b>` : ''}
       ${(() => { const bb = bestBandOf(spotKey(r.sp)); return bb ? `<span>Khung giờ mát tay</span><b>${bb.ico} ${bb.vi} · ${bb.win}/${bb.n}</b>` : ''; })()}
-      ${(() => { const x = xeCua(spotKey(r.sp)); return x ? `<span>Quán này hay nổ xe</span><b>${x.oto ? '🚗 ' + x.oto : ''}${x.oto && x.may ? ' · ' : ''}${x.may ? '🏍️ ' + x.may : ''}</b>` : ''; })()}
+      ${(() => {
+        const x = xeCuaSpot(r.sp); if (!x) return '';
+        const tong = x.oto + x.may, nhieu = Math.max(x.oto, x.may);
+        const t = x.chinh === 'ca2' ? `🚗 ${x.oto} · 🏍️ ${x.may}` : `${XE_ICON[x.chinh]} ${x.chinh === 'oto' ? 'Ô TÔ' : 'XE MÁY'}${tong > 1 ? ` (${nhieu}/${tong} cuốc)` : ''}`;
+        return `<span>Điểm này cần xe</span><b>${t}</b>`;
+      })()}
       ${(() => { const c = choTaiCho(spotKey(r.sp), r.hour); return c ? `<span>Anh ghi “đang đông” ${BAND_VI[c.band]}</span><b>${c.n} lần → ${c.no} lần nổ cuốc trong 90′</b>` : ''; })()}
       ${r.bl ? `<span>${BAND_VI[r.bl.band]} ở đây</span><b>${r.bl.delta > 0.03 ? '🔺 cao điểm của quán này' : r.bl.delta < -0.03 ? '🔻 thấp điểm' : '➖ bình thường'} (${r.bl.win}/${r.bl.n})</b>` : ''}
       <span>Tới nơi</span><b>${fmtMin(r.eta)} · ${fmtDist(r.dist)}</b>
@@ -1191,7 +1216,7 @@ function renderFind(m) {
   const favList = m.raw.filter(r => FAV.has(spotKey(r.sp)));
   const row = r => `<div class="fl" onclick="__flyTo('${r.sp.id}')">
       <span class="fl-h" style="background:${TIER_COLOR[r.tier]}22;color:${TIER_COLOR[r.tier]}">${r.hotScore}<i>%</i></span>
-      <div class="fl-m"><b>${r.sp.source === 'butl' ? '✅ ' : r.sp.source === 'doitac' ? '🤝 ' : ''}${FAV.has(spotKey(r.sp)) ? '♥ ' : ''}${r.sp.name}</b><small>${r.sp.addr ? r.sp.addr + ' · ' : CAT_VI[r.sp.cat] + ' · '}${r.sp.quan || ''} · ${fmtMin(r.eta)} · ${fmtDist(r.dist)}${r.dist > COVER_R ? ' · ngoài 5km' : ''}</small></div>
+      <div class="fl-m"><b>${(() => { const x = xeCuaSpot(r.sp); return x ? XE_ICON[x.chinh] + ' ' : ''; })()}${r.sp.source === 'butl' ? '✅ ' : r.sp.source === 'doitac' ? '🤝 ' : ''}${FAV.has(spotKey(r.sp)) ? '♥ ' : ''}${r.sp.name}</b><small>${r.sp.addr ? r.sp.addr + ' · ' : CAT_VI[r.sp.cat] + ' · '}${r.sp.quan || ''} · ${fmtMin(r.eta)} · ${fmtDist(r.dist)}${r.dist > COVER_R ? ' · ngoài 5km' : ''}</small></div>
       <span class="fl-go">›</span></div>`;
   const list = q ? m.raw.filter(r => (r.sp.name + ' ' + (r.sp.quan || '')).toLowerCase().includes(q)).sort((a, b) => b.p - a.p).slice(0, 30) : m.byHot.slice(0, 20);
   el.innerHTML = `
@@ -1715,7 +1740,7 @@ function wire() {
       () => toast('Chưa lấy được GPS — cho phép quyền vị trí, hoặc kéo chấm xanh tới chỗ anh đứng.', 4200), { enableHighAccuracy: true, timeout: 8000 });
   });
   // Chú thích: bấm vào mở bảng đầy đủ, khỏi chiếm chỗ trên bản đồ
-  on('#legend', () => toast('⭐ nên tới · 📍 chỗ đã nổ cuốc thật · 🤝 quán đối tác BUTL · 🅿️ chỗ đứng chờ giữa cụm quán · 🛣️ cung đường rà · ⭕ vùng phủ 5km · 🔴 đông khách → 🟢 vắng', 7000));
+  on('#legend', () => toast('⭐ nên tới · 📍 chỗ đã nổ cuốc thật · 🤝 quán đối tác BUTL · 🅿️ chỗ đứng chờ · 🛣️ cung đường rà · ⭕ vùng phủ 5km · 🔴 đông → 🟢 vắng · Ký hiệu 🚗/🏍️ ở góc chấm = điểm đó thường nổ cuốc xe gì (theo cuốc thật)', 8000));
   const at = $('#all-toggle');
   if (at) {
     at.checked = G.hienHet;
