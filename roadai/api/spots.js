@@ -19,6 +19,7 @@
 export const config = { maxDuration: 60 };
 import { FALLBACK } from './_fallback.js';
 import { MAPCACHE } from './_mapcache.js';
+import { OVERTURE } from './_overture.js';
 import { G_KEY, timTheoTen, quanhDay, nhomQuan, tenCua, viTriCua, diaChiCua, dongVinhVien, gioDongHomNay, gioMoHomNay } from './_google.js';
 
 const BB = '10.68,106.55,10.89,106.83';
@@ -210,6 +211,14 @@ function donTen(name, addr, addr2) {
 }
 const CAT_VI = { phonhau: 'Quán nhậu', beerclub: 'Beer club', bar: 'Bar/Pub', karaoke: 'Karaoke', nhahang: 'Nhà hàng', sanbong: 'Quán bóng đá' };
 const shortAddr = a => String(a || '').replace(',Thành Phố Hồ Chí Minh', '').replace(/,\s*/g, ', ').trim();
+/* Nhãn ngắn = số nhà + đường. Bản đồ đôi khi trả "Plus Code" (7P28RPR4+PG) thay cho số nhà —
+   chuỗi đó vô nghĩa với tài xế, gặp thì lấy đoạn sau (phường) cho còn đọc được. */
+const laPlusCode = t => /^[A-Z0-9]{4,8}\+[A-Z0-9]{2,4}$/i.test(String(t || '').trim());
+function nhanDiaChi(addr) {
+  const ph = String(addr || '').split(',').map(x => x.trim()).filter(Boolean);
+  for (const x of ph) if (!laPlusCode(x)) return x;
+  return '';
+}
 
 /* Kiểm 1 quán. Trả [name, cat, lat, lng, size, homeKm, quan, source, null, addr]
    source 'osm'      = bản đồ xác nhận đúng tên quán ở đúng chỗ → giữ tên.
@@ -285,7 +294,7 @@ async function checkOne(row, deadline) {
   if (ten) return [ten, cat, la, lo, size, homeKm, quan, 'osm', null, addr, dem.ten === ten ? 'đệm' : 'vietmap'];
   // Không tra được tên → tên hiển thị = ĐỊA CHỈ THẬT (hoặc quận nếu bản đồ cũng không có địa chỉ).
   // Nhãn chỉ lấy SỐ NHÀ + ĐƯỜNG cho gọn, phường/quận đã hiện sẵn ở dòng dưới trong app.
-  const nhan = (CAT_VI[cat] || 'Điểm') + ' · ' + ((addr || '').split(',')[0].trim() || quan || 'chưa rõ địa chỉ');
+  const nhan = (CAT_VI[cat] || 'Điểm') + ' · ' + (nhanDiaChi(addr) || quan || 'chưa rõ địa chỉ');
   return [nhan, cat, la, lo, size, homeKm, quan, 'osm-addr', null, addr];
 }
 /* ═══ BỘ NHỚ ĐỆM + XOAY VÒNG ═══
@@ -306,7 +315,7 @@ const tuDem = (r) => {
   const addr = (c && c.addr) || '';
   const quan = quanTuDiaChi(addr, r[6]);
   if (c && c.ten) return [c.ten, cat, la, lo, size, homeKm, quan, 'osm', null, addr];
-  const nhan = (CAT_VI[cat] || 'Điểm') + ' · ' + (addr.split(',')[0].trim() || quan || 'chưa rõ địa chỉ');
+  const nhan = (CAT_VI[cat] || 'Điểm') + ' · ' + (nhanDiaChi(addr) || quan || 'chưa rõ địa chỉ');
   return [nhan, cat, la, lo, size, homeKm, quan, 'osm-addr', null, addr];
 };
 
@@ -437,15 +446,20 @@ export default async function handler(req, res) {
   const deadline = t0 + 50000;
   const chk = VM_KEY() ? 'VietMap · ' + new Date().toISOString() : 'thiếu VIETMAP_API_KEY → bỏ hết tên';
 
-  const nguon = (goc) => goc + ' · tên đối chiếu ' + (G_KEY() ? 'Google Maps' : 'VietMap');
+  const nguon = (goc) => goc + ' · tên đối chiếu ' + (G_KEY() ? 'Google Maps' : 'VietMap') + ' · quán bổ sung Overture Maps';
+  /* Quán từ Overture Maps: dữ liệu mở, ĐÃ có tên + địa chỉ thật, giấy phép cho phép hiển thị.
+     KHÔNG đưa qua khâu đối chiếu VietMap — làm vậy chỉ tổ biến một cái tên thật thành nhãn
+     địa chỉ khi VietMap không biết quán đó. Trùng chỗ quán sẵn có (<80m) thì bỏ. */
+  const themOverture = rows => rows.concat(OVERTURE.filter(o => !rows.some(r => hav(r[2], r[3], o[2], o[3]) < 80)));
+
   if (all) {
     const checked = await checkAll(all, deadline);
     const moi = await quetVungGoogle(checked, deadline);          // quán Google có mà OSM thiếu
-    return send(res, req, checked.concat(moi).sort(canon), nguon('OpenStreetMap · Overpass'), true, chk, moi.length);
+    return send(res, req, themOverture(checked.concat(moi)).sort(canon), nguon('OpenStreetMap · Overpass'), true, chk, moi.length);
   }
   const fb = CURATED.concat(FALLBACK.filter(r => !CURATED.some(c => hav(r[2], r[3], c[2], c[3]) < 150))).sort(canon);
   if (!selfCheck(fb)) { res.setHeader('Cache-Control', 'public, s-maxage=120'); return res.status(200).json({ ok: false, reason: 'overpass_unavailable' }); }
   const fbChecked = await checkAll(fb, deadline);
   const moi = await quetVungGoogle(fbChecked, deadline);
-  return send(res, req, fbChecked.concat(moi).sort(canon), nguon('OSM · bản dự phòng'), false, chk, moi.length);
+  return send(res, req, themOverture(fbChecked.concat(moi)).sort(canon), nguon('OSM · bản dự phòng'), false, chk, moi.length);
 }

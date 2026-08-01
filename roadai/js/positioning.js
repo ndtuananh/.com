@@ -44,7 +44,7 @@ function gmapsDir(lat, lng) { return `https://www.google.com/maps/dir/?api=1&des
               khoe "đã từng nổ cuốc ở đây" cho cả 96 quán chưa chạy bao giờ → đã tách ra.
    'osm'    = quán lấy từ OpenStreetMap, tên CHƯA kiểm chứng. */
 // Nguồn TÊN của quán OSM — hiện thẳng cho tài xế biết tên đó ai xác nhận (Google bắt buộc ghi nguồn)
-const NGUON_TEN = { google: 'Google Maps', vietmap: 'bản đồ VietMap', 'đệm': 'bản đồ (bản đã lưu)' };
+const NGUON_TEN = { google: 'Google Maps', vietmap: 'bản đồ VietMap', overture: 'Overture Maps (dữ liệu mở)', 'đệm': 'bản đồ (bản đã lưu)' };
 const isZone = sp => sp.source === 'butl' || sp.source === 'mine';
 const isData = sp => isZone(sp) || sp.source === 'doitac';   // đã đối chiếu dữ liệu thật
 // LUÔN dẫn đường tới đúng VỊ TRÍ (toạ độ) — không search theo tên để tránh ra quán đã đóng cửa
@@ -1237,7 +1237,7 @@ function dataSrcBlock() {
       <div class="sync-row"><span>Máy này kiểm lúc</span><b>${chk}</b></div>
       <div class="sync-rev">MÃ BẢN DỮ LIỆU<b>#${d.rev || '—'}</b></div>
     </div>
-    <p class="dash-note">Tên quán &amp; giờ đóng cửa: đối chiếu ${nGoogle ? '<b>Google Maps</b> (Powered by Google) và ' : ''}bản đồ <b>VietMap</b>; vị trí quán: <b>OpenStreetMap</b> (© OpenStreetMap contributors). Quán nào bản đồ không tra ra tên thì app chỉ hiện địa chỉ, không tự đặt tên.</p>
+    <p class="dash-note">Nguồn dữ liệu quán: <b>OpenStreetMap</b> (© OpenStreetMap contributors, ODbL) · <b>Overture Maps</b> (© Overture Maps Foundation, CDLA-Permissive 2.0) · tên &amp; địa chỉ đối chiếu <b>VietMap</b>${nGoogle ? ' và <b>Google Maps</b> (Powered by Google)' : ''}. Quán nào bản đồ không tra ra tên thì app chỉ hiện địa chỉ, không tự đặt tên.</p>
     <p class="dash-note"><b>Cách kiểm 2 máy có giống nhau chưa:</b> mở mục này trên cả 2 máy — <b>MÃ BẢN</b> và số <b>quán dùng chung</b> phải y hệt. (Dòng “điểm anh tự thêm” thì mỗi máy một khác là đúng, vì đó là điểm riêng của từng máy.)</p>
     <button id="refresh-spots" class="ghost" style="width:100%;margin-top:6px">🔄 Cập nhật quán ngay</button>
     <button id="resync-spots" class="ghost" style="width:100%;margin-top:6px">🔁 Đồng bộ lại máy này (khi 2 máy lệch số)</button>
