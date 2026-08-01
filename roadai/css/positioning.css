@@ -141,8 +141,12 @@ body.pos .map-fab { left: auto; right: 10px; z-index: 18; }
 .sp-nav:active { transform: translateY(2px); }
 .sp-log { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .sp-btn { padding: 20px 8px; border-radius: 18px; font-size: 21px; font-weight: 900; line-height: 1.15; }
+.sp-wide { grid-column: 1 / -1; }
 .sp-yes { background: linear-gradient(135deg, #22c55e, #16a34a); color: #04121a; }
 .sp-no { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); }
+/* "Quán đang đông" = quan sát, chưa phải cuốc → màu vàng, khác hẳn nút xanh CÓ KHÁCH */
+.sp-busy { background: linear-gradient(135deg, #f59e0b, #d97706); color: #1a1206; font-size: 18px; }
+.sp-xe-hd { text-align: center; font-size: 19px; font-weight: 800; color: var(--txt); padding: 4px 0 2px; }
 .sp-btn:active { transform: scale(.97); }
 
 /* ---------- THẺ GỢI Ý THU GỌN / ẨN (bản đồ to) ---------- */

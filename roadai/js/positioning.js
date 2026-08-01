@@ -214,14 +214,19 @@ function refinePick(p, lat, lng) {
    Điểm do MÁY KIA nạp thì máy này chưa có bản ghi riêng → phải tạo bản ghi trắng (n=0/win=0)
    rồi mới cộng. Thiếu bước này thì máy B chạy bao nhiêu cuốc cũng không được tính (đã dính lúc thử).
    BẮT BUỘC bắt đầu từ 0: chép số đã gộp vào đây là lần sau máy chủ cộng thêm lần nữa → phồng số. */
-function creditPick(id, win, gpsLat, gpsLng) {
+function creditPick(id, win, gpsLat, gpsLng, xe, chiQuanSat) {
   let p = ownPick(id);
   if (!p) {
     const m = myPick(id); if (!m) return null;
     p = { ...m, n: 0, win: 0, fix: 0, del: 0, ts: Date.now() };
     MY_PICKS.push(p);
   }
+  /* chiQuanSat = chỉ ghi nhận "quán đang đông", CHƯA phải cuốc → không được cộng vào n/win,
+     không thì tỉ lệ nổ cuốc bị loãng và app tự bịa thành tích. Đếm riêng ở 'dong'. */
+  if (chiQuanSat) { p.dong = (p.dong || 0) + 1; p.ts = Date.now(); savePicks(); return p; }
   p.n++; if (win) p.win++;
+  if (win && xe === 'oto') p.oto = (p.oto || 0) + 1;
+  if (win && xe === 'may') p.may = (p.may || 0) + 1;
   if (win && gpsLat != null) refinePick(p, gpsLat, gpsLng);
   p.ts = Date.now(); savePicks(); return p;
 }
@@ -383,11 +388,59 @@ function twinAffinity(cat, hour, key) {
     + 0.22 * v(key && TWIN.spot[key], .5)
     + 0.26 * v(key && TWIN.sb[key + '|' + b], .5), 0, 1);
 }
-function twinLearn(cat, hour, win, key) {
+function twinLearn(cat, hour, win, key, xe) {
   const b = bandOf(hour);
   const bump = (obj, k) => { if (k == null) return; obj[k] = obj[k] || { n: 0, win: 0 }; obj[k].n++; if (win) obj[k].win++; };
   bump(TWIN.cat, cat); bump(TWIN.hour, hour); bump(TWIN.slot, cat + '|' + hour);
   bump(TWIN.spot, key); bump(TWIN.band, b); bump(TWIN.cb, cat + '|' + b); bump(TWIN.sb, key + '|' + b);
+  /* LOẠI XE (anh Long đề xuất 01/08): cuốc ô tô và xe máy là hai nghề khác nhau — tài chạy
+     xe máy tới quán toàn nổ cuốc ô tô thì đứng cả tối cũng công cốc. Học riêng theo quán. */
+  if (win && (xe === 'oto' || xe === 'may')) {
+    TWIN.xe = TWIN.xe || {};
+    const k = key + '|' + xe;
+    TWIN.xe[k] = (TWIN.xe[k] || 0) + 1;
+  }
+}
+/* Quán này hay nổ cuốc XE GÌ — đếm thẳng từ cuốc thật đã ghi, không suy đoán */
+function xeCua(key) {
+  const x = TWIN.xe || {};
+  const oto = x[key + '|oto'] || 0, may = x[key + '|may'] || 0;
+  return (oto || may) ? { oto, may } : null;
+}
+
+/* ═══ QUAN SÁT "QUÁN ĐANG ĐÔNG" (anh Long đề xuất 01/08) ═══
+   Tài xế tới quán, chưa có cuốc nhưng thấy khách đang nhậu đông → bấm ghi nhận.
+   Đây KHÔNG phải cuốc, nên không trộn vào tỉ lệ nổ cuốc (không được làm bẩn con số thật).
+   Nó trả lời câu hỏi khác: "đứng chờ ở đây có đáng không?" — app đếm bao nhiêu lần anh
+   ghi đông ở khung giờ này, và trong số đó bao nhiêu lần SAU ĐÓ nổ cuốc thật trong 90 phút. */
+function obsLearn(key, hour) {
+  TWIN.obs = TWIN.obs || {};
+  const k = key + '|' + bandOf(hour);
+  TWIN.obs[k] = (TWIN.obs[k] || 0) + 1;
+}
+const CHO_MS = 90 * 60 * 1000;             // "chờ được" = 90 phút
+/* Chỉ mục nhật ký theo quán — dựng MỘT LẦN rồi dùng lại.
+   Không có chỉ mục thì mỗi vòng tính điểm phải đọc lại nhật ký 400 lần (mỗi quán một lần),
+   app giật ngay trên điện thoại cũ. Ghi nhật ký mới → xoá chỉ mục để dựng lại. */
+let _nkIdx = null;
+function nkIndex() {
+  if (_nkIdx) return _nkIdx;
+  const m = new Map();
+  for (const j of loadJobs()) {
+    if (!j || !j.key) continue;
+    const e = m.get(j.key) || { dong: [], win: [] };
+    if (j.type === 'dong') e.dong.push(j); else if (j.win) e.win.push(j);
+    m.set(j.key, e);
+  }
+  _nkIdx = m; return m;
+}
+function choTaiCho(key, hour) {
+  const e = nkIndex().get(key); if (!e || !e.dong.length) return null;
+  const b = bandOf(hour);
+  const dong = e.dong.filter(d => (d.band || bandOf(d.hour)) === b);
+  if (!dong.length) return null;
+  const noSau = dong.filter(d => e.win.some(w => w.ts > d.ts && w.ts - d.ts <= CHO_MS)).length;
+  return { n: dong.length, no: noSau, band: b };
 }
 /* CAO ĐIỂM HỌC ĐƯỢC của riêng quán này: khung giờ này ăn hơn hay kém hơn MỨC TRUNG BÌNH
    của chính quán đó. So với chính nó nên không bị lẫn với chuyện quán ngon/quán dở. */
@@ -418,7 +471,7 @@ function empOf(key) { const o = key && TWIN.spot[key]; if (!o || !o.n) return nu
 /* Nhật ký cuốc THẬT */
 const JOBS_LS = 'roadai_laiho_jobs_v1';
 function loadJobs() { try { return JSON.parse(localStorage.getItem(JOBS_LS) || '[]'); } catch (e) { return []; } }
-function saveJob(j) { const a = loadJobs(); a.unshift(j); try { localStorage.setItem(JOBS_LS, JSON.stringify(a.slice(0, 500))); } catch (e) {} }
+function saveJob(j) { const a = loadJobs(); a.unshift(j); try { localStorage.setItem(JOBS_LS, JSON.stringify(a.slice(0, 500))); } catch (e) {} _nkIdx = null; }
 /* Yêu thích + ghi chú */
 const FAV_LS = 'roadai_laiho_fav_v1', NOTE_LS = 'roadai_laiho_notes_v1';
 let FAV = new Set(); try { FAV = new Set(JSON.parse(localStorage.getItem(FAV_LS) || '[]')); } catch (e) {}
@@ -478,6 +531,10 @@ function scoreOf(r) {
   // Đây là chỗ dữ liệu anh em nạp vào biến thành đề xuất khác đi theo từng khung giờ.
   if (r.bl) z += clamp(2.8 * r.bl.delta, -1.4, 1.4);
   if (isZone(r.sp)) z += 0.35;                                  // điểm đón THẬT (BUTL / bạn tự thêm)
+  /* QUAN SÁT "QUÁN ĐANG ĐÔNG" của chính tài xế (anh Long đề xuất): chỉ đẩy khi quan sát đó
+     ĐÃ được chứng minh — tức là những lần thấy đông trước đây có dẫn tới cuốc thật trong 90'.
+     Thấy đông mà chẳng bao giờ nổ cuốc thì kéo XUỐNG, để khỏi rủ tài xế đứng chờ vô ích. */
+  if (r.cho && r.cho.n >= 2) z += clamp(1.6 * (r.cho.no / r.cho.n - 0.35), -0.6, 0.9);
   z -= 0.09 * Math.max(0, r.eta - 6);                           // chạy càng xa, khách càng dễ mất về tay tài gần hơn
   if (r.dist > COVER_R) z -= 1.2;                               // ngoài vùng phủ sóng 5km
   if (!r.open) return -12;
@@ -510,6 +567,7 @@ function computeAll() {
     r.sTwin = twinAffinity(r.sp.cat, r.hour, _spk);
     r.emp = empOf(_spk);
     r.bl = bandLift(_spk, hour);          // cao điểm theo khung giờ, học từ cuốc thật ở CHÍNH quán này
+    r.cho = choTaiCho(_spk, hour);        // "thấy đông rồi có nổ cuốc không" — dữ liệu tài xế tự ghi
     r.band = bandOf(hour);
     r.feat = [1, r.sDemand, r.sEta, r.sTrend, r.sTwin];
     r.z = scoreOf(r);
@@ -739,6 +797,13 @@ function reasonsFor(r, golden) {
   if (r.sDemand > 0.7) out.push('Đông khách nhất khu vực');
   if (twinAffinity(r.sp.cat, r.hour, spotKey(r.sp)) > 0.62) out.push('Bạn hay nổ cuốc ở đây giờ này');
   if (r.emp && r.emp.n >= 2) out.unshift(`✅ Đã nổ ${r.emp.win}/${r.emp.n} cuốc thật ở đây`);   // bằng chứng thật lên đầu
+  // "ĐI HAY CHỜ": trả lời bằng chính số lần anh ghi "quán đang đông" rồi có nổ cuốc thật hay không
+  const cho = choTaiCho(spotKey(r.sp), r.hour);
+  if (cho && cho.n >= 2) out.unshift(cho.no * 2 >= cho.n
+    ? `⏳ ĐÁNG CHỜ: ${cho.no}/${cho.n} lần anh thấy quán đông ở khung này là có cuốc trong 90′`
+    : `🚶 Nên đi tiếp: ${cho.n} lần thấy đông mà chỉ ${cho.no} lần nổ cuốc trong 90′`);
+  const xe = xeCua(spotKey(r.sp));
+  if (xe && (xe.oto + xe.may) >= 2) out.push(xe.oto === xe.may ? `🚘 Quán này nổ cả ô tô lẫn xe máy` : (xe.oto > xe.may ? `🚗 Quán này chủ yếu nổ cuốc Ô TÔ (${xe.oto}/${xe.oto + xe.may})` : `🏍️ Quán này chủ yếu nổ cuốc XE MÁY (${xe.may}/${xe.oto + xe.may})`));
   // bằng chứng theo KHUNG GIỜ lên trên cùng — đây là thứ tài xế cần nhất khi quyết định đứng đâu lúc này
   if (r.bl && r.bl.delta > 0.05) out.unshift(`🔺 ${BAND_VI[r.bl.band]} là cao điểm của quán này với bạn (${r.bl.win}/${r.bl.n})`);
   else if (r.bl && r.bl.delta < -0.05) out.push(`🔻 Khung này bạn hay hụt ở đây (${r.bl.win}/${r.bl.n})`);
@@ -855,6 +920,24 @@ function goTo(r) {
   toast(`🚗 Tới ${r.sp.name}. Có/chưa có khách thì bấm ghi kết quả nhé.`);
   recompute();
 }
+/* ═══ GHI NHẬN "QUÁN ĐANG ĐÔNG KHÁCH" — chưa có cuốc nhưng thấy khách đang nhậu ═══
+   (anh Long: "tài xế thấy có khách và dự đoán có thể có cuốc thì cho nhập để radar hiểu
+   giờ quán thường nổ, để quyết định ĐI hay CHỜ").
+   Cố ý KHÔNG tính vào tỉ lệ nổ cuốc — đây là quan sát, không phải kết quả. */
+function logDong(r) {
+  const key = spotKey(r.sp);
+  obsLearn(key, r.hour); saveTwin();
+  saveJob({ ts: Date.now(), spotId: r.sp.id, name: r.sp.name, cat: r.sp.cat, quan: r.sp.quan,
+    hour: r.hour, band: r.band || bandOf(r.hour), key, type: 'dong', win: false });
+  if (r.sp.source === 'mine' && r.sp.pid) creditPick(r.sp.pid, false, null, null, '', true);
+  const c = choTaiCho(key, r.hour);
+  G.jobsN = loadJobs().length;
+  recompute(); syncPicks(false);
+  const ten = cleanName(r.sp).slice(0, 26);
+  if (c && c.n >= 2) toast(`👀 Đã ghi: ${ten} đang đông. Khung ${BAND_VI[c.band]}: anh ghi đông ${c.n} lần → ${c.no} lần nổ cuốc trong 90 phút. ${c.no * 2 >= c.n ? 'ĐÁNG CHỜ.' : 'Ít nổ — cân nhắc đi điểm khác.'}`, 6200);
+  else toast(`👀 Đã ghi: ${ten} đang đông khách lúc ${fmtClose(r.hour)}. Ghi thêm vài lần nữa app sẽ nói được nên chờ hay nên đi.`, 5200);
+}
+
 /* Báo NGAY cho tài xế biết cú bấm ✅/❌ vừa rồi dạy được app điều gì —
    không có dòng này thì tài xế bấm mà không thấy app khá lên, bấm vài hôm là bỏ. */
 function learnToast(r, win) {
@@ -870,18 +953,18 @@ function learnToast(r, win) {
   toast(`🧠 Đã học: ${name} · ${BAND_VI[b]} → ${o.win}/${o.n} cuốc (${rate}%).${tail}`, 5200);
 }
 // Ghi 1 cuốc THẬT → Digital Twin + mô hình học ngay (đây là nguồn học DUY NHẤT)
-function logJob(r, win) {
+function logJob(r, win, xe) {
   const capLat = G.you.lat, capLng = G.you.lng;   // vị trí THẬT lúc bấm (dùng cho Vấn đề 4)
-  twinLearn(r.sp.cat, r.hour, win, spotKey(r.sp)); saveTwin();
+  twinLearn(r.sp.cat, r.hour, win, spotKey(r.sp), xe); saveTwin();
   const [bm, bb] = observe(r, win ? 1 : 0); updateSkill([bm], [bb]); shiftWeights();
   saveBrain();   // ghi xuống máy NGAY — hôm sau mở app là não vẫn còn, không học lại từ đầu
   // Ghi kèm % app ĐÃ DỰ BÁO trước khi biết kết quả → sau này đối chiếu được dự báo vs thực tế
-  saveJob({ ts: Date.now(), spotId: r.sp.id, name: r.sp.name, cat: r.sp.cat, quan: r.sp.quan, hour: r.hour, band: r.band || bandOf(r.hour), p: +r.p.toFixed(3), key: spotKey(r.sp), win });
+  saveJob({ ts: Date.now(), spotId: r.sp.id, name: r.sp.name, cat: r.sp.cat, quan: r.sp.quan, hour: r.hour, band: r.band || bandOf(r.hour), p: +r.p.toFixed(3), key: spotKey(r.sp), win, xe: xe || '' });
   G.jobsN = loadJobs().length;
   G.pendingLog = null;
   // BẰNG CHỨNG cho điểm tự nạp: cộng vào ĐÚNG điểm đó (theo id, không theo tên) → đổi tên hay
   // nắn toạ độ vẫn giữ nguyên thành tích. Thắng thì kéo toạ độ về chỗ GPS thật luôn.
-  if (r.sp.source === 'mine' && r.sp.pid) creditPick(r.sp.pid, win, (G.hasGps && G.youFromGps) ? capLat : null, capLng);
+  if (r.sp.source === 'mine' && r.sp.pid) creditPick(r.sp.pid, win, (G.hasGps && G.youFromGps) ? capLat : null, capLng, xe);
   if (win) {
     G.session.rides++;
     // VẤN ĐỀ 4: nhận khách xong chạy liền, khỏi gõ tay → app TỰ tạo 1 chấm theo GPS thật (nếu chưa có điểm nào <150m)
@@ -914,10 +997,16 @@ function renderLogPrompt(r) {
       <div class="reco-t"><b>Đang chờ tại ${r.sp.name}</b><small>${CAT_VI[r.sp.cat]}${closeTxt}</small></div></div>
     <p class="sheet-hint" style="margin:6px 0 10px">Bạn có bắt được khách ở đây không? (ghi thật để AI học đúng gu của bạn)</p>
     <div class="reco-actions">
-      <button id="log-yes" class="primary">✅ Có khách</button>
+      <button id="log-oto" class="primary">✅ Có khách · 🚗 Ô tô</button>
+      <button id="log-may" class="primary">✅ Có khách · 🏍️ Xe máy</button>
+    </div>
+    <div class="reco-actions" style="margin-top:6px">
+      <button id="log-busy" class="ghostbtn">👀 Quán đang đông (chưa có cuốc)</button>
       <button id="log-no" class="ghostbtn">❌ Chưa có</button>
     </div>`;
-  const y = $('#log-yes'); if (y) y.onclick = () => logJob(r, true);
+  const yo = $('#log-oto'); if (yo) yo.onclick = () => logJob(r, true, 'oto');
+  const ym = $('#log-may'); if (ym) ym.onclick = () => logJob(r, true, 'may');
+  const yb = $('#log-busy'); if (yb) yb.onclick = () => logDong(r);
   const n = $('#log-no'); if (n) n.onclick = () => logJob(r, false);
 }
 
@@ -943,6 +1032,8 @@ function openSpot(r) {
       <span>Khách cần lái hộ</span><b>${TIER_EMOJI[r.tier]} ${['Thấp','Vừa','Cao','Rất cao'][r.tier]}</b>
       ${r.emp && r.emp.n ? `<span>Cuốc thật ở đây</span><b>✅ ${r.emp.win}/${r.emp.n} (${Math.round(r.emp.rate * 100)}%)</b>` : ''}
       ${(() => { const bb = bestBandOf(spotKey(r.sp)); return bb ? `<span>Khung giờ mát tay</span><b>${bb.ico} ${bb.vi} · ${bb.win}/${bb.n}</b>` : ''; })()}
+      ${(() => { const x = xeCua(spotKey(r.sp)); return x ? `<span>Quán này hay nổ xe</span><b>${x.oto ? '🚗 ' + x.oto : ''}${x.oto && x.may ? ' · ' : ''}${x.may ? '🏍️ ' + x.may : ''}</b>` : ''; })()}
+      ${(() => { const c = choTaiCho(spotKey(r.sp), r.hour); return c ? `<span>Anh ghi “đang đông” ${BAND_VI[c.band]}</span><b>${c.n} lần → ${c.no} lần nổ cuốc trong 90′</b>` : ''; })()}
       ${r.bl ? `<span>${BAND_VI[r.bl.band]} ở đây</span><b>${r.bl.delta > 0.03 ? '🔺 cao điểm của quán này' : r.bl.delta < -0.03 ? '🔻 thấp điểm' : '➖ bình thường'} (${r.bl.win}/${r.bl.n})</b>` : ''}
       <span>Tới nơi</span><b>${fmtMin(r.eta)} · ${fmtDist(r.dist)}</b>
       ${r.sp.cat === 'diemdon' ? '' : `<span>Quán tan ${r.sp.gioThat ? '' : '~'}</span><b>${fmtClose(r.sp.closeH)}${r.mins > 0 && r.mins <= 90 ? ` · còn ${Math.round(r.mins)}′` : ''}${r.sp.gioThat ? ' <span style="color:#5eead4">giờ thật</span>' : ' <span style="color:#94a3b8">ước tính</span>'}</b>`}
@@ -968,18 +1059,71 @@ function addMyPick(name, lat, lng, cat) {
             : '✅ Đã lưu điểm đón — app sẽ ưu tiên đứng ở đây & học từ đây.', 4200);
 }
 // Nạp thủ công: tài xế đang ĐỨNG NGAY quán → thêm chính vị trí mình vào não app (chân thực, tự đối soát)
-function quickAddHere() {
-  const nm = window.prompt('🍺 Bạn đang đứng ở quán/khu nào? (vd: Quán Nhậu 2 Cây Me, Beer club ABC):', '');
-  if (nm == null || !nm.trim()) return;
-  const kinds = ['Quán nhậu', 'Bia/Beer club', 'Bar/Pub', 'Karaoke', 'Nhà hàng'];
+/* ═══ "TÔI ĐANG Ở QUÁN" — GÕ TÊN, APP GỢI Ý TỪ CHÍNH DỮ LIỆU RADAR ═══
+   (anh Long 01/08: "gõ tên quán A1 thì link ra đúng quán A1 đã có, cho đỡ nhập trùng và
+   thu được đúng địa điểm + giờ").
+   Trước đây bấm ➕ là hiện 2 hộp prompt trắng trơn: gõ tay tên quán → mỗi lần gõ một kiểu
+   ("Ốc Quyên", "oc quyen", "Quán Ốc Quyên") → sinh 3 chấm khác nhau cho CÙNG một quán,
+   thành ra không quán nào đủ số cuốc để app kết luận được gì. */
+const boDau = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, ' ').trim();
+function goiYQuan(q) {
+  const k = boDau(q);
+  const ds = SPOTS.map(sp => {
+    const d = haversine(G.you, sp);
+    let diem = 0;
+    if (k) {
+      const t = boDau(sp.name), a = boDau(sp.addr);
+      if (t.startsWith(k)) diem = 100; else if (t.includes(k)) diem = 70; else if (a.includes(k)) diem = 40;
+      else { const tu = k.split(' ').filter(Boolean); const hit = tu.filter(w => t.includes(w)).length; diem = tu.length && hit === tu.length ? 55 : 0; }
+      if (!diem) return null;
+    }
+    // Ưu tiên quán GẦN CHỖ ĐANG ĐỨNG: đang đứng ở quán thì nó phải nằm trong vài trăm mét
+    diem += d < 150 ? 60 : d < 400 ? 40 : d < 1500 ? 20 : d < 5000 ? 8 : 0;
+    if (sp.source === 'mine') diem += 25;          // điểm chính anh tự nạp → ưu tiên nhất
+    if (sp.source === 'butl') diem += 15;
+    return { sp, d, diem };
+  }).filter(Boolean);
+  ds.sort((a, b) => b.diem - a.diem || a.d - b.d);
+  return ds.slice(0, 12);
+}
+function renderHere() {
+  const el = $('#here-body'); if (!el) return;
+  const q = (($('#here-search') && $('#here-search').value) || '').trim();
+  const ds = goiYQuan(q);
+  const dong = ds.map(x => `<div class="fl" onclick="__toiDangO('${x.sp.id}')">
+      <span class="fl-h" style="background:rgba(45,212,191,.18);color:#5eead4">${x.sp.source === 'mine' ? '📌' : x.sp.source === 'butl' ? '📍' : x.sp.source === 'doitac' ? '🤝' : '🍺'}</span>
+      <div class="fl-m"><b>${x.sp.name}</b><small>${x.sp.addr ? x.sp.addr + ' · ' : ''}${x.sp.quan || ''} · cách ${fmtDist(x.d)}</small></div>
+      <span class="fl-go">›</span></div>`).join('');
+  el.innerHTML = (dong || '<p class="sheet-hint">Không thấy quán nào khớp.</p>') +
+    `<div class="fl" onclick="__themQuanMoi()" style="border-bottom:0;margin-top:6px">
+       <span class="fl-h" style="background:rgba(249,115,22,.2);color:#fdba74">➕</span>
+       <div class="fl-m"><b>Thêm quán mới${q ? ` “${q}”` : ''}</b><small>Lưu ngay tại chỗ anh đang đứng (GPS)</small></div>
+       <span class="fl-go">›</span></div>`;
+}
+window.__toiDangO = id => {
+  const sp = SPOTS.find(s => s.id === id); if (!sp) return;
+  const r = (G.metrics && G.metrics.raw || []).find(x => x.sp.id === id);
+  closeSheets();
+  map.setView([sp.lat, sp.lng], Math.max(16, map.getZoom()));
+  if (r) { G.pendingLog = r; setSimple(false); recompute(); openSpot(r); }
+  toast(`✅ Đang ở “${cleanName(sp)}” lúc ${fmtClose(realHour())}. Có khách thì bấm ✅ (chọn ô tô/xe máy), đông mà chưa có cuốc thì bấm 👀.`, 6000);
+};
+window.__themQuanMoi = () => {
+  const q = (($('#here-search') && $('#here-search').value) || '').trim();
+  const nm = q || window.prompt('Tên quán anh đang đứng:', '');
+  if (!nm || !nm.trim()) return;
   const cats = ['phonhau', 'beerclub', 'bar', 'karaoke', 'nhahang'];
-  let ci = 0;
-  const pick = window.prompt('Loại điểm? Gõ số:\n1. Quán nhậu\n2. Bia/Beer club\n3. Bar/Pub\n4. Karaoke\n5. Nhà hàng', '1');
+  const pick = window.prompt('Loại quán? Gõ số:\n1. Quán nhậu\n2. Bia/Beer club\n3. Bar/Pub\n4. Karaoke\n5. Nhà hàng', '1');
   if (pick == null) return;
-  const n = parseInt(pick, 10); if (n >= 1 && n <= 5) ci = n - 1;
-  addMyPick(nm.trim(), G.you.lat, G.you.lng, cats[ci]);
+  const n = parseInt(pick, 10);
+  addMyPick(nm.trim(), G.you.lat, G.you.lng, cats[(n >= 1 && n <= 5) ? n - 1 : 0]);
   closeSheets();
   map.setView([G.you.lat, G.you.lng], Math.max(16, map.getZoom()));
+};
+function quickAddHere() {
+  openSheet('#here-sheet');
+  const inp = $('#here-search'); if (inp) { inp.value = ''; setTimeout(() => inp.focus(), 120); }
+  renderHere();
 }
 /* Xoá = đánh dấu "bia mộ" kèm mốc thời gian rồi đẩy lên máy chủ, KHÔNG xoá trắng tại chỗ.
    Xoá trắng thì lần đồng bộ sau máy kia lại đẩy điểm đó về — xoá xong nó sống lại. */
@@ -1013,6 +1157,8 @@ function renderSimple(m) {
   const box = $('#simple'); if (!box) return;
   if (!G.simpleMode) { box.hidden = true; return; }
   box.hidden = false;
+  // đổi điểm đề xuất thì thu bảng chọn xe lại, khỏi lỡ tay ghi cuốc cho quán khác
+  const bl = $('#sp-log'), bx = $('#sp-xe'); if (bl) bl.hidden = false; if (bx) bx.hidden = true;
   const on = $('#sp-online'); if (on) { on.textContent = G.online ? '🟢 Nhận khách' : '⏸️ Đang nghỉ'; on.classList.toggle('off', !G.online); }
   const nm = $('#sp-name'), mt = $('#sp-meta'), ch = $('#sp-chance'), nv = $('#sp-nav'), wn = $('#sp-warn');
   const r = m && m.best;
@@ -1079,7 +1225,12 @@ function jobStats() {
   if (new Date().getHours() < 6) shiftStart.setDate(shiftStart.getDate() - 1);
   const tj = jobs.filter(j => j.ts >= shiftStart.getTime());
   const today = { n: tj.length, wins: tj.filter(j => j.win).length };
-  return { n: jobs.length, wins, rate: wins / jobs.length, today, quan: rank(byQuan).slice(0, 3), hour: rank(byHour).slice(0, 3) };
+  // Thống kê theo LOẠI XE và số lần ghi "quán đang đông" (dữ liệu anh Long đề xuất thu thêm)
+  const oto = jobs.filter(j => j.win && j.xe === 'oto').length;
+  const may = jobs.filter(j => j.win && j.xe === 'may').length;
+  const dong = jobs.filter(j => j.type === 'dong').length;
+  const dongNo = jobs.filter(j => j.type === 'dong').filter(d => jobs.some(w => w.key === d.key && w.win && w.ts > d.ts && w.ts - d.ts <= CHO_MS)).length;
+  return { n: jobs.length, wins, rate: wins / jobs.length, today, oto, may, dong, dongNo, quan: rank(byQuan).slice(0, 3), hour: rank(byHour).slice(0, 3) };
 }
 /* ===== CHỨNG MINH ĐIỀU HƯỚNG CÓ KẾT QUẢ THẬT =====
    Mỗi cuốc đều lưu kèm % app đã dự báo TRƯỚC khi biết kết quả.
@@ -1142,6 +1293,11 @@ function renderDash(m) {
     </div>
     ${rs ? `<div class="dash-sec"><h4>🎯 Hiệu quả THẬT của bạn (${rs.n} cuốc)</h4>
       <div class="kpis" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><b>${Math.round(rs.rate * 100)}%</b><span>Tỉ lệ có khách</span></div><div class="kpi"><b>${rs.wins}</b><span>Cuốc thành công</span></div><div class="kpi"><b>${rs.today.wins}<small style="font-size:11px">/${rs.today.n}</small></b><span>Ca đêm nay</span></div></div>
+      ${(rs.oto || rs.may || rs.dong) ? `<div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-top:6px">
+        <div class="kpi"><b>🚗 ${rs.oto}</b><span>Cuốc ô tô</span></div>
+        <div class="kpi"><b>🏍️ ${rs.may}</b><span>Cuốc xe máy</span></div>
+        <div class="kpi"><b>${rs.dongNo}<small style="font-size:11px">/${rs.dong}</small></b><span>Thấy đông → có cuốc</span></div></div>
+        <p class="dash-note">“Thấy đông → có cuốc” = trong ${rs.dong} lần anh bấm 👀 quán đang đông, có ${rs.dongNo} lần nổ cuốc thật trong 90 phút sau đó. Tỉ lệ này càng cao thì <b>đứng chờ</b> càng đáng; thấp thì nên chạy sang điểm khác.</p>` : ''}
       <div class="twin" style="margin-top:8px">${rs.quan.map(q => `<div class="tw"><b>📍 ${q.k}</b><span>${Math.round(q.r * 100)}% · ${q.n} lần</span></div>`).join('')}${rs.hour.map(h => `<div class="tw"><b>🕒 ${h.k}</b><span>${Math.round(h.r * 100)}% · ${h.n} lần</span></div>`).join('')}</div>
       <p class="dash-note">Top quận & khung giờ bạn “mát tay” nhất.</p></div>` : '<p class="dash-note">Chưa có cuốc thật nào — bấm ✅/❌ sau mỗi lần đứng chờ để AI học.</p>'}
     <div class="dash-sec"><h4>📈 Dự báo khách cần lái hộ (trong 5km quanh bạn)</h4>
@@ -1572,6 +1728,7 @@ function wire() {
   on('#btn-set', () => openSheet('#set-sheet'));
   $$('.sheet-close').forEach(b => b.onclick = closeSheets);
   const fq = $('#find-search'); if (fq) fq.oninput = () => renderFind(G.metrics);
+  const hq = $('#here-search'); if (hq) hq.oninput = renderHere;
   const hs = $('#hour-slider'); if (hs) hs.oninput = e => { const v = +e.target.value; G.simHour = v < 0 ? null : v; syncSettings(); recompute(); };
   const rsl = $('#rain-slider'); if (rsl) rsl.oninput = e => { G.rain = +e.target.value / 100; G.rainManual = true; syncSettings(); recompute(); };
   const mt = $('#match-toggle'); if (mt) mt.onchange = e => { G.match = e.target.checked; recompute(); };
@@ -1604,8 +1761,15 @@ function wire() {
   on('#sp-full', () => setSimple(false));
   on('#btn-simple', () => { setSimple(true); closeSheets(); });
   on('#sp-online', () => setOnline(!G.online));
-  on('#sp-yes', () => { const b = G.metrics && G.metrics.best; if (b) logJob(b, true); });
-  on('#sp-no', () => { const b = G.metrics && G.metrics.best; if (b) logJob(b, false); });
+  /* CÓ KHÁCH → hỏi ngay XE GÌ (2 nút to), rồi mới ghi cuốc. Hỏi sau chứ không hỏi trước,
+     vì lúc khách vừa gọi thì bấm 1 phát là xong, chọn xe chỉ mất thêm 1 giây. */
+  const hienXe = v => { const a = $('#sp-log'), b = $('#sp-xe'); if (a) a.hidden = v; if (b) b.hidden = !v; };
+  on('#sp-yes', () => { if (G.metrics && G.metrics.best) hienXe(true); });
+  const ghiXe = xe => { const b = G.metrics && G.metrics.best; hienXe(false); if (b) logJob(b, true, xe); };
+  on('#sp-oto', () => ghiXe('oto'));
+  on('#sp-may', () => ghiXe('may'));
+  on('#sp-busy', () => { const b = G.metrics && G.metrics.best; if (b) logDong(b); });
+  on('#sp-no', () => { hienXe(false); const b = G.metrics && G.metrics.best; if (b) logJob(b, false); });
   const snav = $('#sp-nav'); if (snav) snav.addEventListener('click', () => { const b = G.metrics && G.metrics.best; if (b) { G.session.suggested++; G.session.accepted++; } });
   on('#reco-reopen', () => setRecoOpen(true));
 }

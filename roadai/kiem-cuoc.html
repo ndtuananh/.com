@@ -57,6 +57,14 @@
     <button id="btn-set" title="Cài đặt">⚙️<span>Cài đặt</span></button>
   </nav>
 
+  <!-- SHEET: TÔI ĐANG Ở QUÁN — gõ tên, app gợi ý từ chính dữ liệu radar -->
+  <div id="here-sheet" class="sheet glass big" hidden>
+    <div class="sheet-head"><b>🍺 Tôi đang ở quán nào?</b><button class="mini sheet-close">✕</button></div>
+    <input id="here-search" class="key-input" type="search" placeholder="Gõ tên quán… (vd: A1, Ốc Quyên, Cửu Long)" autocomplete="off" />
+    <p class="sheet-hint" style="margin:6px 0 4px">Gõ tên quán anh <b>đã từng nhập</b> hoặc quán có sẵn trên radar → chọn đúng quán đó, app ghi luôn “anh đang ở đây” kèm giờ. Chưa có thì bấm <b>Thêm quán mới</b> ở cuối danh sách.</p>
+    <div id="here-body"></div>
+  </div>
+
   <!-- SHEET: TÌM & LỌC + TOP 20 -->
   <div id="find-sheet" class="sheet glass big" hidden>
     <div class="sheet-head"><b>🔍 Tìm &amp; lọc điểm</b><button class="mini sheet-close">✕</button></div>
@@ -125,9 +133,17 @@
       <div id="sp-warn" class="sp-warn"></div>
     </div>
     <a id="sp-nav" class="sp-nav" target="_blank" rel="noopener">🧭 CHỈ ĐƯỜNG</a>
-    <div class="sp-log">
-      <button id="sp-yes" class="sp-btn sp-yes">✅ CÓ<br>KHÁCH</button>
+    <!-- GHI KẾT QUẢ: 3 tình huống thật ngoài đường, nút to bấm bằng ngón cái -->
+    <div class="sp-log" id="sp-log">
+      <button id="sp-yes" class="sp-btn sp-yes sp-wide">✅ CÓ KHÁCH</button>
+      <button id="sp-busy" class="sp-btn sp-busy">👀 QUÁN<br>ĐANG ĐÔNG</button>
       <button id="sp-no" class="sp-btn sp-no">❌ CHƯA<br>CÓ</button>
+    </div>
+    <!-- Hỏi loại xe ngay sau khi bấm CÓ KHÁCH (radar học riêng ô tô / xe máy) -->
+    <div class="sp-log" id="sp-xe" hidden>
+      <div class="sp-xe-hd sp-wide">🚘 Cuốc này là xe gì?</div>
+      <button id="sp-oto" class="sp-btn sp-yes">🚗 Ô TÔ</button>
+      <button id="sp-may" class="sp-btn sp-yes">🏍️ XE MÁY</button>
     </div>
   </div>
 

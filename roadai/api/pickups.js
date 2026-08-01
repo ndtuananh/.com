@@ -44,7 +44,11 @@ function cleanPick(p) {
   const ts = num(p.ts, 0, 4e12) || 0;
   const n = Math.max(0, Math.min(9999, Math.round(num(p.n, 0, 9999) || 0)));
   const win = Math.max(0, Math.min(n, Math.round(num(p.win, 0, 9999) || 0)));
-  return { id, name, cat, lat: +lat.toFixed(5), lng: +lng.toFixed(5), quan: str(p.quan, 40), ts, del: p.del ? 1 : 0, n, win };
+  // oto/may = cuốc thắng theo LOẠI XE; dong = số lần tài xế ghi "quán đang đông" (chưa phải cuốc)
+  const oto = Math.max(0, Math.min(win, Math.round(num(p.oto, 0, 9999) || 0)));
+  const may = Math.max(0, Math.min(win, Math.round(num(p.may, 0, 9999) || 0)));
+  const dong = Math.max(0, Math.min(9999, Math.round(num(p.dong, 0, 9999) || 0)));
+  return { id, name, cat, lat: +lat.toFixed(5), lng: +lng.toFixed(5), quan: str(p.quan, 40), ts, del: p.del ? 1 : 0, n, win, oto, may, dong };
 }
 function cleanHidden(h) {
   if (!h || typeof h !== 'object') return null;
@@ -57,8 +61,9 @@ function merge(files) {
   const byId = new Map();
   for (const f of files) for (const p of (f.picks || [])) {
     const cur = byId.get(p.id);
-    if (!cur) { byId.set(p.id, { ...p, n: p.n, win: p.win }); continue; }
+    if (!cur) { byId.set(p.id, { ...p }); continue; }
     cur.n += p.n; cur.win += p.win;                    // mỗi máy ghi cuốc khác nhau → cộng dồn
+    cur.oto += p.oto; cur.may += p.may; cur.dong += p.dong;
     if (p.ts > cur.ts) { cur.name = p.name; cur.cat = p.cat; cur.lat = p.lat; cur.lng = p.lng; cur.quan = p.quan; cur.del = p.del; cur.ts = p.ts; }
   }
   let all = [...byId.values()].sort((a, b) => a.ts - b.ts || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -69,7 +74,7 @@ function merge(files) {
   for (const p of all) {
     const hit = kept.find(k => hav(k.lat, k.lng, p.lat, p.lng) < 55);
     if (!hit) { kept.push({ ...p }); continue; }
-    hit.n += p.n; hit.win += p.win;
+    hit.n += p.n; hit.win += p.win; hit.oto += p.oto; hit.may += p.may; hit.dong += p.dong;
     if (auto(hit.name) && !auto(p.name)) hit.name = p.name;   // tên thật thắng tên tự đặt
     if (p.del && p.ts > hit.ts) hit.del = 1;
     if (p.id !== hit.id) tomb.push({ id: p.id, into: hit.id });   // máy khác biết mà xoá bản trùng
