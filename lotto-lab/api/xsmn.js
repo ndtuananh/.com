@@ -58,10 +58,10 @@ function lockToCommit(ledger, prediction, brain) {
 
 export default async function handler(req, res) {
   const q = req.query || {};
-  const { warm, sync } = q;
+  const { warm, sync, full } = q;
   // Lượt sync phải chạy thật, không được ăn bộ nhớ đệm — nếu không thì "gọi lại để đi
   // tiếp" chỉ là gọi lại để nhận đúng bản cũ.
-  if (cache.payload && !warm && !sync && Date.now() - cache.at < TTL_MS) {
+  if (cache.payload && !warm && !sync && !full && Date.now() - cache.at < TTL_MS) {
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=86400');
     res.setHeader('X-Cache', 'HIT');
     res.status(200).json(cache.payload);
@@ -138,13 +138,20 @@ export default async function handler(req, res) {
     // chưa từng thấy. Một ngày chỉ có một bộ số, là bộ đã đóng dấu thời gian đầu tiên.
     prediction = lockToCommit(ledger, prediction, brain);
 
-    // CHỈ cron mới được GHI sổ xuống kho. Kho Blob không có khoá ghi: nếu mỗi lượt
-    // người dùng ghé cũng ghi đè thì hai lượt trùng nhau sẽ đè mất bản ghi ĐÃ CHẤM của
-    // nhau. Lượt thường vẫn chấm và hiện đầy đủ trong bộ nhớ, chỉ không lưu.
-    // Chỉ CRON (?warm=1) mới ghi sổ. Kho Blob không có khoá ghi; nếu mọi lượt ghé đều
-    // ghi đè thì hai lượt trùng giờ sẽ đè mất bản ĐÃ CHẤM của nhau. Lượt thường vẫn
-    // chấm và hiện đầy đủ trong bộ nhớ, chỉ không lưu — lần cron sau lưu lại y hệt.
-    const ledgerSaved = token && warm ? await saveLedger(token, ledger) : false;
+    // LƯU SỔ NGAY KHI CÓ THAY ĐỔI THẬT — không đợi cron.
+    //
+    // Trước đây chỉ cron mới ghi, để tránh hai lượt ghé trùng giờ đè mất bản ĐÃ CHẤM của
+    // nhau. Nhưng cái giá phải trả nặng hơn nhiều: lượt thường vẫn tạo cam kết trong bộ
+    // nhớ rồi hiện "đã khoá lúc …" bằng giờ của chính lượt đó. Cam kết ấy không được lưu,
+    // nên lượt sau lại tạo mới với giờ mới — DẤU THỜI GIAN TRÔI TỚI theo mỗi lượt ghé.
+    // Mà dấu thời gian chính là toàn bộ giá trị của sổ: bỏ nó đi thì "cam kết trước khi
+    // quay" chỉ còn là một câu chữ, không còn là bằng chứng.
+    //
+    // Nỗi lo đè nhau hoá ra không đáng: cả hai việc ghi đều TẤT ĐỊNH theo cùng một kho
+    // (cùng lịch sử ⇒ cùng bộ số, cùng kết quả chấm), nên hai lượt trùng giờ ghi ra đúng
+    // một nội dung. Ghi đè lên chính mình thì không mất gì.
+    const ledgerDirty = warm || c.added || g.gradedNow > 0;
+    const ledgerSaved = token && ledgerDirty ? await saveLedger(token, ledger) : false;
 
     const summary = ledgerSummary(ledger, randomHitProb);
 
@@ -166,11 +173,13 @@ export default async function handler(req, res) {
     }
 
     // ---- Kho thứ hai: Supabase (chỉ ở lượt cron/sync — lượt ghé thường không ghi) ----
+    // ?full=1 → seed lùi cho hết kho (gọi vài lần tới khi seedRemaining = 0).
     let supabase = { enabled: supabaseEnabled(), skipped: true };
-    if ((warm || sync) && supabase.enabled) {
+    if ((warm || sync || full) && supabase.enabled) {
       supabase = await pushToSupabase({
         days: history, ledger, byProvince: summary.byProvince,
-        snapshotDate: todayICT(), deadline: startedAt + 52000,
+        snapshotDate: todayICT(), recentDays: full ? 'all' : 400,
+        deadline: startedAt + 52000,
       });
     }
 
@@ -218,7 +227,7 @@ export default async function handler(req, res) {
     // Lượt ĐỌC thường vẫn để CDN giữ 5 phút: mọi máy cùng thấy một bản chụp, số không
     // lệch nhau giữa các thiết bị. Nhưng lượt SYNC là lệnh GHI — để CDN cache nó thì
     // gọi lại 10 lần vẫn nhận đúng bản cũ, kho đứng yên mà nhìn như đang chạy.
-    res.setHeader('Cache-Control', warm || sync ? 'no-store' : 's-maxage=300, stale-while-revalidate=86400');
+    res.setHeader('Cache-Control', warm || sync || full ? 'no-store' : 's-maxage=300, stale-while-revalidate=86400');
     res.setHeader('X-Cache', 'MISS');
     res.status(200).json(payload);
   } catch (e) {

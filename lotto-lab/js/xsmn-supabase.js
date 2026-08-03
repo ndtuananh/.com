@@ -149,6 +149,22 @@ function accuracyRows(byProvince, snapshotDate) {
   return out;
 }
 
+// Ngày CŨ NHẤT đã có trên Supabase — mốc nước để seed lùi cho có tiến độ thật.
+//
+// Không có mốc này thì "đẩy hết" là cái bẫy: lượt nào cũng bắt đầu từ ngày mới nhất, hết
+// giờ ở đúng chỗ cũ, và phần đuôi kho không bao giờ lên tới nơi dù gọi bao nhiêu lần.
+// Có mốc thì mỗi lượt gặm thêm một khúc về quá khứ, gọi vài lần là xong.
+async function oldestDate(cfg) {
+  try {
+    const r = await fetch(`${cfg.url}/rest/v1/xsmn_days?select=draw_date&order=draw_date.asc&limit=1`, {
+      headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}` },
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return Array.isArray(j) && j.length ? j[0].draw_date : null;
+  } catch (_) { return null; }
+}
+
 // ---------------------------------------------------------------------------
 // API CHÍNH — gọi một phát, không bao giờ ném lỗi.
 // ---------------------------------------------------------------------------
@@ -159,11 +175,24 @@ export async function pushToSupabase({ days, ledger, byProvince, snapshotDate, r
   const errors = [];
   const res = { enabled: true, days: 0, commits: 0, accuracy: 0 };
   try {
-    // Chỉ đẩy phần đầu kho (mới → cũ). Đẩy lại toàn bộ 1.600 ngày mỗi lần chạy là ~5.000
-    // dòng upsert cho một thay đổi duy nhất — tốn giờ hàm mà không thêm một dòng dữ liệu
-    // nào. Cron chạy hằng ngày nên phần đuôi kho đã nằm sẵn trên đó từ những lượt trước.
+    // Lượt thường chỉ đẩy phần ĐẦU kho (mới → cũ): đẩy lại toàn bộ ~1.900 ngày mỗi ngày
+    // là ~5.900 dòng upsert cho một thay đổi duy nhất — tốn giờ hàm mà không thêm dữ liệu.
+    //
+    // Nhưng cắt cửa sổ như vậy thì phần ĐUÔI kho không bao giờ lên được, vì lượt nào cũng
+    // đẩy đúng khúc đầu ấy. Nên phải có `full` để seed một lần cho hết, gọi bằng ?full=1.
+    // Hết giờ giữa chừng cũng không sao: upsert idempotent, gọi lại là đi tiếp.
     if (days && days.length) {
-      const r = await upsertChunked(cfg, 'xsmn_days', dayRows(days.slice(0, recentDays)), 'draw_date,slug', { deadline });
+      let slice;
+      if (recentDays === 'all') {
+        // Seed lùi: chỉ lấy khúc CŨ HƠN ngày cũ nhất đã có trên Supabase. Bảng trống thì
+        // lấy từ đầu. Sau mỗi lượt, mốc nước lùi thêm — gọi lại là đi tiếp, không giẫm lại.
+        const mark = await oldestDate(cfg);
+        slice = mark ? days.filter((d) => d.date < mark) : days;
+        res.seedFrom = mark; res.seedRemaining = slice.length;
+      } else {
+        slice = days.slice(0, recentDays);
+      }
+      const r = await upsertChunked(cfg, 'xsmn_days', dayRows(slice), 'draw_date,slug', { deadline });
       res.days = r.sent; errors.push(...r.errors);
     }
     if (ledger) {
