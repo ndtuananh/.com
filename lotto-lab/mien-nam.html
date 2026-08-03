@@ -3,73 +3,93 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Xổ số Miền Nam — Nghiên cứu thống kê minh bạch</title>
-  <meta name="description" content="Nền tảng nghiên cứu thống kê Xổ số Kiến thiết Miền Nam. Chỉ tham khảo — không dự đoán, không tăng xác suất trúng." />
+  <title>Xổ số Miền Nam — Đề 2 số &amp; Lô 2 số theo từng đài</title>
+  <meta name="description" content="Dàn đề 2 số và lô 2 số cho từng đài Miền Nam, khoá số trước khi quay và tự đối chiếu với kết quả minhngoc.net.vn. Công cụ thống kê tham khảo — không làm tăng xác suất trúng." />
   <meta name="theme-color" content="#0f1220" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎲</text></svg>" />
+  <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body class="busy">
-  <div class="disclaimer-bar">
-    ⚠️ <b>Công cụ NGHIÊN CỨU THỐNG KÊ &amp; giải trí.</b> Xổ số là sự kiện ngẫu nhiên độc lập — không phương pháp nào (kể cả AI) dự đoán được kỳ tới hay làm tăng xác suất trúng. Đây là xếp hạng thống kê trên dữ liệu lịch sử, <b>KHÔNG cam kết kết quả</b>. Chơi có trách nhiệm, đủ 18+.
-  </div>
-
   <header class="topbar">
     <div class="brand">🎲 <span>Xổ số Miền Nam</span></div>
     <div class="controls">
-      <span id="xsmn-live" class="live"><span class="dot"></span> Đang kết nối…</span>
       <nav class="nav-toggle">
-        <a href="index.html" class="btn ghost">🎯 Vietlott</a>
-        <a href="mien-nam.html" class="btn">🎲 Miền Nam</a>
+        <a href="index.html" class="btn ghost">Vietlott</a>
+        <a href="mien-nam.html" class="btn">Miền Nam</a>
       </nav>
-      <button id="xsmn-notif" class="btn ghost">🔔 Bật báo</button>
-      <button id="xsmn-refresh" class="btn">↻ Làm mới</button>
+      <button id="xsmn-notif" class="btn ghost" title="Báo về máy khi có kết quả">🔔</button>
+      <button id="xsmn-refresh" class="btn ghost" title="Làm mới">↻</button>
     </div>
   </header>
 
+  <div class="statusline">
+    <span id="xsmn-live" class="live"><span class="dot"></span> đang kết nối…</span>
+    <span id="xsmn-fresh"></span>
+  </div>
+
   <main>
+    <!-- 1 · DÀN SỐ CHO KỲ TỚI — phần chính, chỉ ĐỀ 2 số và LÔ 2 số -->
     <section class="card hero">
-      <h2 class="sec-title">Kết quả hôm nay <small id="xsmn-date"></small></h2>
-      <p class="muted small">Số lớn màu đỏ là <b>ĐỀ</b> (2 số cuối Giải Đặc Biệt). Dãy phía dưới là <b>lô</b> — 2 số cuối của cả 18 giải mỗi đài.</p>
-      <div id="xsmn-today" class="xsmn-grid"></div>
-    </section>
-
-    <section class="card">
-      <h2 class="sec-title">🎯 Gợi ý cho ngày mai <small>(2 số/đài — nghiên cứu, không cam kết)</small></h2>
-      <p class="note small">⚠️ 2 cặp lô xếp hạng cao nhất theo LỊCH SỬ TỪNG ĐÀI — <b>gợi ý nghiên cứu, KHÔNG phải dự đoán chắc trúng</b>. Xem "sổ theo dõi" ngay dưới để biết tỉ lệ về THẬT so với ngẫu nhiên trước khi bỏ tiền.</p>
-      <div id="xsmn-tomorrow"></div>
-    </section>
-
-    <section class="card">
-      <h2 class="sec-title">📒 Sổ theo dõi gợi ý <small>(về/trượt thật — cập nhật mỗi ngày)</small></h2>
-      <div id="xsmn-track"></div>
-    </section>
-
-    <section class="card">
-      <h2 class="sec-title">📉 Chỉ số hiệu quả thực tế <small>(backtest không rò rỉ — đo trên lịch sử tích luỹ)</small></h2>
-      <p class="muted small">Câu hỏi sống còn khi anh bỏ tiền: <b>xếp hạng nóng/lạnh có thật sự trúng nhiều hơn ngẫu nhiên không?</b> Đây là kết quả ĐO — không phải lời hứa. Mỗi ngày chỉ dùng lịch sử TRƯỚC đó để xếp hạng rồi so với kết quả thật; mẫu lớn dần theo kho.</p>
-      <div id="xsmn-effect"></div>
-    </section>
-
-    <section class="card">
-      <h2 class="sec-title">📊 Thống kê lô/đề <small>(mô tả dữ liệu gần đây — không dự đoán)</small></h2>
-      <p class="muted small">Tần suất xuất hiện của từng cặp số 00–99 trong <b id="xsmn-window">—</b>. Đây là <b>thống kê mô tả</b> quá khứ; mỗi kỳ quay độc lập nên con số này KHÔNG phải xác suất của kỳ tới.</p>
-      <div class="cols3">
-        <div><h4>🔥 Lô nóng</h4><div id="xsmn-hot" class="rank"></div></div>
-        <div><h4>❄️ Lô nguội</h4><div id="xsmn-cold" class="rank"></div></div>
-        <div><h4>🎯 Đề hay về</h4><div id="xsmn-dehot" class="rank"></div></div>
+      <div class="sec-head">
+        <h2 class="sec-title">Dàn số kỳ tới</h2>
+        <span id="pred-date" class="sec-meta"></span>
       </div>
-      <h4>Bản đồ nhiệt tần suất lô (00–99)</h4>
-      <div id="xsmn-heatmap" class="heatmap"></div>
+      <div id="pred-lock" class="lock-line"></div>
+      <div id="pred-grid" class="pred-grid"></div>
+      <div id="pred-foot" class="muted small"></div>
     </section>
 
+    <!-- 2 · ĐỐI CHIẾU — kết quả từ minhngoc về là chấm ngay -->
+    <section class="card">
+      <div class="sec-head">
+        <h2 class="sec-title">Đối chiếu kết quả</h2>
+        <span id="led-meta" class="sec-meta"></span>
+      </div>
+      <div id="led-summary"></div>
+      <div id="led-pending"></div>
+      <div id="led-rows" class="led-rows"></div>
+    </section>
+
+    <!-- 3 · MỌI THỨ CÒN LẠI — chạy đủ, chỉ không bày ra -->
+    <details class="drawer" id="drawer-results">
+      <summary>Kết quả đầy đủ 18 giải <span id="xsmn-date" class="sec-meta"></span></summary>
+      <div id="xsmn-today" class="xsmn-grid"></div>
+    </details>
+
+    <details class="drawer" id="drawer-tech">
+      <summary>Chi tiết kỹ thuật &amp; kiểm định <small>(máy vẫn chạy đủ phần này, chỉ không bày ra)</small></summary>
+
+      <div class="drawer-body">
+        <h3 class="sub">Bộ não đang học gì <small id="brain-scope"></small></h3>
+        <div id="brain-verdict"></div>
+        <div class="track-tabs" id="track-tabs">
+          <button class="btn ghost active" data-track="de">Đường ĐỀ</button>
+          <button class="btn ghost" data-track="lo">Đường LÔ</button>
+        </div>
+        <div id="brain-track"></div>
+
+        <h3 class="sub">Thống kê mô tả <small>(tần suất quá khứ — không phải xác suất kỳ tới)</small></h3>
+        <p class="muted small">Cửa sổ: <b id="xsmn-window">—</b></p>
+        <div class="cols3">
+          <div><h4>Lô nóng</h4><div id="xsmn-hot" class="rank"></div></div>
+          <div><h4>Lô nguội</h4><div id="xsmn-cold" class="rank"></div></div>
+          <div><h4>Đề hay về</h4><div id="xsmn-dehot" class="rank"></div></div>
+        </div>
+        <h4>Bản đồ nhiệt tần suất lô (00–99)</h4>
+        <div id="xsmn-heatmap" class="heatmap"></div>
+
+        <h3 class="sub">Kho dữ liệu</h3>
+        <div id="xsmn-storage" class="quality"></div>
+      </div>
+    </details>
   </main>
 
   <footer class="foot">
-    <p><b>Tuyên bố minh bạch.</b> Nền tảng chỉ thực hiện <b>thống kê mô tả</b> trên kết quả công khai (nguồn: minhngoc.net.vn). Mỗi kỳ xổ số độc lập; kết quả quá khứ không ảnh hưởng tương lai. Không liên kết với Xổ số Kiến thiết hay Vietlott. Đừng chi tiêu vượt khả năng.</p>
+    <p><b>Công cụ thống kê tham khảo.</b> Mỗi kỳ xổ số là một sự kiện ngẫu nhiên độc lập — không phương pháp nào, kể cả AI, làm tăng xác suất trúng. Mọi tỉ lệ trên trang đều là <b>số đã đo</b>, luôn kèm mốc bốc số mù và cỡ mẫu để anh tự đánh giá. Nguồn kết quả: minhngoc.net.vn. Không liên kết với Xổ số Kiến thiết. Chơi có trách nhiệm, đủ 18+ — đừng chi vượt khả năng.</p>
   </footer>
 
-  <div id="loader" class="loader"><div class="spinner"></div><span>Đang tải kết quả Miền Nam…</span></div>
+  <div id="loader" class="loader"><div class="spinner"></div><span>đang tải…</span></div>
   <script type="module" src="js/xsmn-app.js"></script>
 </body>
 </html>

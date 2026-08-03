@@ -292,6 +292,19 @@ function renderDashboardPicks(res) {
   res.top.slice(0, 2).forEach((t, i) => box.appendChild(pickCard(t, i, true)));
   // Lưu "phiếu dự đoán" nhắm tới KỲ TIẾP THEO để tự dò khi có kết quả.
   savePending(res.top.slice(0, 2).map((t) => t.set));
+  renderSpecialNote();
+}
+
+// Nói RÕ số đặc biệt của từng sản phẩm, vì ba sản phẩm ba kiểu khác nhau — không nói
+// thì người mua nhìn phiếu thấy thiếu số, tưởng công cụ đưa hụt.
+function renderSpecialNote() {
+  const box = $('#pick-special-note'); if (!box) return;
+  const NOTE = {
+    power535: '🎟️ <b>Số đặc biệt (1–12) đã in kèm sau dấu “|”</b> — mua thì điền đúng số đó. Chỉ riêng trùng số đặc biệt đã ăn Giải KK 10.000đ (xác suất 1/12). Số này quay riêng, độc lập hoàn toàn với 5 số chính nên <b>không mẹo nào đoán được</b>; công cụ chọn tất định từ chính bộ số để máy anh và máy chủ luôn khớp.',
+    power655: '🎟️ <b>Power 6/55 chỉ cần điền 6 số chính</b> — “số Power” (quả bóng thứ 7) do máy quay tự sinh, <b>người chơi không được chọn</b>. Vậy nên phiếu không thiếu gì cả; nó chỉ xét thêm khi đối chiếu Jackpot 2.',
+    power645: '🎟️ <b>Mega 6/45 không có số đặc biệt</b> — cơ cấu chỉ gồm 6 số chính. Phiếu đủ, không thiếu số nào.',
+  };
+  box.innerHTML = NOTE[state.product] || '';
 }
 
 function pickCard(t, i, big = false) {

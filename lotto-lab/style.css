@@ -208,3 +208,238 @@ body.busy .loader{display:flex}
   .cols3{grid-template-columns:1fr}
   .topbar{flex-direction:column; align-items:stretch}
 }
+
+/* ==========================================================================
+   XSMN v4 — bộ não tự học, số cho kỳ tới, sổ đối chiếu cam kết trước
+   ========================================================================== */
+.up{color:var(--green); font-weight:700}
+.down{color:var(--red2); font-weight:700}
+.flat{color:var(--muted); font-weight:700}
+
+/* Số cho kỳ tới */
+.pred-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; margin-top:10px}
+.pred-card{background:var(--card2); border:1px solid var(--line); border-radius:14px; padding:14px}
+.pred-head{display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:10px}
+.pred-row{padding:9px 0; border-top:1px solid var(--line)}
+.pred-row:first-of-type{border-top:0}
+.pred-lab{font-size:.74rem; font-weight:800; letter-spacing:.06em; color:var(--muted); display:flex; align-items:baseline; gap:6px}
+.pred-lab small{font-size:.68rem; font-weight:400}
+.pred-row.de .pred-lab{color:var(--gold)}
+.pred-nums{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 5px}
+.pred-why{font-size:.74rem; color:var(--muted); line-height:1.45}
+.num{
+  display:inline-flex; align-items:center; justify-content:center; min-width:38px; padding:5px 8px;
+  background:var(--card); border:1px solid var(--line); border-radius:8px; margin:2px 3px 2px 0;
+  font-family:ui-monospace,Consolas,monospace; font-size:.98rem; font-weight:700; color:var(--ink);
+}
+.pred-row.de .num{background:linear-gradient(180deg,#3a2410,#2a1a0c); border-color:#6a4a1a; color:#ffe08a; font-size:1.08rem; min-width:44px}
+.num.hit{background:rgba(55,214,122,.18); border-color:#1f9e5a; color:#8affc0}
+
+/* Sổ đối chiếu */
+.led-pending{background:rgba(91,140,255,.07); border:1px solid #2a3a68; border-radius:12px; padding:12px; margin:10px 0}
+.led-pending-head{font-size:.86rem; margin-bottom:8px; color:var(--ink)}
+.led-pending-row{display:flex; align-items:center; flex-wrap:wrap; gap:6px; padding:5px 0; font-size:.82rem}
+.led-rows{margin-top:12px}
+.led-day{margin-bottom:14px}
+.led-day-head{font-size:.84rem; font-weight:800; color:var(--muted); padding:6px 0; border-bottom:1px solid var(--line); margin-bottom:8px}
+.led-row{background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px}
+.led-prov{font-weight:800; color:var(--gold); font-size:.95rem; margin-bottom:6px}
+.led-line{display:flex; align-items:center; flex-wrap:wrap; gap:4px; padding:3px 0; font-size:.85rem}
+.led-tag{font-size:.68rem; font-weight:800; letter-spacing:.06em; padding:3px 7px; border-radius:6px; margin-right:6px; min-width:34px; text-align:center}
+.led-tag.de{background:#3a2410; color:#ffe08a; border:1px solid #6a4a1a}
+.led-tag.lo{background:var(--card); color:var(--muted); border:1px solid var(--line)}
+.led-actual{margin-left:8px; font-size:.8rem; color:var(--muted)}
+.led-actual b{color:var(--red2); font-family:ui-monospace,Consolas,monospace; font-size:.95rem}
+.led-verdict{margin-left:auto; font-size:.78rem; font-weight:800; padding:3px 9px; border-radius:20px; white-space:nowrap}
+.led-verdict.good{background:rgba(55,214,122,.14); color:#8affc0; border:1px solid #1f4a34}
+.led-verdict.bad{background:rgba(154,163,199,.08); color:var(--muted); border:1px solid var(--line)}
+
+/* Bộ não — hai cửa kiểm định */
+.gates{display:flex; flex-wrap:wrap; gap:8px; margin:10px 0}
+.gate{font-size:.78rem; font-weight:700; padding:5px 11px; border-radius:20px; border:1px solid var(--line)}
+.gate.pass{background:rgba(55,214,122,.1); color:#8affc0; border-color:#1f4a34}
+.gate.fail{background:rgba(230,72,60,.08); color:#ffb0a8; border-color:#5a2020}
+.track-tabs{display:flex; gap:8px; margin:14px 0 10px}
+.track-tabs .btn.active{background:var(--red); border-color:var(--red2); color:#fff}
+
+/* Bảng nhánh chiến lược */
+.arm-table{margin:12px 0; border:1px solid var(--line); border-radius:12px; overflow:hidden}
+.arm-row{
+  display:grid; grid-template-columns:minmax(140px,2.2fr) 62px 62px 56px 56px minmax(84px,1fr);
+  gap:8px; align-items:center; padding:8px 12px; font-size:.83rem; border-top:1px solid var(--line);
+}
+.arm-row:first-child{border-top:0}
+.arm-row.head{background:var(--card2); color:var(--muted); font-size:.74rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em}
+.arm-row.meta{background:rgba(91,140,255,.07)}
+.arm-row.ctrl{background:rgba(255,204,77,.06); border-top:1px dashed #6a4a1a; border-bottom:1px dashed #6a4a1a}
+.arm-row.ctrl .arm-name{color:var(--gold)}
+.arm-name{font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.arm-name i{font-size:.72rem; font-weight:400; color:var(--muted)}
+.wbar{position:relative; height:16px; background:var(--card); border-radius:4px; overflow:hidden; display:block}
+.wbar i{position:absolute; left:0; top:0; bottom:0; background:linear-gradient(90deg,#5b8cff,#37d67a); opacity:.55}
+.wbar em{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-style:normal; font-size:.7rem; font-weight:700}
+
+/* Độ phủ */
+.cov{margin:14px 0}
+.cov-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(96px,1fr)); gap:8px; margin-top:8px}
+.cov-cell{background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:9px; text-align:center; display:flex; flex-direction:column; gap:2px}
+.cov-cell b{font-size:.76rem; color:var(--muted)}
+.cov-cell span{font-size:1.14rem; font-weight:800; color:var(--ink)}
+.cov-cell i{font-size:.68rem; color:var(--muted); font-style:normal}
+.cov-cell u{font-size:.74rem; text-decoration:none}
+
+/* Đường học */
+.curve{margin:16px 0}
+.curve-bars{display:flex; align-items:flex-end; gap:6px; height:130px; margin-top:10px; padding-bottom:18px}
+.curve-bar{position:relative; flex:1; height:100%; background:var(--card2); border-radius:6px; overflow:visible}
+.curve-bar i{position:absolute; left:0; right:0; bottom:0; border-radius:6px 6px 0 0; display:block}
+.curve-bars.dev .curve-bar i{border-radius:4px}
+.curve-bars.dev .curve-bar i.down{border-radius:0 0 4px 4px}
+.curve-bar i.up{background:linear-gradient(180deg,#37d67a,#1f9e5a)}
+.curve-bar i.down{background:linear-gradient(180deg,#e6483c,#a02c22)}
+.curve-bar s{position:absolute; left:-2px; right:-2px; height:2px; background:var(--gold); opacity:.8; text-decoration:none}
+.curve-bar em{position:absolute; bottom:-17px; left:0; right:0; text-align:center; font-style:normal; font-size:.64rem; color:var(--muted)}
+
+@media(max-width:640px){
+  .arm-row{grid-template-columns:minmax(110px,1.8fr) 52px 52px 46px 70px; font-size:.78rem}
+  .arm-row > :nth-child(5){display:none}
+  .pred-grid{grid-template-columns:1fr}
+  .led-verdict{margin-left:0}
+}
+
+/* Chỉ báo độ tươi dữ liệu — kho chậm ngày nào phải nói rõ ngày đó, không giấu */
+.fresh-bar{display:flex; flex-wrap:wrap; gap:8px; margin:0 0 4px}
+.fresh{font-size:.76rem; font-weight:700; padding:4px 10px; border-radius:20px; border:1px solid var(--line); background:var(--card2); color:var(--muted)}
+.fresh.ok{color:#8affc0; border-color:#1f4a34; background:rgba(55,214,122,.08)}
+.fresh.warn{color:#ffe08a; border-color:#6a4a1a; background:rgba(255,204,77,.1)}
+.lock-note{grid-column:1/-1; background:rgba(91,140,255,.08); border:1px solid #2a3a68; border-radius:10px; padding:9px 12px; font-size:.79rem; color:var(--muted); line-height:1.5; margin-bottom:2px}
+.lock-note b{color:var(--ink)}
+
+/* ==========================================================================
+   v5 — TINH GỌN. Trang chỉ còn hai thứ: ĐỀ 2 số và LÔ 2 số cho từng đài.
+   Phần chứng minh phương pháp vẫn chạy đủ nhưng nằm trong ngăn kéo đóng sẵn.
+   ========================================================================== */
+
+/* -- thanh trạng thái mảnh, thay cho dải cảnh báo to chiếm hết màn hình đầu -- */
+.statusline{
+  max-width:1180px; margin:0 auto; padding:10px 18px 0;
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+}
+.topbar .controls .btn{padding:7px 12px}
+.nav-toggle{background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:3px; gap:2px}
+.nav-toggle .btn{border-radius:9px; box-shadow:none}
+.nav-toggle .btn.ghost{border-color:transparent; color:var(--muted); font-weight:600}
+.nav-toggle .btn.ghost:hover{color:var(--ink)}
+.btn.ghost.on{color:var(--green); border-color:#1f4a34; background:rgba(55,214,122,.08)}
+
+.sec-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:4px}
+.sec-head .sec-title{margin:0}
+.sec-meta{font-size:.78rem; color:var(--muted); font-variant-numeric:tabular-nums}
+main{gap:14px}
+
+/* -- thẻ đài: ĐỀ trên, LÔ dưới, mỗi dàn kèm tỉ lệ đã đo -- */
+.hero{background:linear-gradient(180deg,#212540,#1a1e33)}
+.lock-line{font-size:.76rem; color:var(--muted); margin:2px 0 10px}
+.lock-line b{color:var(--ink); font-variant-numeric:tabular-nums}
+.pred-grid{gap:12px; margin-top:2px}
+.pred-card{padding:13px 14px; transition:border-color .15s}
+.pred-card:hover{border-color:#3d4670}
+.pred-head{margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--line)}
+.pred-head .xsmn-name{font-size:1.06rem}
+.pred-row{padding:8px 0; border-top:0}
+.pred-row + .pred-row{border-top:1px solid var(--line)}
+.pred-lab{align-items:center; gap:8px}
+.tag-de,.tag-lo{
+  display:inline-block; font-size:.68rem; font-weight:800; letter-spacing:.08em;
+  padding:3px 9px; border-radius:6px; min-width:38px; text-align:center;
+}
+.tag-de{background:#3a2410; color:#ffe08a; border:1px solid #6a4a1a}
+.tag-lo{background:var(--card); color:#a8c4ff; border:1px solid #2a3a68}
+.pred-nums{gap:5px; margin:7px 0 6px}
+.pred-why{
+  display:flex; align-items:center; flex-wrap:wrap; gap:6px;
+  font-size:.75rem; color:var(--muted); font-variant-numeric:tabular-nums;
+}
+.pred-why b{color:var(--ink); font-weight:800}
+.pred-why .vs{
+  color:var(--muted); font-size:.72rem; padding-left:7px; margin-left:1px;
+  border-left:1px solid var(--line);
+}
+.pred-why i{font-style:normal; opacity:.5; cursor:help}
+/* Số dựa trên mẫu mỏng phải TRÔNG mỏng — nếu nó hiện đậm y như số đã đo trên
+   hàng trăm kỳ thì giao diện đang nói dối thay cho dữ liệu. */
+.pred-why.weak{opacity:.72}
+.pred-why.weak b{font-weight:600}
+
+/* -- tổng quan tỉ lệ ở phần đối chiếu -- */
+.overview{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:6px 0 10px}
+.ov-row{
+  background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:11px 13px;
+  display:grid; grid-template-columns:auto auto; align-items:baseline; gap:4px 10px;
+}
+.ov-lab{grid-row:1}
+.ov-val{grid-row:1; font-size:1.5rem; font-weight:800; font-variant-numeric:tabular-nums}
+.ov-sub{grid-column:1/-1; font-size:.73rem; color:var(--muted); font-variant-numeric:tabular-nums}
+
+/* -- bảng tỉ lệ theo đài -- */
+.ptable{border:1px solid var(--line); border-radius:12px; overflow:hidden; margin:8px 0}
+.ptable-row{
+  display:grid; grid-template-columns:minmax(90px,1.6fr) 46px 1fr 58px 1fr 58px;
+  align-items:center; gap:6px; padding:8px 12px; border-top:1px solid var(--line);
+  font-size:.84rem; font-variant-numeric:tabular-nums;
+}
+.ptable-row:first-child{border-top:0}
+.ptable-row.head{background:var(--card2); color:var(--muted); font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em}
+.ptable-row .pt-name{font-weight:700; color:var(--gold); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+/* -- ngăn kéo: có thì mở, không thì thôi — không chiếm chỗ khi đóng -- */
+.drawer{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  padding:0; overflow:hidden;
+}
+.drawer > summary{
+  cursor:pointer; list-style:none; padding:14px 18px; font-weight:700; font-size:.95rem;
+  display:flex; align-items:center; gap:8px; user-select:none;
+}
+.drawer > summary::-webkit-details-marker{display:none}
+.drawer > summary::before{content:'▸'; color:var(--muted); font-size:.8rem; transition:transform .15s}
+.drawer[open] > summary::before{transform:rotate(90deg)}
+.drawer > summary:hover{background:var(--card2)}
+.drawer[open] > summary{border-bottom:1px solid var(--line)}
+.drawer > *:not(summary){padding:0 18px 18px}
+.drawer .drawer-body{padding-top:4px}
+.sub-drawer{margin:10px 0}
+.sub-drawer > summary{cursor:pointer; font-size:.82rem; color:var(--muted); padding:6px 0}
+.sub-drawer > summary:hover{color:var(--ink)}
+
+/* -- đối chiếu: gọn hơn, số to hơn, chữ ít lại -- */
+.led-day-head{font-variant-numeric:tabular-nums; letter-spacing:.02em}
+.led-row{padding:9px 12px; margin-bottom:6px}
+.led-prov{font-size:.9rem; margin-bottom:5px}
+.led-line{gap:3px}
+.led-line .num{min-width:34px; padding:3px 6px; font-size:.88rem; margin:1px 2px 1px 0}
+.led-verdict{font-size:.74rem; padding:2px 8px}
+.led-pending-row{gap:4px}
+.led-pending-row .xsmn-name{flex:0 0 100%; font-size:.86rem; margin-bottom:2px}
+.led-pending-row .num{min-width:32px; padding:3px 6px; font-size:.85rem}
+
+.track-tabs{display:flex; gap:6px; margin:12px 0 10px}
+.track-tabs .btn.active{background:linear-gradient(90deg,var(--red),#c93327); border-color:transparent; color:#fff}
+
+.foot{font-size:.78rem; line-height:1.6}
+
+@media(max-width:640px){
+  .statusline{padding:8px 14px 0}
+  main{padding:14px}
+  .card{padding:14px}
+  .sec-title{font-size:1.05rem}
+  .overview{grid-template-columns:1fr; gap:8px}
+  .ov-val{font-size:1.35rem}
+  .ptable-row{grid-template-columns:minmax(74px,1.4fr) 34px 1fr 50px 1fr 50px; padding:7px 9px; font-size:.78rem; gap:4px}
+  .drawer > summary{padding:12px 14px; font-size:.88rem}
+  .drawer > *:not(summary){padding:0 14px 14px}
+  .topbar{flex-direction:row; align-items:center; padding:10px 14px}
+  .brand{font-size:1rem}
+  .pred-nums .num{min-width:36px; padding:5px 7px}
+  .pred-row.de .num{min-width:42px}
+}

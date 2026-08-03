@@ -1,0 +1,183 @@
+// ============================================================================
+// js/xsmn-supabase.js — ĐẨY DỮ LIỆU LÊN SUPABASE (kho bền thứ hai, truy vấn được).
+//
+// Vì sao cần, khi đã có Vercel Blob?
+//   • Blob là một file JSON: muốn hỏi "đài Tây Ninh 90 ngày qua đề trúng bao nhiêu lần"
+//     thì phải tải cả kho về rồi tự lọc. Supabase là Postgres thật — hỏi bằng SQL.
+//   • Blob không có khoá ghi. Hai lượt chạy trùng giờ có thể đè mất bản ghi của nhau.
+//     Supabase upsert theo khoá chính nên không bao giờ mất dòng.
+//   • Kho ở hai nơi ⇒ mất một nơi vẫn còn nơi kia.
+//
+// NGUYÊN TẮC: module này TUYỆT ĐỐI không được làm hỏng lượt chạy. Không có biến môi
+// trường thì im lặng bỏ qua; gọi lỗi thì nuốt lỗi và báo lại trong payload để nhìn thấy
+// được — nhưng không bao giờ ném ra ngoài. Trang web phải sống kể cả khi Supabase chết.
+//
+// Dùng REST (PostgREST) bằng fetch trần — không thêm phụ thuộc nào vào package.json.
+// Bảng + chỉ mục xem trong supabase/schema.sql.
+// ============================================================================
+
+const URL_ENV = ['SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL'];
+const KEY_ENV = ['SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SERVICE_KEY', 'SUPABASE_KEY'];
+
+const pick = (names) => { for (const n of names) { const v = process.env[n]; if (v) return v.trim(); } return null; };
+
+export function supabaseConfig() {
+  const url = pick(URL_ENV), key = pick(KEY_ENV);
+  if (!url || !key) return null;
+  return { url: url.replace(/\/+$/, ''), key };
+}
+
+export const supabaseEnabled = () => !!supabaseConfig();
+
+// Một lần gọi upsert. `onConflict` phải trùng khoá chính/unique của bảng, nếu không
+// PostgREST sẽ chèn trùng thay vì cập nhật.
+async function upsert(cfg, table, rows, onConflict, timeoutMs = 12000) {
+  if (!rows.length) return { ok: true, count: 0 };
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(`${cfg.url}/rest/v1/${table}?on_conflict=${encodeURIComponent(onConflict)}`, {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: {
+        apikey: cfg.key,
+        Authorization: `Bearer ${cfg.key}`,
+        'Content-Type': 'application/json',
+        // merge-duplicates = UPSERT. return=minimal để khỏi tải ngược cả nghìn dòng về.
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify(rows),
+    });
+    if (!r.ok) {
+      const detail = (await r.text().catch(() => '')).slice(0, 300);
+      return { ok: false, count: 0, error: `${table} ${r.status}: ${detail}` };
+    }
+    return { ok: true, count: rows.length };
+  } catch (e) {
+    return { ok: false, count: 0, error: `${table}: ${String(e && e.message || e)}` };
+  } finally { clearTimeout(t); }
+}
+
+// Chia lô để không đẩy một body khổng lồ (Supabase từ chối payload quá lớn, và một lô
+// hỏng thì mất trắng cả lượt). Dừng ngay khi hết giờ — phần đã đẩy vẫn nằm trên đó.
+async function upsertChunked(cfg, table, rows, onConflict, { chunk = 250, deadline } = {}) {
+  let sent = 0; const errors = [];
+  for (let i = 0; i < rows.length; i += chunk) {
+    if (deadline && Date.now() > deadline) { errors.push(`${table}: hết giờ sau ${sent} dòng`); break; }
+    const r = await upsert(cfg, table, rows.slice(i, i + chunk), onConflict);
+    if (r.ok) sent += r.count; else { errors.push(r.error); break; }
+  }
+  return { sent, errors };
+}
+
+// ---------------------------------------------------------------------------
+// Chuẩn hoá dữ liệu sang dạng bảng
+// ---------------------------------------------------------------------------
+
+// Kết quả thô: mỗi (ngày, đài) một dòng. Tách theo đài chứ không nhét cả ngày vào một
+// ô jsonb — để còn `where slug = 'tay-ninh'` được mà không phải bung JSON ra.
+function dayRows(days) {
+  const out = [];
+  for (const d of days) {
+    if (!d || !d.date || !Array.isArray(d.provinces)) continue;
+    for (const p of d.provinces) {
+      const slug = p.slug || p.province;
+      if (!slug) continue;
+      out.push({
+        draw_date: d.date,
+        slug,
+        province: p.province || slug,
+        code: p.code || '',
+        de: String(p.de ?? '').padStart(2, '0'),
+        lo2: p.lo2 || [],
+      });
+    }
+  }
+  return out;
+}
+
+// Sổ cam kết: mỗi (ngày dự báo, đài) một dòng, kèm kết quả chấm nếu đã có.
+function commitRows(ledger) {
+  const out = [];
+  for (const c of ledger.commits || []) {
+    const graded = c.graded ? new Map(c.graded.rows.map((r) => [r.slug, r])) : null;
+    for (const it of c.items || []) {
+      const g = graded ? graded.get(it.slug) : null;
+      out.push({
+        for_date: c.forDate,
+        slug: it.slug,
+        province: it.province,
+        made_at: c.madeAt,
+        de_picks: it.de, de_arm: it.deArm, de_arm_name: it.deArmName,
+        lo_picks: it.lo, lo_arm: it.loArm, lo_arm_name: it.loArmName,
+        graded_at: c.graded ? c.graded.at : null,
+        actual_de: g ? g.actualDe : null,
+        de_hit: g ? g.deHit : null,
+        lo_hit: g ? g.loHit : null,
+        lo_match: g ? g.loMatch : null,
+        distinct_lo: g ? g.distinct : null,
+      });
+    }
+  }
+  return out;
+}
+
+// Ảnh chụp tỉ lệ chính xác theo từng đài, đóng dấu theo ngày. Giữ lịch sử ảnh chụp để
+// sau này vẽ được "tỉ lệ của đài này thay đổi thế nào qua các tháng" — thứ mà chỉ nhìn
+// con số hôm nay thì không bao giờ thấy.
+function accuracyRows(byProvince, snapshotDate) {
+  const out = [];
+  for (const p of byProvince || []) {
+    for (const track of ['de', 'lo']) {
+      const t = p[track];
+      if (!t) continue;
+      out.push({
+        snapshot_date: snapshotDate,
+        slug: p.slug,
+        province: p.province,
+        track,
+        n: p.n,
+        k: t.k,
+        hits: t.hits,
+        rate: Number(t.rate.toFixed(6)),
+        exp_rate: Number(t.expRate.toFixed(6)),
+        edge: Number(t.edge.toFixed(6)),
+        z: Number(t.z.toFixed(4)),
+      });
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// API CHÍNH — gọi một phát, không bao giờ ném lỗi.
+// ---------------------------------------------------------------------------
+export async function pushToSupabase({ days, ledger, byProvince, snapshotDate, recentDays = 400, deadline } = {}) {
+  const cfg = supabaseConfig();
+  if (!cfg) return { enabled: false, reason: 'chưa đặt SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY' };
+
+  const errors = [];
+  const res = { enabled: true, days: 0, commits: 0, accuracy: 0 };
+  try {
+    // Chỉ đẩy phần đầu kho (mới → cũ). Đẩy lại toàn bộ 1.600 ngày mỗi lần chạy là ~5.000
+    // dòng upsert cho một thay đổi duy nhất — tốn giờ hàm mà không thêm một dòng dữ liệu
+    // nào. Cron chạy hằng ngày nên phần đuôi kho đã nằm sẵn trên đó từ những lượt trước.
+    if (days && days.length) {
+      const r = await upsertChunked(cfg, 'xsmn_days', dayRows(days.slice(0, recentDays)), 'draw_date,slug', { deadline });
+      res.days = r.sent; errors.push(...r.errors);
+    }
+    if (ledger) {
+      const r = await upsertChunked(cfg, 'xsmn_commits', commitRows(ledger), 'for_date,slug', { deadline });
+      res.commits = r.sent; errors.push(...r.errors);
+    }
+    if (byProvince && byProvince.length) {
+      const r = await upsertChunked(cfg, 'xsmn_accuracy', accuracyRows(byProvince, snapshotDate), 'snapshot_date,slug,track', { deadline });
+      res.accuracy = r.sent; errors.push(...r.errors);
+    }
+  } catch (e) {
+    errors.push(String(e && e.message || e));
+  }
+  if (errors.length) { res.ok = false; res.errors = errors.slice(0, 4); console.error('[xsmn-supabase]', errors[0]); }
+  else res.ok = true;
+  return res;
+}

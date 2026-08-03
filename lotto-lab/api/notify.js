@@ -16,8 +16,15 @@ import {
   buildFeatures, backtest, monteCarlo, prizeFor, PRIZES, DEFAULT_WEIGHTS, specialFor,
 } from '../js/engine.js';
 import { mergeFreshDraws } from '../js/vietlott.js';
-import { fetchXSMN, xsmnStats, xsmnBacktest, XSMN_SCHEDULE } from '../js/minhngoc.js';
-import { loadHistory as loadXsmnHistory, saveHistory as saveXsmnHistory, mergeHistory as mergeXsmnHistory } from '../js/xsmn-store.js';
+import { fetchXSMN } from '../js/minhngoc.js';
+import {
+  loadHistory as loadXsmnHistory, saveHistory as saveXsmnHistory, mergeHistory as mergeXsmnHistory,
+  addDays as xsmnAddDays, loadLedger, saveLedger,
+} from '../js/xsmn-store.js';
+import { brainAnalyze, brainPredict, armStatsFor, randomHitProb, BRAIN_MAX_DAYS } from '../js/xsmn-brain.js';
+import { addCommit, gradeCommits, ledgerSummary } from '../js/xsmn-ledger.js';
+import { committableFrom } from '../js/xsmn-sync.js';
+import { pushToSupabase } from '../js/xsmn-supabase.js';
 
 const PRODUCTS = {
   power655: { file: 'power655.jsonl', mainCount: 6, mainMax: 55, special: true,  specialMax: 55, label: 'Power 6/55' },
@@ -147,9 +154,15 @@ async function loadNotified() {
     return { set: new Set(Array.isArray(arr) ? arr : []), token };
   } catch (_) { return { set: new Set(), token }; }
 }
+// allowOverwrite bắt buộc với @vercel/blob v2 khi ghi đè đường dẫn cố định. Thiếu nó,
+// danh sách "đã báo" không lưu được ⇒ cron hôm sau tưởng chưa báo và gửi email trùng.
 async function saveNotified(token, set) {
   if (!token) return;
-  try { await put(NOTIFIED_KEY, JSON.stringify([...set].slice(-800)), { access: 'public', token, addRandomSuffix: false, contentType: 'application/json' }); } catch (_) { /* bỏ qua */ }
+  try {
+    await put(NOTIFIED_KEY, JSON.stringify([...set].slice(-800)), {
+      access: 'public', token, addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json',
+    });
+  } catch (e) { console.error('[notify] không lưu được danh sách đã báo:', e && e.message); }
 }
 
 // Gửi Web Push tới mọi thiết bị đã đăng ký (đọc từ Vercel Blob).
@@ -186,8 +199,12 @@ async function sendEmail(subject, html) {
   return { sent: true, to };
 }
 
-// Báo cáo XSMN TRUNG THỰC hằng ngày: kết quả hôm nay + sổ theo dõi (≈ ngẫu nhiên) +
-// gợi ý NGHIÊN CỨU cho ngày mai (KHÔNG phải "số chắc trúng"). Không cam kết thu nhập.
+// Báo cáo XSMN hằng ngày. Bốn phần, theo đúng thứ tự người đọc cần:
+//   1. ĐỐI CHIẾU cam kết hôm trước với kết quả vừa về — phần quan trọng nhất, vì đó là
+//      thứ duy nhất chứng minh được máy đúng hay sai (số đã khoá trong kho trước khi quay).
+//   2. Kết quả hôm nay.
+//   3. Số cho kỳ tới: CẢ dàn ĐỀ lẫn dàn LÔ cho từng đài.
+//   4. Sổ cộng dồn + sự thật về kỳ vọng.
 async function buildXsmnReport() {
   const fresh = await fetchXSMN();
   if (!fresh.length) return { ok: false };
@@ -195,39 +212,134 @@ async function buildXsmnReport() {
   let merged = stored;
   if (stored.length || token) { const m = mergeXsmnHistory(stored, fresh); merged = m.merged; if (token) await saveXsmnHistory(token, merged); }
   const history = merged.length ? merged : fresh;
-  const stats = xsmnStats(history);
-  const bt = xsmnBacktest(history);
   const today = fresh[0];
+  const nowISO = new Date().toISOString();
+
+  // Sổ cam kết dùng CHUNG kho với /api/xsmn: chấm trước, ghi sau.
+  let ledger = token ? await loadLedger(token) : { v: 4, commits: [] };
+  ledger = gradeCommits(ledger, history, nowISO).ledger;
+  const brain = brainAnalyze(history.slice(0, BRAIN_MAX_DAYS));
+
+  // Cùng luật với /api/xsmn: chỉ dự báo kỳ CHƯA QUAY. Email chạy lúc 22h30 giờ VN, tức
+  // là sau giờ quay của hôm nay — nếu lấy "ngày sau ngày mới nhất trong kho" mà kho chậm
+  // thì email sẽ khoe một dự báo cho kỳ đã có kết quả.
+  const safeFrom = committableFrom();
+  const afterStore = xsmnAddDays(history[0].date, 1);
+  let prediction = brainPredict(brain, afterStore > safeFrom ? afterStore : safeFrom);
+  ledger = addCommit(ledger, prediction, nowISO, safeFrom).ledger;
+
+  // SỐ TRONG EMAIL PHẢI LÀ SỐ ĐÃ KHOÁ TRÊN WEB.
+  // /api/xsmn chạy trước và đã khoá bộ số cho kỳ này. Não học thêm cả ngày nên nếu email
+  // in bản mới nhất, anh sẽ nhận hai bộ số khác nhau cho cùng một kỳ — và bộ đem đi chấm
+  // điểm là bộ trên web, không phải bộ trong email.
+  const locked = ledger.commits.find((x) => x.forDate === prediction.forDate);
+  if (locked) {
+    const bySlug = new Map(locked.items.map((it) => [it.slug, it]));
+    prediction = {
+      ...prediction, lockedAt: locked.madeAt,
+      provinces: prediction.provinces.map((p) => {
+        const it = bySlug.get(p.slug);
+        if (!it) return p;
+        const put = (tk, picks, arm, armName) => {
+          const s = armStatsFor(brain, tk, arm, p.slug);
+          return { ...p[tk], ...(s || {}), picks, arm, armName: (s && s.armName) || armName };
+        };
+        return { ...p, de: put('de', it.de, it.deArm, it.deArmName), lo: put('lo', it.lo, it.loArm, it.loArmName) };
+      }),
+    };
+  }
+  if (token) await saveLedger(token, ledger);
+  const sum = ledgerSummary(ledger, randomHitProb);
+
+  // Kho thứ hai — im lặng bỏ qua nếu chưa đặt biến môi trường Supabase.
+  await pushToSupabase({ days: history, ledger, byProvince: sum.byProvince, snapshotDate: today.date });
+
+  const CARD = 'border:1px solid #e3e3e8;border-radius:10px;padding:10px 12px;margin:8px 0';
+  const CHIP = 'display:inline-block;padding:3px 8px;margin:2px 3px 2px 0;border-radius:6px;border:1px solid #ddd;background:#fafafa;font-family:Consolas,monospace;font-weight:700';
+  const HIT = 'display:inline-block;padding:3px 8px;margin:2px 3px 2px 0;border-radius:6px;border:1px solid #1f9e5a;background:#e6f9ee;color:#0d7a42;font-family:Consolas,monospace;font-weight:700';
 
   let html = `<div style="font-family:Segoe UI,Arial,sans-serif;max-width:640px;margin:18px auto 0;color:#1a1a1a;border-top:2px solid #e6483c;padding-top:12px">
-    <h2 style="color:#e6483c">🎲 Xổ số Miền Nam — báo cáo hôm nay (${today.date})</h2>`;
+    <h2 style="color:#e6483c">🎲 Xổ số Miền Nam — báo cáo ngày ${today.date}</h2>`;
+
+  // ---- 1 · ĐỐI CHIẾU ----
+  const last = ledger.commits.filter((c) => c.graded && c.graded.rows.length)
+    .sort((a, b) => (a.forDate < b.forDate ? 1 : -1))[0];
+  if (last) {
+    const g = last.graded;
+    html += `<div style="${CARD};border-color:#5b8cff;background:#f5f8ff">
+      <b>📌 Đối chiếu số máy đã khoá cho ngày ${last.forDate}</b>
+      <div style="font-size:12px;color:#666;margin:2px 0 8px">Khoá lúc ${new Date(last.madeAt).toLocaleString('vi-VN')} — trước khi kỳ này quay, không sửa lại được.</div>`;
+    for (const r of g.rows) {
+      html += `<div style="border-top:1px solid #e8e8ee;padding:7px 0"><b>${r.province}</b>
+        <div style="font-size:13px;margin-top:4px">ĐỀ ${r.de.map((n) => `<span style="${r.deMatch.includes(n) ? HIT : CHIP}">${n}</span>`).join('')}
+          <span style="color:#666">→ kết quả <b style="color:#e6483c">${r.actualDe}</b></span>
+          <b style="color:${r.deHit ? '#0d7a42' : '#999'}">${r.deHit ? ' ✓ TRÚNG' : ' ✗ trượt'}</b></div>
+        <div style="font-size:13px;margin-top:4px">LÔ ${r.lo.map((n) => `<span style="${r.loMatch.includes(n) ? HIT : CHIP}">${n}</span>`).join('')}
+          <b style="color:${r.loHit ? '#0d7a42' : '#999'}">${r.loHit ? ` ✓ về ${r.loMatch.length} số` : ' ✗ trượt'}</b></div></div>`;
+    }
+    html += `<div style="font-size:13px;margin-top:8px;font-weight:700">Ngày này: ĐỀ ${g.deHits}/${g.total} đài · LÔ ${g.loHits}/${g.total} đài</div></div>`;
+  } else {
+    html += `<div style="${CARD};background:#f5f8ff;border-color:#5b8cff">📌 <b>Sổ đối chiếu vừa mở.</b> Máy đã khoá số cho kỳ tới vào kho. Từ ngày mai, mục này hiện đúng số máy đã đoán đặt cạnh kết quả thật.</div>`;
+  }
+
+  // ---- 2 · KẾT QUẢ HÔM NAY ----
   for (const p of today.provinces) {
-    html += `<div style="border:1px solid #e3e3e8;border-radius:10px;padding:10px 12px;margin:8px 0">
+    html += `<div style="${CARD}">
       <b>${p.province}</b> <span style="color:#888;font-size:12px">${p.code}</span> — ĐỀ: <b style="color:#e6483c;font-size:16px">${p.de}</b>
       <div style="font-size:12px;color:#555;margin-top:4px">Lô: ${p.lo2.join(' ')}</div></div>`;
   }
-  const s = bt.suggestion;
-  if (s && s.total) {
-    const diff = (s.hitRate - s.randomRate) * 100;
-    html += `<div style="background:#f4f4f6;border:1px solid #e3e3e8;border-radius:10px;padding:10px 12px;margin:10px 0">
-      📒 <b>Sổ theo dõi gợi ý (backtest không rò rỉ):</b> đã về <b>${s.hits}/${s.total}</b> = <b>${(s.hitRate * 100).toFixed(1)}%</b> · mức ngẫu nhiên ≈ <b>${(s.randomRate * 100).toFixed(1)}%</b> (chênh ${diff >= 0 ? '+' : ''}${diff.toFixed(1)} điểm — ${Math.abs(diff) < 3 ? '≈ ngẫu nhiên' : 'đáng xem'}).</div>`;
-  }
-  const tmrWd = new Date(Date.now() + 7 * 3600 * 1000 + 86400 * 1000).getUTCDay();
-  const provStats = new Map((stats.provinces || []).map((p) => [p.slug || p.name, p]));
-  const tmrProvs = XSMN_SCHEDULE[tmrWd] || [];
-  if (tmrProvs.length) {
-    html += `<div style="margin:10px 0"><b>🎯 Gợi ý nghiên cứu cho ngày mai (2 số/đài — KHÔNG cam kết):</b><div style="font-size:14px;margin-top:4px;line-height:1.8">`;
-    for (const [slug, name] of tmrProvs) {
-      const ps = provStats.get(slug);
-      const top = (ps ? ps.loHot : stats.loHot).slice(0, 2).map((x) => x.n);
-      html += `${name}: <code>${top.join(' · ')}</code>&nbsp;&nbsp; `;
+
+  // ---- 3 · SỐ CHO KỲ TỚI: ĐỀ + LÔ ----
+  if (prediction.provinces.length) {
+    html += `<div style="${CARD};border-color:#e6a23c;background:#fffaf0">
+      <b>🎯 Số cho kỳ ngày ${prediction.forDate}</b>
+      <div style="font-size:12px;color:#666;margin:2px 0 6px">Gợi ý nghiên cứu, KHÔNG cam kết trúng.
+      ${prediction.lockedAt
+        ? `Đây đúng là bộ số đã khoá trên web lúc ${new Date(prediction.lockedAt).toLocaleString('vi-VN')} — email và web luôn cùng một bộ.`
+        : 'Số vừa được ghi vào kho, đóng dấu thời gian để mai đối chiếu.'}</div>`;
+    // Tỉ lệ đi kèm ưu tiên SỔ CAM KẾT của chính đài đó (bằng chứng thật, đã khoá trước
+    // khi quay). Chưa đủ kỳ thì mới rơi về số walk-forward, và phải nói rõ là đang lấy
+    // từ đâu — hai nguồn này khác hẳn nhau về sức nặng.
+    const score = new Map((sum.byProvince || []).map((x) => [x.slug, x]));
+    const rate = (q, tk) => {
+      const t = score.get(q.slug);
+      if (t && t.n >= 8) {
+        const s = t[tk];
+        return `sổ đã chấm ${s.hits}/${t.n} kỳ = <b>${(s.rate * 100).toFixed(1)}%</b> · bốc mù ${(s.expRate * 100).toFixed(1)}%`;
+      }
+      const w = q[tk];
+      if (w.provN >= 12 && w.provRate != null) {
+        return `máy tự chấm lại ${w.provHits}/${w.provN} kỳ = <b>${(w.provRate * 100).toFixed(1)}%</b> · bốc mù ${(w.provExp * 100).toFixed(1)}% <i>(chưa phải số đã cam kết trước)</i>`;
+      }
+      if (w.armN) return `toàn miền <b>${(w.armRate * 100).toFixed(1)}%</b> · bốc mù ${(w.armExp * 100).toFixed(1)}% <i>(đài này chưa đủ kỳ)</i>`;
+      return 'chưa đủ kỳ để đo';
+    };
+    for (const q of prediction.provinces) {
+      html += `<div style="border-top:1px solid #f0e4cc;padding:7px 0"><b>${q.province}</b>
+        <div style="font-size:13px;margin-top:4px">ĐỀ ${q.de.picks.map((n) => `<span style="${CHIP}">${n}</span>`).join('')}
+          <div style="font-size:11px;color:#888">${rate(q, 'de')}</div></div>
+        <div style="font-size:13px;margin-top:6px">LÔ ${q.lo.picks.map((n) => `<span style="${CHIP}">${n}</span>`).join('')}
+          <div style="font-size:11px;color:#888">${rate(q, 'lo')}</div></div></div>`;
     }
-    html += `</div></div>`;
+    html += `</div>`;
   }
-  if (s && s.total) {
-    html += `<p style="font-size:12px;color:#666">💸 <b>Sự thật cho tiền của anh:</b> gợi ý "về" ${(s.hitRate * 100).toFixed(1)}% — gần y hệt bốc số ngẫu nhiên ${(s.randomRate * 100).toFixed(1)}%. Chọn số "nóng" KHÔNG trúng nhiều hơn; đường dài đặt tiền chắc chắn lỗ. Đây là báo cáo nghiên cứu, KHÔNG phải số chắc trúng.</p>`;
+
+  // ---- 4 · SỔ CỘNG DỒN + SỰ THẬT ----
+  if (sum.total) {
+    const f = (s) => `${s.hits}/${sum.total} = <b>${(s.rate * 100).toFixed(1)}%</b> · bốc mù ${(s.expRate * 100).toFixed(1)}% (z=${s.z.toFixed(2)})`;
+    html += `<div style="${CARD};background:#f4f4f6">
+      📒 <b>Sổ cam kết trước — cộng dồn ${sum.total} lượt đài / ${sum.days} ngày:</b>
+      <div style="font-size:13px;margin-top:5px">ĐỀ (${sum.de.k} số/đài): ${f(sum.de)}</div>
+      <div style="font-size:13px">LÔ (${sum.lo.k} số/đài): ${f(sum.lo)}</div>
+      ${sum.total < 90 ? '<div style="font-size:11px;color:#a06000;margin-top:5px">⚠️ Mẫu còn nhỏ — chênh vài điểm hoàn toàn có thể là may rủi, chưa kết luận được gì.</div>' : ''}</div>`;
   }
-  html += `<p style="font-size:11px;color:#999;border-top:1px solid #eee;padding-top:8px">⚠️ Thống kê nghiên cứu trên dữ liệu quá khứ (nguồn: minhngoc.net.vn). Xổ số ngẫu nhiên độc lập — không dự đoán, không cam kết thu nhập. Chơi có trách nhiệm.</p></div>`;
+  const bl = brain.lo, bd = brain.de;
+  html += `<div style="${CARD};background:#fafafa">
+    🧠 <b>Bộ não (walk-forward trên ${brain.gradedDraws} lượt đài):</b>
+    <div style="font-size:12px;color:#555;margin-top:4px">LÔ (${bl.show} số/đài) — máy tự chọn nhánh đạt ${(bl.bandit.showRate * 100).toFixed(1)}% so với bốc mù ${(bl.bandit.showExp * 100).toFixed(1)}%. ${bl.evidence ? 'CÓ tín hiệu nhỏ.' : 'Chưa có bằng chứng vượt ngẫu nhiên.'}</div>
+    <div style="font-size:12px;color:#555">ĐỀ (${bd.show} số/đài) — máy tự chọn nhánh đạt ${(bd.bandit.showRate * 100).toFixed(1)}% so với bốc mù ${(bd.bandit.showExp * 100).toFixed(1)}%. ${bd.evidence ? 'CÓ tín hiệu nhỏ.' : 'Chưa có bằng chứng vượt ngẫu nhiên.'}</div></div>`;
+  html += `<p style="font-size:12px;color:#666">💸 <b>Sự thật cho tiền của anh:</b> mọi nhánh trong máy — nóng, nguội, gan, bóng, lộn, tổng — đều đang cho kết quả sát mức bốc số mù. Cộng phần nhà cái ăn, đặt tiền đường dài <b>chắc chắn lỗ</b> dù chọn số kiểu gì. App này để nghiên cứu và giải trí, KHÔNG phải công cụ kiếm tiền.</p>`;
+  html += `<p style="font-size:11px;color:#999;border-top:1px solid #eee;padding-top:8px">⚠️ Nguồn: minhngoc.net.vn. Xổ số ngẫu nhiên độc lập — không dự đoán, không cam kết thu nhập. Chơi có trách nhiệm, đủ 18+.</p></div>`;
   return { ok: true, html, dateKey: today.date };
 }
 
