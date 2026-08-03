@@ -7,7 +7,15 @@
 //   3. CHẤM sổ cam kết: mọi ngày đã ghi số từ trước mà nay đã có kết quả → đối chiếu.
 //   4. Chạy não walk-forward trên toàn kho (2 đường: LÔ và ĐỀ).
 //   5. GHI cam kết cho ngày kế tiếp (ngày chưa có kết quả) — trước khi quay số.
-//   6. Lưu kho + sổ, trả về toàn bộ số liệu đã đo.
+//   6. Lưu kho + sổ + đẩy Supabase, trả về toàn bộ số liệu đã đo.
+//
+// GIỜ CRON (vercel.json là JSON thuần, không nhét chú thích vào được):
+//   "20 10 * * *" = 10h20 UTC = 17h20 giờ VN. Đài Miền Nam quay ~16h15, kết quả lên
+//   nguồn ~16h35 — nên chạy vào 17h20 thì MỘT lượt cron làm xong cả ba việc: chấm sổ
+//   cam kết của hôm nay, đẩy lên Supabase, và khoá số cho kỳ NGÀY MAI. Đặt cron trước
+//   giờ quay thì phải đợi tới hôm sau mới chấm được, sổ luôn trễ một ngày.
+//   /api/notify chạy 15h30 UTC = 22h30 giờ VN, tức là SAU lượt này, nên email in đúng
+//   bộ số web đã khoá chứ không sinh ra bộ mới.
 // ============================================================================
 import { fetchXSMN, xsmnStats } from '../js/minhngoc.js';
 import { loadHistory, saveHistory, mergeHistory, addDays, loadLedger, saveLedger } from '../js/xsmn-store.js';

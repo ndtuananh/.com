@@ -1,12 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "_comment_crons": [
-    "Giờ trong schedule là UTC. Đài Miền Nam quay ~16h15 và kết quả lên nguồn ~16h35 giờ VN.",
-    "10:20 UTC = 17:20 giờ VN — chạy SAU khi kết quả về, nên một lượt cron làm được cả ba việc:",
-    "chấm sổ cam kết của hôm nay, đẩy lên Supabase, và khoá số cho kỳ NGÀY MAI.",
-    "Chạy trước giờ quay thì phải đợi tới hôm sau mới chấm được — sổ luôn trễ một ngày.",
-    "15:30 UTC = 22h30 giờ VN — email chạy sau, nên nó in đúng bộ số web đã khoá."
-  ],
   "cleanUrls": true,
   "functions": {
     "api/data.js": { "maxDuration": 20 },
