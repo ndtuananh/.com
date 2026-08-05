@@ -92,18 +92,21 @@ function newProv(name, code) {
   return {
     name, code, n: 0,
     app: f64(),                      // số KỲ có mặt trong lô (đơn vị đúng với thước đo "về")
-    de: f64(),                       // số kỳ nổ ĐỀ
+    de: f64(),                       // số kỳ nổ ĐUÔI (2 số cuối giải Đặc Biệt)
+    dau: f64(),                      // số kỳ nổ ĐẦU (2 số giải Tám)
     last: new Int32Array(N).fill(-1),
     deLast: new Int32Array(N).fill(-1),
-    ewF: f64(), ewS: f64(), deEw: f64(),
-    prev: null, prevDe: -1,
+    dauLast: new Int32Array(N).fill(-1),
+    ewF: f64(), ewS: f64(), deEw: f64(), dauEw: f64(),
+    prev: null, prevDe: -1, prevDau: -1,
   };
 }
 function newState() {
   return {
-    n: 0, app: f64(), de: f64(),
-    last: new Int32Array(N).fill(-1), deLast: new Int32Array(N).fill(-1),
-    wd: Array.from({ length: 7 }, f64), deWd: Array.from({ length: 7 }, f64), wdN: new Float64Array(7),
+    n: 0, app: f64(), de: f64(), dau: f64(),
+    last: new Int32Array(N).fill(-1), deLast: new Int32Array(N).fill(-1), dauLast: new Int32Array(N).fill(-1),
+    wd: Array.from({ length: 7 }, f64), deWd: Array.from({ length: 7 }, f64),
+    dauWd: Array.from({ length: 7 }, f64), wdN: new Float64Array(7),
     prov: new Map(),
   };
 }
@@ -175,6 +178,32 @@ export const DE_STRATS = [
   { key: 'deRand', name: 'Ngẫu nhiên (đối chứng)', desc: 'Bốc số mù — thước đo sự thật cho các nhánh kia', score: (S, c) => randScore('D' + c.date + '|' + c.slug) },
 ];
 
+// ---------------------------------------------------------------------------
+// ĐƯỜNG 3 — ĐẦU (2 số giải Tám). Cùng dạng bài toán với ĐUÔI: đáp án DUY NHẤT một
+// cặp 00–99 mỗi kỳ. Nhưng lịch sử của ĐẦU và ĐUÔI là hai chuỗi độc lập nhau, nên phải
+// có dàn nhánh riêng và bộ đếm riêng — dùng chung số liệu của ĐUÔI là gán cho ĐẦU một
+// thành tích nó chưa từng lập.
+// ---------------------------------------------------------------------------
+export const DAU_STRATS = [
+  { key: 'dauHotG', name: 'Đầu nóng toàn miền', desc: 'Số nổ đầu nhiều nhất trên mọi đài', score: (S) => S.dau },
+  { key: 'dauHotP', name: 'Đầu nóng theo đài', desc: 'Số nổ đầu nhiều nhất của riêng đài này', score: (S, c) => c.pv.dau },
+  { key: 'dauColdG', name: 'Đầu nguội toàn miền', desc: 'Số ít nổ đầu nhất trên mọi đài', score: (S) => NEG(S.dau) },
+  { key: 'dauColdP', name: 'Đầu nguội theo đài', desc: 'Số ít nổ đầu nhất của riêng đài này', score: (S, c) => NEG(c.pv.dau) },
+  { key: 'dauGan', name: 'Đầu gan (lâu chưa nổ)', desc: 'Lâu nhất chưa nổ đầu ở đài này', score: (S, c) => gapArr(c.pv.dauLast, c.pv.n) },
+  {
+    key: 'dauBayes', name: 'Đầu Bayes co ngót', desc: 'Tỉ lệ đầu của đài co về tỉ lệ toàn miền',
+    score: (S, c) => { const o = f64(), tau = 60, gN = Math.max(1, S.n); for (let i = 0; i < N; i++) o[i] = (c.pv.dau[i] + tau * (S.dau[i] / gN)) / (c.pv.n + tau); return o; },
+  },
+  { key: 'dauEw', name: 'Đầu xu hướng gần', desc: 'Trung bình mũ ~17 kỳ đầu gần nhất của đài', score: (S, c) => c.pv.dauEw },
+  { key: 'dauBong', name: 'Bóng / lộn ĐẦU kỳ trước', desc: 'Bóng, lộn, bóng-lộn của đầu kỳ trước đài này', score: (S, c) => bongScore(c.pv.prevDau) },
+  { key: 'dauTong', name: 'Tổng ĐẦU kỳ trước', desc: 'Số có tổng chữ số trùng tổng đầu kỳ trước', score: (S, c) => tongScore(c.pv.prevDau) },
+  { key: 'dauTheoDe', name: 'Theo ĐUÔI kỳ trước', desc: 'Dân gian: đầu kỳ này bám bóng/lộn của đuôi kỳ trước', score: (S, c) => bongScore(c.pv.prevDe) },
+  { key: 'dauWd', name: 'Đầu theo thứ trong tuần', desc: 'Tần suất đầu riêng của thứ mà đài này quay', score: (S, c) => S.dauWd[c.wd] },
+  { key: 'dauLo', name: 'Theo lô nóng của đài', desc: 'Cặp về dày trong lô của đài này', score: (S, c) => c.pv.app },
+  { key: 'dauKep', name: 'Ưu tiên đầu kép', desc: '00,11,…,99 rồi mới tới đầu nóng', score: () => kepScore() },
+  { key: 'dauRand', name: 'Ngẫu nhiên (đối chứng)', desc: 'Bốc số mù — thước đo sự thật cho các nhánh kia', score: (S, c) => randScore('A' + c.date + '|' + c.slug) },
+];
+
 export const ENS_KEY = 'ens', BANDIT_KEY = 'bandit';
 
 // Cấu hình hai đường.
@@ -185,9 +214,22 @@ export const ENS_KEY = 'ens', BANDIT_KEY = 'bandit';
 // đo ở head (đề 10 số) ngay cạnh dàn 6 số — người đọc tưởng "6 số này về 9%", trong khi
 // 9% đó là của một dàn 10 số họ chưa từng thấy. Vì vậy `show` bắt buộc phải nằm trong
 // `ks` để có bộ đếm riêng, và mọi con số hiện ra đều lấy từ bộ đếm đó.
+// `show: 1` — MỖI ĐƯỜNG CHỈ MỘT SỐ CHỐT.
+//
+// Anh Tuấn Anh chốt 04/08/2026: chỉ đưa con chính xác nhất, không rải dàn. Cần nói
+// thẳng ý nghĩa của con số này, vì nó dễ bị hiểu ngược:
+//
+//   Chơi 1 số thì tỉ lệ "về" THẤP HƠN chơi 6 số — và bốc mù cũng vậy. Đầu/đuôi 1 số
+//   trúng ~1% mỗi kỳ, 6 số ~6%. Rút từ 6 xuống 1 KHÔNG làm máy đoán giỏi hơn; nó chỉ
+//   làm bảng số gọn lại và làm mỗi lần trúng nặng ký hơn. Cái quyết định vẫn là chênh
+//   lệch so với bốc mù — mà chênh lệch ấy, đo trên 4.316 lượt đài, vẫn bằng không.
+//
+// `head` (mức học) vẫn giữ dày: học bằng tín hiệu 1-ăn-99 thì gần như kỳ nào cũng nhận
+// thưởng 0, luật nhân không có gì để bám. Học ở mức dày, chốt ở mức 1 — hai việc khác nhau.
 export const TRACKS = {
-  lo: { key: 'lo', label: 'LÔ', sub: '2 số cuối của cả 18 giải', strats: LO_STRATS, ks: [1, 2, 3, 4, 5, 10], head: 2, show: 4, singleAnswer: false },
-  de: { key: 'de', label: 'ĐỀ', sub: '2 số cuối giải Đặc Biệt', strats: DE_STRATS, ks: [1, 2, 3, 5, 6, 10, 20], head: 10, show: 6, singleAnswer: true },
+  dau: { key: 'dau', label: 'ĐẦU', sub: '2 số giải Tám', strats: DAU_STRATS, ks: [1, 2, 3, 5, 10, 20], head: 10, show: 1, singleAnswer: true },
+  de: { key: 'de', label: 'ĐUÔI', sub: '2 số cuối giải Đặc Biệt', strats: DE_STRATS, ks: [1, 2, 3, 5, 6, 10, 20], head: 10, show: 1, singleAnswer: true },
+  lo: { key: 'lo', label: 'LÔ', sub: '2 số cuối của cả 18 giải', strats: LO_STRATS, ks: [1, 2, 3, 4, 5, 10], head: 2, show: 1, singleAnswer: false },
 };
 
 const KMAX = 24;                 // giữ 24 số/nhánh để đo được độ phủ tới K = 20
@@ -260,9 +302,9 @@ function pickAll(S, tr, ctx, total) {
   return { picks, ranks, chosen };
 }
 
-function absorb(S, slug, name, code, wd, present, de) {
+function absorb(S, slug, name, code, wd, present, de, dau) {
   const pv = getProv(S, slug, name, code);
-  for (let i = 0; i < N; i++) { pv.ewF[i] *= 0.88; pv.ewS[i] *= 0.975; pv.deEw[i] *= 0.94; }
+  for (let i = 0; i < N; i++) { pv.ewF[i] *= 0.88; pv.ewS[i] *= 0.975; pv.deEw[i] *= 0.94; pv.dauEw[i] *= 0.94; }
   for (const i of present) {
     pv.ewF[i] += 1; pv.ewS[i] += 1;
     pv.app[i]++; S.app[i]++; S.wd[wd][i]++;
@@ -272,9 +314,21 @@ function absorb(S, slug, name, code, wd, present, de) {
     pv.de[de]++; S.de[de]++; S.deWd[wd][de]++; pv.deEw[de] += 1;
     pv.deLast[de] = pv.n; S.deLast[de] = S.n;
   }
-  pv.prev = present; pv.prevDe = de;
+  if (dau >= 0) {
+    pv.dau[dau]++; S.dau[dau]++; S.dauWd[wd][dau]++; pv.dauEw[dau] += 1;
+    pv.dauLast[dau] = pv.n; S.dauLast[dau] = S.n;
+  }
+  pv.prev = present; pv.prevDe = de; pv.prevDau = dau;
   pv.n++; S.n++; S.wdN[wd]++;
 }
+
+// ĐẦU = 2 số cuối giải Tám = phần tử ĐẦU TIÊN của lo2.
+//
+// parseXSMN ghép các giải theo thứ tự giai8 → giaidb, nên lo2[0] luôn là giải Tám và
+// lo2[cuối] luôn là giải Đặc Biệt. Nhờ vậy toàn bộ 1.900 ngày đã nằm trong kho dùng
+// được ngay cho đường ĐẦU — không phải crawl lại một trang nào. Đã đối chiếu với
+// prizes.giai8 trên dữ liệu thật trước khi dựa vào.
+export const dauOf = (p) => (p.lo2 && p.lo2.length ? Number(p.lo2[0]) : -1);
 
 const wdOf = (ymd) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); };
 
@@ -293,7 +347,7 @@ export function runBrain(days, { warmupDraws = 30, minProvDraws = 4 } = {}) {
   const asc = [...days].filter((d) => d && d.date && d.provinces && d.provinces.length)
     .sort((a, b) => (a.date < b.date ? -1 : 1));
   const S = newState();
-  const tracks = { lo: newTrack(TRACKS.lo), de: newTrack(TRACKS.de) };
+  const tracks = { dau: newTrack(TRACKS.dau), de: newTrack(TRACKS.de), lo: newTrack(TRACKS.lo) };
   let graded = 0;
 
   for (const d of asc) {
@@ -303,19 +357,21 @@ export function runBrain(days, { warmupDraws = 30, minProvDraws = 4 } = {}) {
       const slug = p.slug || p.province;
       const present = [...new Set(p.lo2.map(Number))];
       const de = Number(p.de);
+      const dau = dauOf(p);
       const pv = getProv(S, slug, p.province, p.code || '');
 
       if (S.n >= warmupDraws && pv.n >= minProvDraws && present.length && de >= 0 && de < N) {
         const ctx = { slug, pv, wd, date: d.date };
-        // Đáp án của mỗi đường: LÔ = 18 số về, ĐỀ = đúng 1 số.
+        // Đáp án của mỗi đường: LÔ = 18 số về, ĐUÔI = đúng 1 số, ĐẦU = đúng 1 số.
         gradeTrack(tracks.lo, S, ctx, new Set(present), present.length);
         gradeTrack(tracks.de, S, ctx, new Set([de]), 1);
+        if (dau >= 0 && dau < N) gradeTrack(tracks.dau, S, ctx, new Set([dau]), 1);
         graded++;
       }
-      pending.push({ slug, name: p.province, code: p.code || '', present, de });
+      pending.push({ slug, name: p.province, code: p.code || '', present, de, dau });
     }
     // Chỉ nạp kiến thức của ngày D SAU khi đã chấm xong cả ngày D ⇒ không rò rỉ.
-    for (const q of pending) absorb(S, q.slug, q.name, q.code, wd, q.present, q.de);
+    for (const q of pending) absorb(S, q.slug, q.name, q.code, wd, q.present, q.de, q.dau);
   }
   return { S, tracks, graded };
 }
@@ -529,13 +585,16 @@ export const XSMN_SCHEDULE_BRAIN = {
 export const BRAIN_MAX_DAYS = 1400;
 export const HISTORY_TARGET = 1600;   // kho cần dày hơn cửa sổ một chút để luôn đủ dùng
 
+export const TRACK_KEYS = ['dau', 'de', 'lo'];
+
 export function brainAnalyze(days, opts = {}) {
   const r = runBrain(days, opts);
-  const lo = analyzeTrack(r.tracks.lo);
+  const dau = analyzeTrack(r.tracks.dau);
   const de = analyzeTrack(r.tracks.de);
+  const lo = analyzeTrack(r.tracks.lo);
   return {
-    version: 4, gradedDraws: r.graded, lo, de,
-    evidence: lo.evidence || de.evidence,
+    version: 5, gradedDraws: r.graded, dau, de, lo,
+    evidence: dau.evidence || de.evidence || lo.evidence,
     _state: r,
   };
 }
@@ -591,13 +650,14 @@ export function brainPredict(analysis, forDate) {
   const { S, tracks } = analysis._state;
   const wd = wdOf(forDate);
   const provs = XSMN_SCHEDULE_BRAIN[wd] || [];
-  const stat = { lo: new Map(analysis.lo.arms.map((a) => [a.key, a])), de: new Map(analysis.de.arms.map((a) => [a.key, a])) };
+  const stat = {};
+  for (const tk of TRACK_KEYS) stat[tk] = new Map(analysis[tk].arms.map((a) => [a.key, a]));
   const out = [];
   for (const [slug, name] of provs) {
     const pv = getProv(S, slug, name, '');
     const ctx = { slug, pv, wd, date: forDate };
     const row = { slug, province: name, draws: pv.n };
-    for (const tk of ['lo', 'de']) {
+    for (const tk of TRACK_KEYS) {
       const tr = tracks[tk];
       const { picks, chosen } = pickAll(S, tr, ctx, S.n);
       const st = stat[tk].get(chosen.key);
@@ -607,8 +667,12 @@ export function brainPredict(analysis, forDate) {
       row[tk] = {
         arm: chosen.key, armName: chosen.name,
         picks: picks.get(chosen.key).slice(0, tr.cfg.show).map(pad2),
+        // Dàn dự phòng: các số xếp ngay sau con chốt. KHÔNG hiện ở thẻ chính (anh chốt
+        // chỉ một số), để trong ngăn kéo cho ai muốn chơi rộng hơn. Giữ lại vì bỏ hẳn
+        // thì thứ hạng 2–6 của não — thông tin đã tính xong rồi — bị vứt đi vô ích.
+        alt: picks.get(chosen.key).slice(1, 6).map(pad2),
         ens: picks.get(ENS_KEY).slice(0, tr.cfg.show).map(pad2),
-        showK: tr.cfg.show, headK: tr.cfg.head,
+        showK: tr.cfg.show, headK: tr.cfg.head, label: tr.cfg.label, sub: tr.cfg.sub,
         // toàn miền, của đúng nhánh đang dùng (mẫu dày)
         armRate: st ? st.showRate : null, armExp: st ? st.showExp : null, armN: st ? st.n : 0,
         // riêng đài này, theo quyết định thật của máy (mẫu mỏng hơn nhưng không thiên vị)

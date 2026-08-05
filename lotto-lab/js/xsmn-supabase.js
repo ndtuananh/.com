@@ -103,24 +103,43 @@ function commitRows(ledger) {
     const graded = c.graded ? new Map(c.graded.rows.map((r) => [r.slug, r])) : null;
     for (const it of c.items || []) {
       const g = graded ? graded.get(it.slug) : null;
+      // `?? null` KHÔNG thừa ở đây. JSON.stringify XOÁ HẲN key có giá trị undefined, nên
+      // một dòng cũ thiếu `actualDau` sẽ được gửi đi với ít key hơn dòng mới — và
+      // PostgREST từ chối cả lô với "PGRST102 All object keys must match". Cả lô cam kết
+      // mất trắng chỉ vì một dòng cũ thiếu một trường. Ép null để mọi dòng cùng bộ key.
+      const n = (v) => (v === undefined ? null : v);
       out.push({
         for_date: c.forDate,
         slug: it.slug,
         province: it.province,
         made_at: c.madeAt,
-        de_picks: it.de, de_arm: it.deArm, de_arm_name: it.deArmName,
-        lo_picks: it.lo, lo_arm: it.loArm, lo_arm_name: it.loArmName,
+        dau_picks: it.dau || [], dau_arm: n(it.dauArm), dau_arm_name: n(it.dauArmName),
+        de_picks: it.de || [], de_arm: n(it.deArm), de_arm_name: n(it.deArmName),
+        lo_picks: it.lo || [], lo_arm: n(it.loArm), lo_arm_name: n(it.loArmName),
         graded_at: c.graded ? c.graded.at : null,
-        actual_de: g ? g.actualDe : null,
-        de_hit: g ? g.deHit : null,
-        lo_hit: g ? g.loHit : null,
-        lo_match: g ? g.loMatch : null,
-        distinct_lo: g ? g.distinct : null,
+        actual_dau: g ? n(g.actualDau) : null,
+        actual_de: g ? n(g.actualDe) : null,
+        dau_hit: g ? n(g.dauHit) : null,
+        de_hit: g ? n(g.deHit) : null,
+        lo_hit: g ? n(g.loHit) : null,
+        lo_match: g ? n(g.loMatch) : null,
+        distinct_lo: g ? n(g.distinct) : null,
       });
     }
   }
   return out;
 }
+
+// Cột của đường ĐẦU chỉ có sau khi chạy supabase/migration-dau.sql. Nếu chưa chạy,
+// PostgREST trả lỗi "column ... does not exist" và cả lô cam kết bị mất.
+//
+// Không chấp nhận được: một tính năng phụ (đẩy kho thứ hai) làm hỏng việc chính (lưu sổ).
+// Nên khi gặp đúng lỗi thiếu cột, bỏ các trường ĐẦU rồi đẩy lại — dữ liệu cũ vẫn lên
+// đủ, chỉ thiếu phần ĐẦU cho tới khi anh chạy migration. Báo rõ trong payload để nhìn
+// thấy được, chứ không im lặng.
+const DAU_COLS = ['dau_picks', 'dau_arm', 'dau_arm_name', 'actual_dau', 'dau_hit'];
+const isMissingColumn = (msg) => /column .* does not exist|Could not find the .* column|PGRST204/i.test(msg || '');
+const stripDau = (rows) => rows.map((r) => { const o = { ...r }; for (const k of DAU_COLS) delete o[k]; return o; });
 
 // Ảnh chụp tỉ lệ chính xác theo từng đài, đóng dấu theo ngày. Giữ lịch sử ảnh chụp để
 // sau này vẽ được "tỉ lệ của đài này thay đổi thế nào qua các tháng" — thứ mà chỉ nhìn
@@ -128,15 +147,15 @@ function commitRows(ledger) {
 function accuracyRows(byProvince, snapshotDate) {
   const out = [];
   for (const p of byProvince || []) {
-    for (const track of ['de', 'lo']) {
+    for (const track of ['dau', 'de', 'lo']) {
       const t = p[track];
-      if (!t) continue;
+      if (!t || !t.n) continue;     // đường chưa có kỳ nào ⇒ không ghi dòng rỗng
       out.push({
         snapshot_date: snapshotDate,
         slug: p.slug,
         province: p.province,
         track,
-        n: p.n,
+        n: t.n,                      // cỡ mẫu CỦA ĐƯỜNG ĐÓ, không phải tổng của đài
         k: t.k,
         hits: t.hits,
         rate: Number(t.rate.toFixed(6)),
@@ -196,7 +215,12 @@ export async function pushToSupabase({ days, ledger, byProvince, snapshotDate, r
       res.days = r.sent; errors.push(...r.errors);
     }
     if (ledger) {
-      const r = await upsertChunked(cfg, 'xsmn_commits', commitRows(ledger), 'for_date,slug', { deadline });
+      const rows = commitRows(ledger);
+      let r = await upsertChunked(cfg, 'xsmn_commits', rows, 'for_date,slug', { deadline });
+      if (!r.sent && r.errors.some(isMissingColumn)) {
+        res.dauColumns = 'thiếu — chạy supabase/migration-dau.sql';
+        r = await upsertChunked(cfg, 'xsmn_commits', stripDau(rows), 'for_date,slug', { deadline });
+      }
       res.commits = r.sent; errors.push(...r.errors);
     }
     if (byProvince && byProvince.length) {

@@ -23,12 +23,36 @@ const MAX_COMMITS = 380;
 // là CHỐT AN TOÀN CUỐI. Hàm này là cánh cửa duy nhất để một dòng đi vào sổ, nên phép
 // kiểm "kỳ này đã quay chưa" phải nằm ở đây chứ không phải ở nơi gọi: chỉ cần một chỗ
 // gọi quên kiểm là cả sổ mất giá trị chứng minh, mà lại không có dấu hiệu gì để nhận ra.
+// Cùng hình dạng = cùng bộ đài, và mỗi đường ra đúng bấy nhiêu số. So hình dạng chứ
+// KHÔNG so giá trị: số cụ thể được phép khác (não học thêm mỗi ngày), nhưng khác thì
+// vẫn giữ bản cũ — đó mới là ý nghĩa của "đã khoá".
+function sameShape(commit, prediction) {
+  if (commit.items.length !== prediction.provinces.length) return false;
+  const by = new Map(commit.items.map((it) => [it.slug, it]));
+  return prediction.provinces.every((p) => {
+    const it = by.get(p.slug);
+    if (!it) return false;
+    return ['dau', 'de', 'lo'].every((tk) => (it[tk] || []).length === ((p[tk] && p[tk].picks) || []).length);
+  });
+}
+
 export function addCommit(ledger, prediction, nowISO, minDate = null) {
   if (!prediction || !prediction.provinces.length) return { ledger, added: false };
   if (minDate && prediction.forDate < minDate) {
     return { ledger, added: false, refused: `kỳ ${prediction.forDate} đã qua giờ quay — không ghi sổ` };
   }
-  if (ledger.commits.some((c) => c.forDate === prediction.forDate)) return { ledger, added: false };
+  const old = ledger.commits.find((c) => c.forDate === prediction.forDate);
+  if (old) {
+    // ĐÃ CHẤM thì bất khả xâm phạm — đây là ranh giới không được phép bước qua.
+    if (old.graded) return { ledger, added: false };
+    // CHƯA CHẤM và ĐÚNG HÌNH DẠNG hiện tại thì giữ nguyên, để dấu thời gian không trôi.
+    if (sameShape(old, prediction)) return { ledger, added: false };
+    // CHƯA CHẤM nhưng SAI HÌNH DẠNG ⇒ bản ghi do một phiên bản máy cũ tạo ra (ví dụ hôm
+    // qua còn ra dàn 6 số, hôm nay đổi sang 1 số chốt). Kỳ này chưa quay nên phát lại
+    // không giấu được gì của ai; giữ lại mới là hại: người dùng nhìn thấy một định dạng
+    // không còn tồn tại, và sổ sẽ chấm một thứ khác với thứ đang hiện trên màn hình.
+    ledger.commits = ledger.commits.filter((c) => c.forDate !== prediction.forDate);
+  }
   ledger.commits.unshift({
     forDate: prediction.forDate,
     madeAt: nowISO,
@@ -36,6 +60,7 @@ export function addCommit(ledger, prediction, nowISO, minDate = null) {
       slug: p.slug, province: p.province,
       lo: p.lo.picks, loArm: p.lo.arm, loArmName: p.lo.armName,
       de: p.de.picks, deArm: p.de.arm, deArmName: p.de.armName,
+      dau: p.dau ? p.dau.picks : [], dauArm: p.dau ? p.dau.arm : null, dauArmName: p.dau ? p.dau.armName : null,
     })),
     graded: null,
   });
@@ -58,13 +83,21 @@ export function gradeCommits(ledger, days, nowISO) {
       const p = provs.get(it.slug);
       if (!p) continue;                       // đài không mở thưởng / nguồn thiếu → bỏ qua
       const lo2 = new Set(p.lo2);
+      // ĐẦU = 2 số giải Tám = lo2[0]. Cam kết cũ (trước 04/08/2026) không có đường ĐẦU;
+      // những dòng đó để `dau` rỗng và KHÔNG được tính vào mẫu — nhét đại số 0 vào sẽ
+      // pha loãng tỉ lệ của đường ĐẦU bằng những kỳ nó chưa từng dự báo.
+      const actualDau = p.lo2 && p.lo2.length ? p.lo2[0] : null;
       const loMatch = it.lo.filter((n) => lo2.has(n));
       const deMatch = it.de.filter((n) => n === p.de);
+      const dauList = it.dau || [];
+      const dauMatch = actualDau == null ? [] : dauList.filter((n) => n === actualDau);
       rows.push({
         slug: it.slug, province: it.province,
         lo: it.lo, loArmName: it.loArmName, loMatch, loHit: loMatch.length > 0,
         de: it.de, deArmName: it.deArmName, deMatch, deHit: deMatch.length > 0,
-        actualDe: p.de, distinct: new Set(p.lo2).size,
+        dau: dauList, dauArmName: it.dauArmName, dauMatch,
+        dauHit: dauList.length ? dauMatch.length > 0 : null,
+        actualDe: p.de, actualDau, distinct: new Set(p.lo2).size,
       });
     }
     if (!rows.length) continue;
@@ -72,6 +105,8 @@ export function gradeCommits(ledger, days, nowISO) {
       at: nowISO, rows,
       loHits: rows.filter((r) => r.loHit).length,
       deHits: rows.filter((r) => r.deHit).length,
+      dauHits: rows.filter((r) => r.dauHit).length,
+      dauTotal: rows.filter((r) => r.dauHit !== null).length,
       total: rows.length,
     };
     gradedNow++;
@@ -85,18 +120,25 @@ export function ledgerSummary(ledger, randomHitProb) {
   const rows = [];
   for (const c of ledger.commits) if (c.graded) for (const r of c.graded.rows) rows.push({ ...r, date: c.forDate, madeAt: c.madeAt });
   if (!rows.length) return { total: 0, rows: [] };
-  let loH = 0, loExp = 0, loVar = 0, deH = 0, deExp = 0, deVar = 0;
+
+  // Mỗi đường một BỘ ĐẾM RIÊNG với cỡ mẫu riêng. Đường ĐẦU mới có từ 04/08/2026 nên nó
+  // ít kỳ hơn hai đường kia; chia chung một mẫu tổng sẽ báo tỉ lệ ĐẦU thấp giả tạo vì
+  // mẫu số tính cả những kỳ nó chưa ra đời.
+  const acc = () => ({ h: 0, exp: 0, va: 0, n: 0, k: 0 });
+  const A = { lo: acc(), de: acc(), dau: acc() };
+  const bump = (a, hit, p, k) => { a.n++; a.h += hit ? 1 : 0; a.exp += p; a.va += p * (1 - p); a.k = k; };
   for (const r of rows) {
-    const pl = randomHitProb(r.distinct, r.lo.length);
-    const pd = r.de.length / 100;
-    loH += r.loHit ? 1 : 0; loExp += pl; loVar += pl * (1 - pl);
-    deH += r.deHit ? 1 : 0; deExp += pd; deVar += pd * (1 - pd);
+    if (r.lo.length) bump(A.lo, r.loHit, randomHitProb(r.distinct, r.lo.length), r.lo.length);
+    if (r.de.length) bump(A.de, r.deHit, r.de.length / 100, r.de.length);
+    if (r.dau && r.dau.length) bump(A.dau, r.dauHit, r.dau.length / 100, r.dau.length);
   }
-  const n = rows.length;
+  const fin = (a) => ({
+    hits: a.h, total: a.n, rate: a.n ? a.h / a.n : 0, expRate: a.n ? a.exp / a.n : 0,
+    edge: a.n ? a.h / a.n - a.exp / a.n : 0, z: a.va > 0 ? (a.h - a.exp) / Math.sqrt(a.va) : 0, k: a.k,
+  });
   return {
-    total: n, days: new Set(rows.map((r) => r.date)).size,
-    lo: { hits: loH, rate: loH / n, expRate: loExp / n, z: loVar > 0 ? (loH - loExp) / Math.sqrt(loVar) : 0, k: rows[0].lo.length },
-    de: { hits: deH, rate: deH / n, expRate: deExp / n, z: deVar > 0 ? (deH - deExp) / Math.sqrt(deVar) : 0, k: rows[0].de.length },
+    total: rows.length, days: new Set(rows.map((r) => r.date)).size,
+    lo: fin(A.lo), de: fin(A.de), dau: fin(A.dau),
     byProvince: provinceScore(rows, randomHitProb),
     rows: rows.slice(0, 60),
   };
@@ -111,35 +153,30 @@ export function ledgerSummary(ledger, randomHitProb) {
 // Đi kèm mỗi tỉ lệ luôn là `exp` (mốc bốc mù tính đúng cho từng kỳ của chính đài đó)
 // và `n` (cỡ mẫu). Thiếu một trong hai thì con số vô nghĩa.
 export function provinceScore(rows, randomHitProb) {
+  const blank = () => ({ h: 0, exp: 0, va: 0, n: 0, k: 0, streak: [] });
   const m = new Map();
   for (const r of rows) {
     let s = m.get(r.slug);
-    if (!s) {
-      s = {
-        slug: r.slug, province: r.province, n: 0,
-        loHits: 0, loExp: 0, loVar: 0, loNums: 0,
-        deHits: 0, deExp: 0, deVar: 0, deNums: 0,
-        loStreak: [], deStreak: [], lastDate: null,
-      };
-      m.set(r.slug, s);
-    }
-    const pl = randomHitProb(r.distinct, r.lo.length);
-    const pd = r.de.length / 100;
+    if (!s) { s = { slug: r.slug, province: r.province, n: 0, lastDate: null, lo: blank(), de: blank(), dau: blank() }; m.set(r.slug, s); }
     s.n++;
-    s.loHits += r.loHit ? 1 : 0; s.loExp += pl; s.loVar += pl * (1 - pl); s.loNums = r.lo.length;
-    s.deHits += r.deHit ? 1 : 0; s.deExp += pd; s.deVar += pd * (1 - pd); s.deNums = r.de.length;
-    if (s.loStreak.length < 12) { s.loStreak.push(r.loHit ? 1 : 0); s.deStreak.push(r.deHit ? 1 : 0); }
     if (!s.lastDate || r.date > s.lastDate) s.lastDate = r.date;
+    const bump = (a, hit, p, k) => {
+      a.n++; a.h += hit ? 1 : 0; a.exp += p; a.va += p * (1 - p); a.k = k;
+      if (a.streak.length < 12) a.streak.push(hit ? 1 : 0);
+    };
+    if (r.lo.length) bump(s.lo, r.loHit, randomHitProb(r.distinct, r.lo.length), r.lo.length);
+    if (r.de.length) bump(s.de, r.deHit, r.de.length / 100, r.de.length);
+    if (r.dau && r.dau.length) bump(s.dau, r.dauHit, r.dau.length / 100, r.dau.length);
   }
-  const fin = (h, e, v, n) => ({
-    hits: h, rate: n ? h / n : 0, expRate: n ? e / n : 0,
-    edge: n ? h / n - e / n : 0, z: v > 0 ? (h - e) / Math.sqrt(v) : 0,
+  const fin = (a) => ({
+    hits: a.h, n: a.n, k: a.k, streak: a.streak,
+    rate: a.n ? a.h / a.n : 0, expRate: a.n ? a.exp / a.n : 0,
+    edge: a.n ? a.h / a.n - a.exp / a.n : 0, z: a.va > 0 ? (a.h - a.exp) / Math.sqrt(a.va) : 0,
   });
   return [...m.values()]
     .map((s) => ({
       slug: s.slug, province: s.province, n: s.n, lastDate: s.lastDate,
-      lo: { ...fin(s.loHits, s.loExp, s.loVar, s.n), k: s.loNums, streak: s.loStreak },
-      de: { ...fin(s.deHits, s.deExp, s.deVar, s.n), k: s.deNums, streak: s.deStreak },
+      lo: fin(s.lo), de: fin(s.de), dau: fin(s.dau),
     }))
     .sort((a, b) => b.n - a.n || (a.province < b.province ? -1 : 1));
 }

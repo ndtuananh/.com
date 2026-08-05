@@ -52,6 +52,13 @@ async function chainSync() {
 // thành một con số trông mạnh.
 const MIN_LEDGER_N = 8;
 
+// Ba đường, đúng thứ tự người chơi đọc: đầu → đuôi → lô.
+const TRACKS_UI = [
+  { key: 'dau', label: 'ĐẦU', sub: 'giải 8' },
+  { key: 'de', label: 'ĐUÔI', sub: 'giải ĐB' },
+  { key: 'lo', label: 'LÔ', sub: '18 giải' },
+];
+
 function rateLine(t, w, k) {
   if (t && t.n >= MIN_LEDGER_N) {
     return {
@@ -77,23 +84,22 @@ function rateLine(t, w, k) {
       weak: true,
     };
   }
-  return { html: `<span class="muted">chưa đủ kỳ để đo — chơi ${k} số/kỳ</span>`, src: '', weak: true };
+  return { html: `<span class="muted">chưa đủ kỳ để đo</span>`, src: '', weak: true };
 }
 
-function numRow(kind, label, nums, t, w) {
-  const row = el('div', 'pred-row ' + kind);
-  const head = el('div', 'pred-lab');
-  head.innerHTML = `<span class="tag-${kind}">${label}</span><small>${nums.length} số</small>`;
-  row.appendChild(head);
+// Một dòng = một đường = MỘT con số chốt. Số to, đứng riêng, không lẫn với dàn nào khác.
+function numRow(meta, w, t) {
+  const row = el('div', 'pred-row ' + meta.key);
+  row.appendChild(el('div', 'pred-lab', `<span class="tag-${meta.key}">${meta.label}</span><small>${meta.sub}</small>`));
 
   const box = el('div', 'pred-nums');
-  for (const v of nums) box.appendChild(el('span', 'num', v));
+  for (const v of w.picks) box.appendChild(el('span', 'num', v));
   row.appendChild(box);
 
-  const r = rateLine(t, w, nums.length);
+  const r = rateLine(t, w, w.picks.length);
   const why = el('div', 'pred-why' + (r.weak ? ' weak' : ''));
   why.innerHTML = r.html + (r.src ? `<i title="${r.src}">ⓘ</i>` : '');
-  if (w && w.armName) why.title = `nhánh đang dùng: ${w.armName}${r.src ? ' · ' + r.src : ''}`;
+  if (w.armName) why.title = `nhánh đang dùng: ${w.armName}${r.src ? ' · ' + r.src : ''}`;
   row.appendChild(why);
   return row;
 }
@@ -116,25 +122,30 @@ function renderPrediction(d) {
   for (const q of p.provinces) {
     const c = el('div', 'pred-card');
     c.appendChild(el('div', 'pred-head', `<span class="xsmn-name">${q.province}</span>`));
-    c.appendChild(numRow('de', 'ĐỀ', q.de.picks, q.track ? q.track.de : null, q.de));
-    c.appendChild(numRow('lo', 'LÔ', q.lo.picks, q.track ? q.track.lo : null, q.lo));
+    for (const m of TRACKS_UI) {
+      if (!q[m.key] || !q[m.key].picks || !q[m.key].picks.length) continue;
+      c.appendChild(numRow(m, q[m.key], q.track ? q.track[m.key] : null));
+    }
     box.appendChild(c);
   }
 
   const graded = d.ledger && d.ledger.summary ? d.ledger.summary.total : 0;
   const brainN = d.brain ? d.brain.gradedDraws : 0;
-  foot.innerHTML = `Tự kiểm liên tục: <b>${graded}</b> lượt đài đã cam kết trước rồi chấm bằng kết quả thật · ` +
-    `bộ não học lại trên <b>${brainN.toLocaleString('vi-VN')}</b> lượt mỗi lần chạy. ` +
-    `Tỉ lệ dưới mỗi dàn số là <b>số đã đo của chính đài đó</b>, luôn kèm mốc bốc mù cùng số lượng số.`;
+  foot.innerHTML = `Mỗi đường <b>một số chốt</b> — con máy chấm điểm cao nhất cho đúng đài đó. ` +
+    `Tự kiểm liên tục: <b>${graded}</b> lượt đài đã cam kết trước rồi chấm bằng kết quả thật, ` +
+    `bộ não học lại trên <b>${brainN.toLocaleString('vi-VN')}</b> lượt mỗi lần chạy.<br>` +
+    `<b>Đọc tỉ lệ cho đúng:</b> chơi 1 số thì đầu/đuôi trúng khoảng <b>1%</b> mỗi kỳ, lô khoảng <b>17%</b> — ` +
+    `và bốc số mù cũng đúng ngần ấy. Con số đáng nhìn là <b>phần chênh</b> so với mốc bốc mù đứng ngay cạnh, không phải tỉ lệ thô.`;
 }
 
 // ---------------------------------------------------------------------------
 // 2 · ĐỐI CHIẾU
 // ---------------------------------------------------------------------------
-function statLine(name, s, k) {
-  return `<div class="ov-row"><span class="ov-lab tag-${name === 'ĐỀ' ? 'de' : 'lo'}">${name}</span>` +
-    `<span class="ov-val ${tone(s.rate - s.expRate)}">${pct(s.rate)}</span>` +
-    `<span class="ov-sub">${s.hits}/${s.total} kỳ · ${k} số/kỳ · bốc mù ${pct(s.expRate)} · ${sgn(s.rate - s.expRate)} điểm</span></div>`;
+function statLine(m, s) {
+  if (!s || !s.total) return '';
+  return `<div class="ov-row"><span class="ov-lab tag-${m.key}">${m.label}</span>` +
+    `<span class="ov-val ${tone(s.edge)}">${pct(s.rate)}</span>` +
+    `<span class="ov-sub">${s.hits}/${s.total} kỳ · ${s.k} số/kỳ · bốc mù ${pct(s.expRate)} · ${sgn(s.edge)} điểm</span></div>`;
 }
 
 function renderLedger(d) {
@@ -148,7 +159,7 @@ function renderLedger(d) {
     sum.appendChild(el('div', 'note small', 'Sổ vừa mở. Máy đã ghi số cho kỳ tới xuống kho kèm dấu thời gian; kết quả về là chấm ngay. Chưa có dòng nào thì chưa có gì để khoe — và app sẽ không bịa ra.'));
   } else {
     const box = el('div', 'overview');
-    box.innerHTML = statLine('ĐỀ', { ...S.de, total: S.total }, S.de.k) + statLine('LÔ', { ...S.lo, total: S.total }, S.lo.k);
+    box.innerHTML = TRACKS_UI.map((m) => statLine(m, S[m.key])).join('');
     sum.appendChild(box);
     if (S.total < 90) {
       sum.appendChild(el('div', 'note small', `Mới ${S.total} lượt — cỡ mẫu này còn nhỏ, chênh lệch vài điểm hoàn toàn có thể là may rủi. Con số chỉ bắt đầu đáng tin từ khoảng 300 lượt.`));
@@ -162,10 +173,11 @@ function renderLedger(d) {
     const box = el('div', 'led-pending');
     box.appendChild(el('div', 'led-pending-head', `⏳ đang chờ kết quả ngày <b>${vnDate(p.forDate)}</b> · số đã khoá lúc ${hhmm(p.madeAt)}`));
     for (const it of p.items) {
-      box.appendChild(el('div', 'led-pending-row',
-        `<span class="xsmn-name">${it.province}</span>` +
-        `<span class="led-tag de">ĐỀ</span>${it.de.map((n) => `<span class="num">${n}</span>`).join('')}` +
-        `<span class="led-tag lo">LÔ</span>${it.lo.map((n) => `<span class="num">${n}</span>`).join('')}`));
+      const cells = TRACKS_UI
+        .filter((m) => (it[m.key] || []).length)
+        .map((m) => `<span class="led-tag ${m.key}">${m.label}</span>${it[m.key].map((n) => `<span class="num">${n}</span>`).join('')}`)
+        .join('');
+      box.appendChild(el('div', 'led-pending-row', `<span class="xsmn-name">${it.province}</span>${cells}`));
     }
     pend.appendChild(box);
   }
@@ -180,16 +192,21 @@ function renderLedger(d) {
     }
     const row = el('div', 'led-row');
     row.appendChild(el('div', 'led-prov', r.province));
-    const de = el('div', 'led-line');
-    de.innerHTML = `<span class="led-tag de">ĐỀ</span>` +
-      r.de.map((n) => `<span class="num${r.deMatch.includes(n) ? ' hit' : ''}">${n}</span>`).join('') +
-      `<span class="led-actual">kết quả <b>${r.actualDe}</b></span>` +
-      `<span class="led-verdict ${r.deHit ? 'good' : 'bad'}">${r.deHit ? 'trúng' : 'trượt'}</span>`;
-    const lo = el('div', 'led-line');
-    lo.innerHTML = `<span class="led-tag lo">LÔ</span>` +
-      r.lo.map((n) => `<span class="num${r.loMatch.includes(n) ? ' hit' : ''}">${n}</span>`).join('') +
-      `<span class="led-verdict ${r.loHit ? 'good' : 'bad'}">${r.loHit ? `về ${r.loMatch.length} số` : 'trượt'}</span>`;
-    row.appendChild(de); row.appendChild(lo);
+    // ĐẦU / ĐUÔI: đáp án duy nhất ⇒ hiện luôn kết quả thật bên cạnh để đối chiếu bằng mắt.
+    // LÔ: đáp án là 18 số, in ra hết thì rối ⇒ chỉ nói về mấy số.
+    for (const m of TRACKS_UI) {
+      const picks = r[m.key] || [];
+      if (!picks.length) continue;
+      const match = r[m.key + 'Match'] || [];
+      const hit = r[m.key + 'Hit'];
+      const actual = m.key === 'dau' ? r.actualDau : m.key === 'de' ? r.actualDe : null;
+      const line = el('div', 'led-line');
+      line.innerHTML = `<span class="led-tag ${m.key}">${m.label}</span>` +
+        picks.map((n) => `<span class="num${match.includes(n) ? ' hit' : ''}">${n}</span>`).join('') +
+        (actual != null ? `<span class="led-actual">kết quả <b>${actual}</b></span>` : '') +
+        `<span class="led-verdict ${hit ? 'good' : 'bad'}">${hit ? (m.key === 'lo' ? `về ${match.length} số` : 'trúng') : 'trượt'}</span>`;
+      row.appendChild(line);
+    }
     dayBox.appendChild(row);
   }
 }
@@ -201,20 +218,20 @@ function provinceTable(list) {
   const wrap = el('details', 'sub-drawer');
   wrap.appendChild(el('summary', null, `Tỉ lệ theo từng đài <small>(${list.length} đài đã có kỳ chấm)</small>`));
   const t = el('div', 'ptable');
-  t.appendChild(el('div', 'ptable-row head', '<span>Đài</span><span>Kỳ</span><span>ĐỀ</span><span>chênh</span><span>LÔ</span><span>chênh</span>'));
+  t.appendChild(el('div', 'ptable-row head',
+    '<span>Đài</span>' + TRACKS_UI.map((m) => `<span>${m.label}</span><span>chênh</span>`).join('')));
   for (const p of list) {
     const r = el('div', 'ptable-row');
-    r.innerHTML =
-      `<span class="pt-name">${p.province}</span>` +
-      `<span class="muted">${p.n}</span>` +
-      `<span title="${p.de.hits}/${p.n} kỳ, chơi ${p.de.k} số — bốc mù ${pct(p.de.expRate)}"><b>${pct(p.de.rate)}</b></span>` +
-      `<span class="${tone(p.de.edge)}">${sgn(p.de.edge)}</span>` +
-      `<span title="${p.lo.hits}/${p.n} kỳ, chơi ${p.lo.k} số — bốc mù ${pct(p.lo.expRate)}"><b>${pct(p.lo.rate)}</b></span>` +
-      `<span class="${tone(p.lo.edge)}">${sgn(p.lo.edge)}</span>`;
+    r.innerHTML = `<span class="pt-name">${p.province}</span>` + TRACKS_UI.map((m) => {
+      const s = p[m.key];
+      if (!s || !s.n) return '<span class="muted">—</span><span class="muted">—</span>';
+      return `<span title="${s.hits}/${s.n} kỳ, chơi ${s.k} số — bốc mù ${pct(s.expRate)}"><b>${pct(s.rate)}</b><i>${s.n}</i></span>` +
+        `<span class="${tone(s.edge)}">${sgn(s.edge)}</span>`;
+    }).join('');
     t.appendChild(r);
   }
   wrap.appendChild(t);
-  wrap.appendChild(el('div', 'muted small', 'Cột "chênh" = tỉ lệ đo được trừ mốc bốc số mù, tính riêng cho đúng số lượng số mỗi đài đang chơi. Số dương không có nghĩa là đài đó "dễ ăn": với vài chục kỳ, chênh ±10 điểm vẫn nằm gọn trong khoảng may rủi.'));
+  wrap.appendChild(el('div', 'muted small', 'Số nhỏ mờ bên cạnh mỗi tỉ lệ là <b>cỡ mẫu</b> của riêng đường đó. Cột "chênh" = tỉ lệ đo được trừ mốc bốc số mù, tính đúng cho số lượng số đang chơi. Số dương KHÔNG có nghĩa đài đó "dễ ăn": với vài chục kỳ, chênh vài điểm vẫn nằm gọn trong khoảng may rủi.'));
   return wrap;
 }
 
@@ -323,17 +340,47 @@ function renderBrain(d) {
   const b = d.brain; if (!b) return;
   $('#brain-scope').textContent = `${b.gradedDraws} lượt đài đã chấm trên ${d.db.brainDays} ngày lịch sử`;
   const v = $('#brain-verdict'); v.innerHTML = '';
-  const any = b.lo.evidence || b.de.evidence;
+  const any = TRACKS_UI.some((m) => b[m.key] && b[m.key].evidence);
   v.appendChild(el('div', 'ev-verdict ' + (any ? 'mid' : 'bad'),
     any ? 'Có tín hiệu nhỏ vượt ngẫu nhiên trên mẫu hiện tại — CHƯA đủ cơ sở để đặt tiền'
       : 'KHÔNG nhánh nào vượt ngẫu nhiên — chọn số theo nóng/nguội/gan/bóng không giúp trúng nhiều hơn'));
-  let cur = 'de';
+
+  const tabs = $('#track-tabs'); tabs.innerHTML = '';
+  for (const m of TRACKS_UI) {
+    if (!b[m.key]) continue;
+    const btn = el('button', 'btn ghost', `Đường ${m.label}`);
+    btn.dataset.track = m.key;
+    tabs.appendChild(btn);
+  }
+  let cur = 'dau';
   const paint = () => {
-    for (const btn of document.querySelectorAll('#track-tabs button')) btn.classList.toggle('active', btn.dataset.track === cur);
+    for (const btn of tabs.querySelectorAll('button')) btn.classList.toggle('active', btn.dataset.track === cur);
     renderTrack(b[cur]);
   };
-  for (const btn of document.querySelectorAll('#track-tabs button')) btn.onclick = () => { cur = btn.dataset.track; paint(); };
+  for (const btn of tabs.querySelectorAll('button')) btn.onclick = () => { cur = btn.dataset.track; paint(); };
   paint();
+}
+
+// Dàn dự phòng — các số xếp ngay sau con chốt. Để trong ngăn kéo vì thẻ chính cố ý chỉ
+// có một số; ai muốn chơi rộng hơn thì mở ra, còn mặc định thì không làm rối mắt.
+function renderAlt(d) {
+  const box = $('#pred-alt'); if (!box) return;
+  box.innerHTML = '';
+  const p = d.prediction;
+  if (!p || !p.provinces.length) return;
+  for (const q of p.provinces) {
+    const c = el('div', 'alt-card');
+    c.appendChild(el('div', 'alt-name', q.province));
+    for (const m of TRACKS_UI) {
+      const w = q[m.key];
+      if (!w || !w.alt || !w.alt.length) continue;
+      c.appendChild(el('div', 'alt-row',
+        `<span class="led-tag ${m.key}">${m.label}</span>` +
+        `<span class="num chot">${w.picks[0]}</span><span class="alt-sep">rồi tới</span>` +
+        w.alt.map((n) => `<span class="num">${n}</span>`).join('')));
+    }
+    box.appendChild(c);
+  }
 }
 
 function fillRank(sel, list) {
@@ -429,7 +476,7 @@ function render(d) {
   // Ngăn kéo kỹ thuật chỉ dựng khi được mở lần đầu — dựng sẵn bảng 30 nhánh + 100 ô nhiệt
   // cho một thứ đóng kín là bắt máy yếu vẽ thừa mỗi lần làm mới.
   const tech = $('#drawer-tech');
-  const paintTech = () => { renderBrain(DATA); renderStats(DATA); };
+  const paintTech = () => { renderAlt(DATA); renderBrain(DATA); renderStats(DATA); };
   if (tech.open) paintTech();
   else if (!tech.dataset.bound) {
     tech.dataset.bound = '1';

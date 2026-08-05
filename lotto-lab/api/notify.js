@@ -205,6 +205,14 @@ async function sendEmail(subject, html) {
 //   2. Kết quả hôm nay.
 //   3. Số cho kỳ tới: CẢ dàn ĐỀ lẫn dàn LÔ cho từng đài.
 //   4. Sổ cộng dồn + sự thật về kỳ vọng.
+// Ba đường, cùng thứ tự với trang web. Email và web phải nói y hệt nhau — đọc hai nơi
+// ra hai kiểu trình bày là tự tạo nghi ngờ về số liệu.
+const MAILTRACKS = [
+  { key: 'dau', label: 'ĐẦU', sub: 'giải 8' },
+  { key: 'de', label: 'ĐUÔI', sub: 'giải ĐB' },
+  { key: 'lo', label: 'LÔ', sub: '18 giải' },
+];
+
 async function buildXsmnReport() {
   const fresh = await fetchXSMN();
   if (!fresh.length) return { ok: false };
@@ -241,10 +249,16 @@ async function buildXsmnReport() {
         const it = bySlug.get(p.slug);
         if (!it) return p;
         const put = (tk, picks, arm, armName) => {
+          if (!picks || !picks.length) return p[tk];
           const s = armStatsFor(brain, tk, arm, p.slug);
           return { ...p[tk], ...(s || {}), picks, arm, armName: (s && s.armName) || armName };
         };
-        return { ...p, de: put('de', it.de, it.deArm, it.deArmName), lo: put('lo', it.lo, it.loArm, it.loArmName) };
+        return {
+          ...p,
+          dau: put('dau', it.dau, it.dauArm, it.dauArmName),
+          de: put('de', it.de, it.deArm, it.deArmName),
+          lo: put('lo', it.lo, it.loArm, it.loArmName),
+        };
       }),
     };
   }
@@ -270,14 +284,20 @@ async function buildXsmnReport() {
       <b>📌 Đối chiếu số máy đã khoá cho ngày ${last.forDate}</b>
       <div style="font-size:12px;color:#666;margin:2px 0 8px">Khoá lúc ${new Date(last.madeAt).toLocaleString('vi-VN')} — trước khi kỳ này quay, không sửa lại được.</div>`;
     for (const r of g.rows) {
-      html += `<div style="border-top:1px solid #e8e8ee;padding:7px 0"><b>${r.province}</b>
-        <div style="font-size:13px;margin-top:4px">ĐỀ ${r.de.map((n) => `<span style="${r.deMatch.includes(n) ? HIT : CHIP}">${n}</span>`).join('')}
-          <span style="color:#666">→ kết quả <b style="color:#e6483c">${r.actualDe}</b></span>
-          <b style="color:${r.deHit ? '#0d7a42' : '#999'}">${r.deHit ? ' ✓ TRÚNG' : ' ✗ trượt'}</b></div>
-        <div style="font-size:13px;margin-top:4px">LÔ ${r.lo.map((n) => `<span style="${r.loMatch.includes(n) ? HIT : CHIP}">${n}</span>`).join('')}
-          <b style="color:${r.loHit ? '#0d7a42' : '#999'}">${r.loHit ? ` ✓ về ${r.loMatch.length} số` : ' ✗ trượt'}</b></div></div>`;
+      html += `<div style="border-top:1px solid #e8e8ee;padding:7px 0"><b>${r.province}</b>`;
+      for (const m of MAILTRACKS) {
+        const picks = r[m.key] || [];
+        if (!picks.length) continue;
+        const match = r[m.key + 'Match'] || [];
+        const hit = r[m.key + 'Hit'];
+        const actual = m.key === 'dau' ? r.actualDau : m.key === 'de' ? r.actualDe : null;
+        html += `<div style="font-size:13px;margin-top:4px">${m.label} ${picks.map((n) => `<span style="${match.includes(n) ? HIT : CHIP}">${n}</span>`).join('')}` +
+          (actual != null ? `<span style="color:#666">→ kết quả <b style="color:#e6483c">${actual}</b></span>` : '') +
+          `<b style="color:${hit ? '#0d7a42' : '#999'}">${hit ? (m.key === 'lo' && match.length > 1 ? ` ✓ về ${match.length} số` : ' ✓ TRÚNG') : ' ✗ trượt'}</b></div>`;
+      }
+      html += `</div>`;
     }
-    html += `<div style="font-size:13px;margin-top:8px;font-weight:700">Ngày này: ĐỀ ${g.deHits}/${g.total} đài · LÔ ${g.loHits}/${g.total} đài</div></div>`;
+    html += `<div style="font-size:13px;margin-top:8px;font-weight:700">Ngày này: ĐẦU ${g.dauHits || 0}/${g.dauTotal || 0} · ĐUÔI ${g.deHits}/${g.total} · LÔ ${g.loHits}/${g.total} đài</div></div>`;
   } else {
     html += `<div style="${CARD};background:#f5f8ff;border-color:#5b8cff">📌 <b>Sổ đối chiếu vừa mở.</b> Máy đã khoá số cho kỳ tới vào kho. Từ ngày mai, mục này hiện đúng số máy đã đoán đặt cạnh kết quả thật.</div>`;
   }
@@ -314,30 +334,39 @@ async function buildXsmnReport() {
       if (w.armN) return `toàn miền <b>${(w.armRate * 100).toFixed(1)}%</b> · bốc mù ${(w.armExp * 100).toFixed(1)}% <i>(đài này chưa đủ kỳ)</i>`;
       return 'chưa đủ kỳ để đo';
     };
+    const BIG = 'display:inline-block;padding:6px 14px;margin-right:6px;border-radius:8px;border:1px solid #e0a91f;background:#fff8e6;color:#7a5200;font-family:Consolas,monospace;font-weight:800;font-size:20px;letter-spacing:1px';
     for (const q of prediction.provinces) {
-      html += `<div style="border-top:1px solid #f0e4cc;padding:7px 0"><b>${q.province}</b>
-        <div style="font-size:13px;margin-top:4px">ĐỀ ${q.de.picks.map((n) => `<span style="${CHIP}">${n}</span>`).join('')}
-          <div style="font-size:11px;color:#888">${rate(q, 'de')}</div></div>
-        <div style="font-size:13px;margin-top:6px">LÔ ${q.lo.picks.map((n) => `<span style="${CHIP}">${n}</span>`).join('')}
-          <div style="font-size:11px;color:#888">${rate(q, 'lo')}</div></div></div>`;
+      html += `<div style="border-top:1px solid #f0e4cc;padding:9px 0"><b>${q.province}</b>`;
+      for (const m of MAILTRACKS) {
+        const w = q[m.key];
+        if (!w || !w.picks || !w.picks.length) continue;
+        html += `<div style="margin-top:6px">
+          <span style="font-size:11px;font-weight:800;color:#888;letter-spacing:.05em">${m.label}</span>
+          <span style="font-size:10px;color:#aaa"> ${m.sub}</span><br>
+          ${w.picks.map((n) => `<span style="${BIG}">${n}</span>`).join('')}
+          <span style="font-size:11px;color:#888">${rate(q, m.key)}</span></div>`;
+      }
+      html += `</div>`;
     }
     html += `</div>`;
   }
 
   // ---- 4 · SỔ CỘNG DỒN + SỰ THẬT ----
   if (sum.total) {
-    const f = (s) => `${s.hits}/${sum.total} = <b>${(s.rate * 100).toFixed(1)}%</b> · bốc mù ${(s.expRate * 100).toFixed(1)}% (z=${s.z.toFixed(2)})`;
+    const f = (s) => `${s.hits}/${s.total} = <b>${(s.rate * 100).toFixed(1)}%</b> · bốc mù ${(s.expRate * 100).toFixed(1)}% (z=${s.z.toFixed(2)})`;
     html += `<div style="${CARD};background:#f4f4f6">
       📒 <b>Sổ cam kết trước — cộng dồn ${sum.total} lượt đài / ${sum.days} ngày:</b>
-      <div style="font-size:13px;margin-top:5px">ĐỀ (${sum.de.k} số/đài): ${f(sum.de)}</div>
-      <div style="font-size:13px">LÔ (${sum.lo.k} số/đài): ${f(sum.lo)}</div>
+      ${MAILTRACKS.filter((m) => sum[m.key] && sum[m.key].total)
+        .map((m) => `<div style="font-size:13px;margin-top:3px">${m.label} (${sum[m.key].k} số/đài): ${f(sum[m.key])}</div>`).join('')}
       ${sum.total < 90 ? '<div style="font-size:11px;color:#a06000;margin-top:5px">⚠️ Mẫu còn nhỏ — chênh vài điểm hoàn toàn có thể là may rủi, chưa kết luận được gì.</div>' : ''}</div>`;
   }
-  const bl = brain.lo, bd = brain.de;
   html += `<div style="${CARD};background:#fafafa">
     🧠 <b>Bộ não (walk-forward trên ${brain.gradedDraws} lượt đài):</b>
-    <div style="font-size:12px;color:#555;margin-top:4px">LÔ (${bl.show} số/đài) — máy tự chọn nhánh đạt ${(bl.bandit.showRate * 100).toFixed(1)}% so với bốc mù ${(bl.bandit.showExp * 100).toFixed(1)}%. ${bl.evidence ? 'CÓ tín hiệu nhỏ.' : 'Chưa có bằng chứng vượt ngẫu nhiên.'}</div>
-    <div style="font-size:12px;color:#555">ĐỀ (${bd.show} số/đài) — máy tự chọn nhánh đạt ${(bd.bandit.showRate * 100).toFixed(1)}% so với bốc mù ${(bd.bandit.showExp * 100).toFixed(1)}%. ${bd.evidence ? 'CÓ tín hiệu nhỏ.' : 'Chưa có bằng chứng vượt ngẫu nhiên.'}</div></div>`;
+    ${MAILTRACKS.map((m) => {
+      const b = brain[m.key];
+      if (!b || !b.bandit) return '';
+      return `<div style="font-size:12px;color:#555;margin-top:4px">${m.label} (${b.show} số/đài) — máy tự chọn nhánh đạt ${(b.bandit.showRate * 100).toFixed(2)}% so với bốc mù ${(b.bandit.showExp * 100).toFixed(2)}%. ${b.evidence ? 'CÓ tín hiệu nhỏ.' : 'Chưa có bằng chứng vượt ngẫu nhiên.'}</div>`;
+    }).join('')}</div>`;
   html += `<p style="font-size:12px;color:#666">💸 <b>Sự thật cho tiền của anh:</b> mọi nhánh trong máy — nóng, nguội, gan, bóng, lộn, tổng — đều đang cho kết quả sát mức bốc số mù. Cộng phần nhà cái ăn, đặt tiền đường dài <b>chắc chắn lỗ</b> dù chọn số kiểu gì. App này để nghiên cứu và giải trí, KHÔNG phải công cụ kiếm tiền.</p>`;
   html += `<p style="font-size:11px;color:#999;border-top:1px solid #eee;padding-top:8px">⚠️ Nguồn: minhngoc.net.vn. Xổ số ngẫu nhiên độc lập — không dự đoán, không cam kết thu nhập. Chơi có trách nhiệm, đủ 18+.</p></div>`;
   return { ok: true, html, dateKey: today.date };

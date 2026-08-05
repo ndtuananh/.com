@@ -246,8 +246,9 @@ body.busy .loader{display:flex}
 .led-prov{font-weight:800; color:var(--gold); font-size:.95rem; margin-bottom:6px}
 .led-line{display:flex; align-items:center; flex-wrap:wrap; gap:4px; padding:3px 0; font-size:.85rem}
 .led-tag{font-size:.68rem; font-weight:800; letter-spacing:.06em; padding:3px 7px; border-radius:6px; margin-right:6px; min-width:34px; text-align:center}
+.led-tag.dau{background:#102a3a; color:#8ad4ff; border:1px solid #1a4a6a}
 .led-tag.de{background:#3a2410; color:#ffe08a; border:1px solid #6a4a1a}
-.led-tag.lo{background:var(--card); color:var(--muted); border:1px solid var(--line)}
+.led-tag.lo{background:var(--card); color:#a8c4ff; border:1px solid #2a3a68}
 .led-actual{margin-left:8px; font-size:.8rem; color:var(--muted)}
 .led-actual b{color:var(--red2); font-family:ui-monospace,Consolas,monospace; font-size:.95rem}
 .led-verdict{margin-left:auto; font-size:.78rem; font-weight:800; padding:3px 9px; border-radius:20px; white-space:nowrap}
@@ -349,13 +350,32 @@ main{gap:14px}
 .pred-row{padding:8px 0; border-top:0}
 .pred-row + .pred-row{border-top:1px solid var(--line)}
 .pred-lab{align-items:center; gap:8px}
-.tag-de,.tag-lo{
+.tag-dau,.tag-de,.tag-lo{
   display:inline-block; font-size:.68rem; font-weight:800; letter-spacing:.08em;
-  padding:3px 9px; border-radius:6px; min-width:38px; text-align:center;
+  padding:3px 9px; border-radius:6px; min-width:44px; text-align:center;
 }
+.tag-dau{background:#102a3a; color:#8ad4ff; border:1px solid #1a4a6a}
 .tag-de{background:#3a2410; color:#ffe08a; border:1px solid #6a4a1a}
 .tag-lo{background:var(--card); color:#a8c4ff; border:1px solid #2a3a68}
 .pred-nums{gap:5px; margin:7px 0 6px}
+
+/* MỘT SỐ CHỐT — số phải to và đứng một mình, đọc lướt là thấy.
+   Cả ba đường dùng chung một cỡ: đường nào cũng chỉ một số, không đường nào "chính" hơn. */
+.pred-row .pred-nums .num{
+  min-width:76px; padding:10px 16px; font-size:1.75rem; font-weight:800; letter-spacing:.06em;
+}
+.pred-row.dau .pred-nums .num{background:linear-gradient(180deg,#102a3a,#0c1e2a); border-color:#1a4a6a; color:#8ad4ff}
+.pred-row.de  .pred-nums .num{background:linear-gradient(180deg,#3a2410,#2a1a0c); border-color:#6a4a1a; color:#ffe08a}
+.pred-row.lo  .pred-nums .num{background:linear-gradient(180deg,#1b2340,#161c33); border-color:#2a3a68; color:#c3d4ff}
+
+/* Dàn dự phòng (ngăn kéo) */
+.alt-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px; margin:6px 0 4px}
+.alt-card{background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:11px 13px}
+.alt-name{font-weight:800; color:var(--gold); font-size:.92rem; margin-bottom:6px}
+.alt-row{display:flex; align-items:center; flex-wrap:wrap; gap:4px; padding:4px 0; font-size:.82rem}
+.alt-row .num{min-width:34px; padding:3px 7px; font-size:.86rem}
+.alt-row .num.chot{border-color:var(--gold); color:var(--gold); font-weight:800}
+.alt-sep{color:var(--muted); font-size:.72rem; margin:0 4px}
 .pred-why{
   display:flex; align-items:center; flex-wrap:wrap; gap:6px;
   font-size:.75rem; color:var(--muted); font-variant-numeric:tabular-nums;
@@ -382,12 +402,14 @@ main{gap:14px}
 .ov-sub{grid-column:1/-1; font-size:.73rem; color:var(--muted); font-variant-numeric:tabular-nums}
 
 /* -- bảng tỉ lệ theo đài -- */
-.ptable{border:1px solid var(--line); border-radius:12px; overflow:hidden; margin:8px 0}
+.ptable{border:1px solid var(--line); border-radius:12px; overflow-x:auto; margin:8px 0}
 .ptable-row{
-  display:grid; grid-template-columns:minmax(90px,1.6fr) 46px 1fr 58px 1fr 58px;
+  display:grid; grid-template-columns:minmax(88px,1.4fr) repeat(3, 1fr 52px);
   align-items:center; gap:6px; padding:8px 12px; border-top:1px solid var(--line);
-  font-size:.84rem; font-variant-numeric:tabular-nums;
+  font-size:.82rem; font-variant-numeric:tabular-nums; min-width:520px;
 }
+/* Cỡ mẫu đi kèm ngay dưới mỗi tỉ lệ — tỉ lệ không có cỡ mẫu là con số rỗng. */
+.ptable-row i{display:block; font-style:normal; font-size:.62rem; color:var(--muted); line-height:1.1}
 .ptable-row:first-child{border-top:0}
 .ptable-row.head{background:var(--card2); color:var(--muted); font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em}
 .ptable-row .pt-name{font-weight:700; color:var(--gold); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
@@ -435,7 +457,9 @@ main{gap:14px}
   .sec-title{font-size:1.05rem}
   .overview{grid-template-columns:1fr; gap:8px}
   .ov-val{font-size:1.35rem}
-  .ptable-row{grid-template-columns:minmax(74px,1.4fr) 34px 1fr 50px 1fr 50px; padding:7px 9px; font-size:.78rem; gap:4px}
+  .ptable-row{padding:7px 9px; font-size:.76rem; gap:4px}
+  .pred-row .pred-nums .num{min-width:70px; padding:9px 14px; font-size:1.6rem}
+  .alt-grid{grid-template-columns:1fr}
   .drawer > summary{padding:12px 14px; font-size:.88rem}
   .drawer > *:not(summary){padding:0 14px 14px}
   .topbar{flex-direction:row; align-items:center; padding:10px 14px}

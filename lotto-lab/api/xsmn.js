@@ -48,10 +48,16 @@ function lockToCommit(ledger, prediction, brain) {
       const it = byslug.get(p.slug);
       if (!it) return p;
       const put = (tk, picks, arm, armName) => {
+        if (!picks || !picks.length) return p[tk];   // cam kết cũ chưa có đường này
         const s = armStatsFor(brain, tk, arm, p.slug);
         return { ...p[tk], ...(s || {}), picks, arm, armName: (s && s.armName) || armName };
       };
-      return { ...p, lo: put('lo', it.lo, it.loArm, it.loArmName), de: put('de', it.de, it.deArm, it.deArmName) };
+      return {
+        ...p,
+        dau: put('dau', it.dau, it.dauArm, it.dauArmName),
+        de: put('de', it.de, it.deArm, it.deArmName),
+        lo: put('lo', it.lo, it.loArm, it.loArmName),
+      };
     }),
   };
 }
@@ -214,7 +220,10 @@ export default async function handler(req, res) {
         more: !fwdDone || (!!sync && !backExhausted),
       },
       stats,
-      brain: { version: brain.version, gradedDraws: brain.gradedDraws, lo: strip(brain.lo), de: strip(brain.de) },
+      brain: {
+        version: brain.version, gradedDraws: brain.gradedDraws,
+        dau: strip(brain.dau), de: strip(brain.de), lo: strip(brain.lo),
+      },
       prediction,
       ledger: {
         saved: ledgerSaved, gradedNow: g.gradedNow, committedNow: c.added,
