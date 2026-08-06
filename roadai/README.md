@@ -58,6 +58,29 @@ Mở bằng nút **🍺** trên thanh tìm kiếm, hoặc vào thẳng **`/kiem-
 
 **Toạ độ điểm lấy từ OpenStreetMap thật.** Phủ toàn HCM (Q1 Bùi Viện, Q4 Vĩnh Khánh, Bình Thạnh Phạm Văn Đồng/D2, Phú Nhuận Phan Xích Long, Q3, Q7 PMH, Q10, Thủ Đức Thảo Điền…) với **lõi dày ở Khu Tên Lửa — Bình Tân** (sân của tài xế: Đường Tên Lửa, Aeon, Kinh Dương Vương, Bến xe Miền Tây, An Lạc…).
 
+### 📍 Chạy tới tỉnh nào cũng có quán để canh (06/08/2026)
+Anh Long (tài xế BUTL thật) báo: *“đi địa điểm mới không nạp dữ liệu quán vào được nữa nên không canh P theo khu vực mới được — data nhiều nó không cho nạp nữa hay sao ấy”*. **Không phải tại data nhiều**, tại app chỉ biết đúng TP.HCM:
+
+- `/api/spots` hỏi OpenStreetMap trong **một khung cố định** `10,68–10,89 / 106,55–106,83`.
+- `validSpots()` bên client **còn tự vứt** cả gói dữ liệu chỉ vì có 1 quán nằm ngoài khung đó.
+
+Chạy sang Biên Hoà / Bình Dương / Long An / Vũng Tàu / Củ Chi / Cần Giờ là bản đồ trống trơn — không có quán thì không có gì để chấm điểm P.
+
+**Đã chữa:**
+- **`/api/quanh`** — trả quán thật quanh đúng chỗ tài xế đang đứng, **ở bất kỳ đâu trên đất Việt Nam**. Nguồn: `api/_quanvn.js` — **23.921 quán cả nước** có tên + địa chỉ thật (Overture Maps, CDLA-Permissive 2.0 → được phép hiển thị & phát hành lại). Trả lời trong **~5ms**.
+- **Không hỏi OpenStreetMap lúc chạy** — đã đo thật: Overpass quanh Biên Hoà bán kính 4km trả về **0 quán sau 69 giây**; Overture cùng chỗ đó có **113 quán**. OSM ở tỉnh gần như trống.
+- **App tự phát hiện khu mới**: quanh 4km mà app biết dưới 6 chỗ thì tự đi nạp (khi có GPS thật), kèm nút cam to **“📍 NẠP QUÁN KHU NÀY”** ở cả bản đồ lẫn bản 👴 đơn giản.
+- **Giữ 6 khu gần nhất trong máy** → chạy qua chạy lại giữa các khu vẫn có dữ liệu ngay, không cần mạng. Máy đầy thì tự bỏ khu cũ nhất **và báo ra màn hình** (bản cũ nuốt lỗi im lặng — chính thứ làm tài xế nghi “data nhiều”).
+- **Toạ độ làm tròn về ô lưới 0,01°** trước khi hỏi → 2 máy đứng cùng khu nhận cùng bản chụp CDN, cùng MÃ BẢN.
+- **Đếm tách bạch**: *quán dùng chung* (2 máy phải khớp) ≠ *điểm tự thêm* ≠ *quán khu tự nạp* (mỗi máy chạy tới đâu nạp tới đó).
+- Nhân tiện vá **lỗi hiệu năng** chặn đường: `buildSpots()` tính trước toàn bộ bảng khoảng cách n×n (645 quán = 416.000 phép, **2,1 giây/lần**). Chuyển sang tính từng hàng khi cần → **62ms** (nhanh hơn 34 lần).
+
+Cập nhật kho quán khi Overture ra bản mới (hằng tháng):
+```bash
+duckdb -c ".read scripts/overture-vn.sql"     # → overture-vn.json
+node scripts/tron-vn.mjs overture-vn.json     # → api/_quanvn.js
+```
+
 - 🅿️ **ĐIỂM CHỜ TỐI ƯU** (khác biệt lớn nhất): thay vì chỉ báo 1 quán, AI tính **vị trí đứng giữa một CỤM quán** (bán kính đi bộ ~750m) để tiếp cận nhiều cơ hội nhất, đỡ chạy vòng — kèm nút **🧭 Đứng ở đây** mở Google Maps.
 - 🧭 **Google Maps dẫn đường** thật cho ⭐ điểm tốt nhất và từng quán (không cần API key).
 - 🎯 **Hiệu quả THẬT của bạn**: Dashboard tổng hợp **Top quận & Top khung giờ** bạn “mát tay” nhất từ nhật ký cuốc đã ghi.
@@ -103,6 +126,11 @@ roadai/
 ├── js/data.js                # dữ liệu mẫu camera/CSGT/ngập… (HCM, HN, ĐN)
 ├── js/app.js                 # map, geocode, GPS, routing OSRM, scoring, voice, reports
 ├── js/positioning.js         # engine lái hộ: cầu khách say, cung, lãi/giờ, quay về, học liên tục, Digital Twin
+├── api/spots.js              # danh sách quán TP.HCM (OSM + Overture + đối chiếu tên VietMap/Google)
+├── api/quanh.js              # 📍 quán quanh chỗ đang đứng — CẢ NƯỚC (chữa lỗi "đi khu mới không có quán")
+├── api/_quanvn.js            # kho 23.921 quán cả nước (Overture Maps) — sinh bởi scripts/tron-vn.mjs
+├── scripts/overture-vn.sql   # rút quán cả nước từ Overture (DuckDB đọc thẳng parquet trên S3)
+├── scripts/tron-vn.mjs       # đóng gói overture-vn.json → api/_quanvn.js
 ├── manifest.webmanifest, sw.js, icon.svg
 └── vercel.json
 ```

@@ -42,6 +42,10 @@
     <span class="lg lg-more">▾</span>
   </button>
 
+  <!-- KHU MỚI: chạy ra khỏi vùng app có dữ liệu thì hiện đúng một nút to, bấm là có quán.
+       (Anh Long 06/08/2026: "đi địa điểm mới không nạp dữ liệu quán vào được nữa".) -->
+  <div id="vung-bar" class="vung-bar" hidden></div>
+
   <!-- NÚT BẢN ĐỒ — gộp "về vị trí" và "dùng GPS" làm một, đỡ một nút phải nhớ -->
   <button id="btn-center" class="map-fab" title="Về vị trí của tôi (bật GPS)">◎</button>
   <button id="btn-addhere" class="map-fab fab-add" title="Tôi đang ở quán — thêm điểm đón thật">➕</button>
@@ -112,6 +116,8 @@
       <button data-base="dark" class="active">🌙 Tối</button>
       <button data-base="light">☀️ Sáng</button>
     </div>
+    <button id="btn-napvung" class="primary" style="width:100%;margin-top:12px">📍 Nạp quán khu tôi đang đứng</button>
+    <p class="sheet-hint" style="margin-top:4px">Chạy sang khu lạ (tỉnh khác, quận app chưa có dữ liệu) mà bản đồ trống thì bấm nút này — app lấy quán thật quanh anh trong 4km và chấm điểm % ngay. Bình thường app <b>tự nạp</b> khi thấy khu mới, nút này để anh chủ động.</p>
     <button id="btn-addpick" class="primary" style="width:100%;margin-top:12px">➕ Tôi đang ở quán — thêm điểm đón thật</button>
     <p class="sheet-hint" style="margin-top:4px">Đang đứng ngay quán/khu hay có khách → bật GPS (📍) cho đúng chỗ rồi bấm. App lưu vào não, ưu tiên đứng đây & học liên tục. Cũng có nút <b>➕</b> ngay trên bản đồ.</p>
     <button id="btn-unhide" class="ghost" style="margin-top:8px;width:100%">👁️ Bỏ ẩn tất cả điểm (đã báo đóng cửa)</button>
@@ -132,6 +138,8 @@
       <div id="sp-meta" class="sp-meta"></div>
       <div id="sp-chance" class="sp-chance"></div>
       <div id="sp-warn" class="sp-warn"></div>
+      <!-- chạy sang khu app chưa có quán → nút nạp ngay tại đây, khỏi phải thoát ra bản đồ -->
+      <div id="sp-vung" class="sp-vung" hidden></div>
     </div>
     <a id="sp-nav" class="sp-nav" target="_blank" rel="noopener">🧭 CHỈ ĐƯỜNG</a>
     <!-- GHI KẾT QUẢ: 3 tình huống thật ngoài đường, nút to bấm bằng ngón cái -->

@@ -245,7 +245,73 @@ function mergeLearned(base) {
 }
 const SEED_SPOTS = mergeLearned(OSM_SPOTS);
 
+/* ═══════════ QUÁN KHU MỚI — "📍 NẠP QUÁN KHU NÀY" ═══════════
+   ANH LONG BÁO 06/08/2026: "Đi địa điểm mới không nạp dữ liệu quán vào được nữa
+   nên không canh P theo khu vực mới được. Data nhiều nó không cho nạp nữa hay sao ấy."
+
+   KHÔNG PHẢI TẠI DATA NHIỀU. Tại app chỉ biết đúng TP.HCM:
+     · /api/spots hỏi OpenStreetMap trong một khung cố định 10,68–10,89 / 106,55–106,83.
+     · validSpots() dưới đây còn TỰ VỨT mọi quán nằm ngoài khung đó.
+   Chạy sang Biên Hoà, Bình Dương, Long An, Vũng Tàu, hay cả Củ Chi – Cần Giờ là
+   bản đồ trống trơn. Không có quán thì không có gì để chấm điểm P — đúng như anh nói.
+
+   CÁCH CHỮA: /api/quanh trả quán THẬT quanh đúng chỗ đang đứng, ở bất kỳ đâu trên
+   đất Việt Nam (kho Overture Maps 23.921 quán, có tên + địa chỉ thật). App giữ tối đa
+   6 KHU gần đây nhất trong máy — chạy qua chạy lại giữa các khu vẫn có dữ liệu ngay,
+   không cần mạng.
+
+   VỀ NỖI LO "DATA NHIỀU KHÔNG NẠP ĐƯỢC": bộ nhớ máy có thật sự đầy thì lưu sẽ hỏng —
+   nên luuVung() bỏ bớt KHU CŨ NHẤT rồi thử lại, hết cách mới chịu thua VÀ BÁO RA màn
+   hình. Bản cũ nuốt lỗi im lặng (catch rỗng) nên app cứ như bị hỏng mà không ai biết
+   vì sao — đó mới đúng là thứ làm anh Long nghi "data nhiều". */
+const VUNG_LS = 'roadai_laiho_vung_v1';
+const VUNG_TOI_DA = 6;                 // 6 khu gần đây nhất (mỗi khu ≤40 quán) — đủ dùng, máy không ì
+const VUNG_HAN = 45 * 864e5;           // quá 45 ngày không tới thì bỏ, quán cũng đổi rồi
+const VUNG_GAN = 4000;                 // xét "khu này app có quán chưa" trong bán kính 4km
+const VUNG_IT = 6;                     // dưới 6 quán trong 4km = coi như khu chưa có dữ liệu
+const vungKey = (lat, lng) => (Math.round(lat / 0.01) * 0.01).toFixed(2) + ',' + (Math.round(lng / 0.01) * 0.01).toFixed(2);
+const vungHopLe = v => v && Array.isArray(v.spots) && v.spots.length && isFinite(v.lat) && isFinite(v.lng) && typeof v.key === 'string';
+let VUNG = (() => {
+  const a = ls(VUNG_LS, []);
+  return Array.isArray(a) ? a.filter(v => vungHopLe(v) && (Date.now() - (v.ts || 0)) < VUNG_HAN).slice(0, VUNG_TOI_DA) : [];
+})();
+/* Lưu AN TOÀN: máy đầy thì bỏ dần khu cũ rồi thử lại, chứ không nuốt lỗi.
+   Trả về true/false để màn hình nói thật với tài xế là đã lưu được hay chưa. */
+function luuVung() {
+  for (let i = 0; i < VUNG_TOI_DA + 2; i++) {
+    try { localStorage.setItem(VUNG_LS, JSON.stringify(VUNG)); G.boNhoDay = false; return true; } catch (e) {}
+    if (VUNG.length > 1) { VUNG.sort((a, b) => b.ts - a.ts); VUNG.pop(); continue; }   // bỏ khu lâu nhất không tới
+    if (!G._daDonNhatKy) { G._daDonNhatKy = true; donNhatKy(400); continue; }          // vẫn chật → cắt bớt nhật ký cuốc
+    G.boNhoDay = true; return false;
+  }
+  G.boNhoDay = true; return false;
+}
+// Cắt nhật ký cuốc còn n bản ghi gần nhất — chỉ dùng khi bộ nhớ máy thật sự chật.
+// Số cuốc đã học nằm trong não AI (đã lưu riêng), nên cắt đuôi nhật ký không mất thành tích.
+function donNhatKy(n) { try { const a = loadJobs(); localStorage.setItem(JOBS_LS, JSON.stringify(a.slice(0, n))); _nkIdx = null; } catch (e) {} }
+// Dòng quán của khu → gắn dấu 'vung:<khu>' vào ô pid để đếm tách bạch với quán dùng chung.
+// (pid chỉ có ý nghĩa với điểm nguồn 'mine' nên mượn ô này không đụng gì ai.)
+const vungRows = () => VUNG.flatMap(v => v.spots.map(r => { const x = r.slice(); x[8] = 'vung:' + v.key; return x; }));
+/* Ghép quán khu mới vào danh sách chung. Quán nào đã có sẵn trong 80m thì bỏ, để một
+   quán không hiện thành 2 chấm (Overture và OpenStreetMap ghi lệch nhau vài chục mét). */
+function themVung(base) {
+  const rows = vungRows(); if (!rows.length) return base;
+  const G80 = 0.00072;                                     // ~80m tính theo độ, khỏi gọi haversine 100.000 lần
+  const moi = rows.filter(r => !base.some(b => Math.abs(b[2] - r[2]) < G80 && Math.abs(b[3] - r[3]) < G80));
+  return base.concat(moi);
+}
+
 let SPOTS = [], DMAT = [];
+/* Một HÀNG của bảng khoảng cách quán–quán, tính lần đầu rồi giữ lại dùng tiếp.
+   (Float64Array cho gọn bộ nhớ: 645 quán = 5KB/hàng, mà thường chỉ dùng ~40 hàng.) */
+function dongDMAT(i) {
+  let d = DMAT[i];
+  if (d) return d;
+  const a = SPOTS[i]; if (!a) return null;
+  d = DMAT[i] = new Float64Array(SPOTS.length);
+  for (let j = 0; j < SPOTS.length; j++) d[j] = haversine(a, SPOTS[j]);
+  return d;
+}
 /* BASE_SPOTS = danh sách quán dùng chung đang hiệu lực (đã đồng bộ từ server).
    LỖI CŨ: mỗi lần thêm/xoá/sửa điểm đón, code gọi buildSpots() KHÔNG kèm dữ liệu →
    rơi ngược về danh sách dựng sẵn trong js/spots.js, mất luôn bản đã đồng bộ.
@@ -253,7 +319,9 @@ let SPOTS = [], DMAT = [];
 let BASE_SPOTS = null;
 function buildSpots(data) {
   if (data && data.length) BASE_SPOTS = data;
-  const src = mergeLearned(BASE_SPOTS && BASE_SPOTS.length ? BASE_SPOTS : OSM_SPOTS);
+  // themVung: quán các KHU tài xế đã nạp (ngoài TP.HCM cũng có) — nối vào trước khi gộp
+  // điểm thật, để điểm đón thật / điểm tự thêm vẫn được ưu tiên đè lên như cũ.
+  const src = mergeLearned(themVung(BASE_SPOTS && BASE_SPOTS.length ? BASE_SPOTS : OSM_SPOTS));
   // addr/prec/evi: địa chỉ nguyên văn BUTL, độ chính xác toạ độ, bằng chứng cuốc thật.
   // Có 3 thứ này thì app KHÔNG phải nói chung chung "tên có thể khác" nữa — nó chỉ ra
   // đúng địa chỉ và tự khai sai số, tài xế tự kiểm chứng được.
@@ -268,6 +336,10 @@ function buildSpots(data) {
     const nameOut = src2 === 'osm-addr' ? (CAT_VI[cat] || 'Điểm') + ' · ' + (String(addr || '').split(',')[0].trim() || quan || 'chưa rõ địa chỉ') : name;
     return {
       id: 's' + i, pid: pid || null, name: nameOut, cat, cat0, lat, lng, size, homeKm, quan, source: src2,
+      // vung = quán này đến từ KHU tài xế tự nạp (không phải danh sách dùng chung TP.HCM).
+      // Phải phân biệt để 2 máy đối chiếu "quán dùng chung" vẫn khớp nhau — máy nào nạp
+      // thêm khu nào là chuyện riêng của máy đó.
+      vung: (typeof pid === 'string' && pid.indexOf('vung:') === 0) ? pid.slice(5) : null,
       addr: addr || '', prec: prec || '', evi: evi || '', ghiChu: ghiChu || '',
       sao: sao || null, luot: luot || null, gioMo: isFinite(gioMo) ? +gioMo : null,
       // GIỜ TAN QUÁN: có giờ THẬT (Google) thì dùng giờ thật, không thì mới ước theo nhóm quán.
@@ -277,9 +349,15 @@ function buildSpots(data) {
       noise: 0.9 + Math.random() * 0.2,
     };
   });
-  DMAT = SPOTS.map(a => SPOTS.map(b => haversine(a, b)));
+  /* BẢNG KHOẢNG CÁCH QUÁN–QUÁN: xoá sạch, TÍNH KHI CẦN (xem dongDMAT bên dưới).
+     LỖI CŨ (đo được 06/08/2026): dòng này từng là `SPOTS.map(a => SPOTS.map(b => …))`,
+     tức tính TRƯỚC toàn bộ n×n khoảng cách. Với 645 quán là 416.000 phép — máy này mất
+     2,1 GIÂY, điện thoại tài xế còn lâu hơn, mà mỗi lần thêm điểm/nạp khu đều chạy lại.
+     Thực tế chỉ ~40 hàng được dùng (quán đang mở trong 5km) → tính khi cần là xong trong
+     vài mili giây. Đây cũng là thứ chặn đường nạp thêm quán khu mới. */
+  DMAT = [];
   if (G && G.dataStatus && typeof spotCounts === 'function') {   // thêm/xoá điểm riêng → cập nhật lại 2 con số cho đúng
-    const c = spotCounts(); G.dataStatus.count = c.shared; G.dataStatus.mine = c.mine; G.dataStatus.total = c.total;
+    const c = spotCounts(); G.dataStatus.count = c.shared; G.dataStatus.mine = c.mine; G.dataStatus.vung = c.vung; G.dataStatus.total = c.total;
   }
 }
 const spotKey = sp => sp.name + '@' + (+sp.lat).toFixed(4) + ',' + (+sp.lng).toFixed(4);
@@ -618,9 +696,10 @@ function optimalWait(m) {
   const cands = (m.cover && m.cover.length) ? m.cover : m.raw.filter(r => r.open);
   for (const c of cands) {
     let cl = 0, cnt = 0, sLat = 0, sLng = 0, wsum = 0;
+    // DMAT đánh chỉ số theo SPOTS, dùng si (không dùng vị trí trong raw — sai khi có điểm bị ẩn)
+    const hang = dongDMAT(c.si);
     for (const r of m.raw) {
-      // DMAT đánh chỉ số theo SPOTS, dùng si (không dùng vị trí trong raw — sai khi có điểm bị ẩn)
-      const d = (DMAT[c.si] && DMAT[c.si][r.si] != null) ? DMAT[c.si][r.si] : haversine(c.sp, r.sp);
+      const d = (hang && hang[r.si] != null) ? hang[r.si] : haversine(c.sp, r.sp);
       if (d <= WALK && r.open) { const db = isZone(r.sp) ? 1.8 : 1, w = r.lambda * db * (1 - d / WALK); cl += r.lambda * db; cnt++; sLat += r.sp.lat * w; sLng += r.sp.lng * w; wsum += w; }
     }
     if (cnt < 2 || wsum <= 0) continue;
@@ -1189,8 +1268,13 @@ function renderSimple(m) {
   const nm = $('#sp-name'), mt = $('#sp-meta'), ch = $('#sp-chance'), nv = $('#sp-nav'), wn = $('#sp-warn');
   const r = m && m.best;
   if (!G.online || !r) {
+    /* Nạp quán khu mới lúc 11h trưa thì bản đồ vẫn chưa vẽ gì (app chỉ đề xuất từ 14h) —
+       không nói rõ thì tài xế tưởng nạp hỏng. Nên câu này phải khoe luôn con số ĐẾM ĐƯỢC
+       của khu vừa nạp. */
+    const v = vungHienTai();
+    const khoeVung = v ? ` · khu ${v.ten || 'này'} đã có ${v.spots.length} quán` : '';
     if (nm) nm.textContent = !G.online ? 'Đang nghỉ' : m.offHours ? 'Chưa tới giờ lái hộ' : 'Quán quanh đây đã đóng';
-    if (mt) mt.textContent = !G.online ? '' : m.offHours ? 'App đề xuất từ 14h mỗi ngày' : 'Thử kéo bản đồ sang khu khác';
+    if (mt) mt.textContent = !G.online ? '' : m.offHours ? ('App đề xuất từ 14h mỗi ngày' + khoeVung) : ('Thử kéo bản đồ sang khu khác' + khoeVung);
     if (ch) { ch.textContent = ''; ch.className = 'sp-chance'; }
     if (wn) wn.textContent = ''; if (nv) nv.removeAttribute('href');
     return;
@@ -1377,7 +1461,9 @@ function renderDash(m) {
       <a class="ghostbtn" style="display:block;text-align:center;margin-top:6px;text-decoration:none" href="${routeUrl(m.route)}" target="_blank" rel="noopener">🧭 Mở cung đường trên Google Maps</a>
     </div>` : ''}
     <div class="dash-sec"><h4>📍 Điểm anh tự nạp — kiểm chứng bằng cuốc thật</h4>${myPicksBlock()}</div>
+    <div class="dash-sec"><h4>🗺️ Khu đã nạp quán (chạy tỉnh nào cũng có)</h4>${vungBlock()}</div>
     <div class="dash-sec"><h4>📡 Nguồn dữ liệu quán</h4>${dataSrcBlock()}</div>`;
+  const nv = $('#nap-vung'); if (nv) nv.onclick = () => napVung(true);
   const rb = $('#refresh-spots'); if (rb) rb.onclick = () => { toast('Đang cập nhật quán…'); refreshSpots(true, true).then(() => renderDash(G.metrics)); };
   const rs2 = $('#resync-spots'); if (rs2) rs2.onclick = hardResync;
   const pp = $('#pair-dev'); if (pp) pp.onclick = pairDevice;
@@ -1416,6 +1502,27 @@ function myPicksBlock() {
     <button id="pair-dev" class="ghost" style="width:100%;margin-top:6px">🔗 Ghép máy / đổi mã tài xế</button>`;
 }
 
+/* KHỐI "KHU ĐÃ NẠP QUÁN" — chỗ anh Long soi được app đã có dữ liệu những khu nào,
+   mỗi khu bao nhiêu quán, nạp lúc nào. Toàn số ĐẾM ĐƯỢC, không có % suy đoán. */
+function vungBlock() {
+  const gan = G.quanGan == null ? demQuanGan() : G.quanGan;
+  const dsach = VUNG.slice().sort((a, b) => b.ts - a.ts);
+  const dong = dsach.length ? `<div class="pk-list">${dsach.map(v => {
+    const gio = new Date(v.ts).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+    const dangO = v.key === vungKey(G.you.lat, G.you.lng);
+    return `<div class="pk"><div class="pk-m"><b>${dangO ? '🟢 ' : ''}${v.ten || v.key}</b>
+        <small>${v.spots.length} quán${v.quanhDay > v.spots.length ? ' (đếm được ' + v.quanhDay + ' trong ' + ((v.r || VUNG_GAN) / 1000) + 'km)' : ''} · nạp ${gio}${v.rev ? ' · bản #' + v.rev : ''}</small></div>
+      <div class="pk-r"><button onclick="__xoaVung('${v.key}')" style="background:transparent;color:#fca5a5;border:0;font-weight:700;font-size:15px">🗑</button></div></div>`;
+  }).join('')}</div>` : '<p class="dash-note">Chưa nạp khu nào. Chạy tới đâu app cũng nạp được — cứ bấm nút dưới khi tới khu lạ.</p>';
+  const canh = gan < VUNG_IT
+    ? `<p class="dash-note" style="color:#fdba74">📍 Ngay chỗ anh đang đứng, app mới biết <b>${gan}</b> chỗ trong 4km — nên bấm nạp.</p>`
+    : `<p class="dash-note">Quanh chỗ anh đang đứng app đang có <b>${gan}</b> chỗ trong 4km.</p>`;
+  const day = G.boNhoDay ? '<p class="dash-note" style="color:#fca5a5">⚠️ Bộ nhớ máy đã đầy: app đã tự bỏ bớt khu cũ để nạp khu mới. Xoá bớt khu không dùng ở trên cho chắc.</p>' : '';
+  return canh + dong + day + `
+    <button id="nap-vung" class="ghost" style="width:100%;margin-top:8px">📍 Nạp quán khu tôi đang đứng</button>
+    <p class="dash-note">Quán khu mới lấy từ <b>Overture Maps</b> (kho địa điểm mở, 23.921 quán cả nước, có tên + địa chỉ thật). Nạp xong là quán khu đó chạy <b>chung một thang điểm %</b> với quán TP.HCM — không có thang riêng. App giữ ${VUNG_TOI_DA} khu gần nhất, khu cũ tự nhường chỗ.</p>`;
+}
+
 /* Khối "Nguồn dữ liệu quán" — hiện MÃ BẢN (rev) để anh soi 2 máy có trùng nhau không.
    2 máy cùng mã = cùng dữ liệu, khỏi phải đoán. Khác mã = bấm "Đồng bộ lại máy này". */
 function dataSrcBlock() {
@@ -1439,13 +1546,14 @@ function dataSrcBlock() {
       ${nGoogle ? `<div class="sync-row"><span>🕒 Quán có GIỜ ĐÓNG CỬA THẬT (không phải ước tính)</span><b>${SPOTS.filter(s => s.gioThat).length}</b></div>` : ''}
       <div class="sync-row"><span>Quán dùng chung</span><b>${d.count}</b></div>
       <div class="sync-row"><span>Điểm anh tự thêm (riêng máy này)</span><b>${d.mine || 0}</b></div>
+      <div class="sync-row"><span>🗺️ Quán khu anh tự nạp (riêng máy này)</span><b>${d.vung || 0}</b></div>
       <div class="sync-row"><span>Nguồn</span><b>${d.source}</b></div>
       <div class="sync-row"><span>OSM cập nhật</span><b>${upd}</b></div>
       <div class="sync-row"><span>Máy này kiểm lúc</span><b>${chk}</b></div>
       <div class="sync-rev">MÃ BẢN DỮ LIỆU<b>#${d.rev || '—'}</b></div>
     </div>
     <p class="dash-note">Nguồn dữ liệu quán: <b>OpenStreetMap</b> (© OpenStreetMap contributors, ODbL) · <b>Overture Maps</b> (© Overture Maps Foundation, CDLA-Permissive 2.0) · tên &amp; địa chỉ đối chiếu <b>VietMap</b>${nGoogle ? ' và <b>Google Maps</b> (Powered by Google)' : ''}. Quán nào bản đồ không tra ra tên thì app chỉ hiện địa chỉ, không tự đặt tên.</p>
-    <p class="dash-note"><b>Cách kiểm 2 máy có giống nhau chưa:</b> mở mục này trên cả 2 máy — <b>MÃ BẢN</b> và số <b>quán dùng chung</b> phải y hệt. (Dòng “điểm anh tự thêm” thì mỗi máy một khác là đúng, vì đó là điểm riêng của từng máy.)</p>
+    <p class="dash-note"><b>Cách kiểm 2 máy có giống nhau chưa:</b> mở mục này trên cả 2 máy — <b>MÃ BẢN</b> và số <b>quán dùng chung</b> phải y hệt. (Hai dòng “điểm anh tự thêm” và “quán khu anh tự nạp” thì mỗi máy một khác là đúng, vì máy nào chạy tới đâu nạp tới đó.)</p>
     <button id="refresh-spots" class="ghost" style="width:100%;margin-top:6px">🔄 Cập nhật quán ngay</button>
     <button id="resync-spots" class="ghost" style="width:100%;margin-top:6px">🔁 Đồng bộ lại máy này (khi 2 máy lệch số)</button>
     <p class="dash-note">Nút 🔁 xoá bản cũ đang kẹt trong máy rồi tải lại từ đầu — bấm ở máy nào lệch là máy đó về đúng bản chung.</p>`;
@@ -1550,15 +1658,30 @@ async function enableNotif() {
    có trùng không — không phải tin suông. */
 const SPOTS_CACHE = 'roadai_laiho_spots_cache';
 const SYNC_MS = 30 * 60 * 1000;   // mở app / bật lại màn hình là đối chiếu; nền thì 30 phút 1 lần
-function validSpots(a) { return Array.isArray(a) && a.length >= 120 && a.every(r => Array.isArray(r) && r.length >= 7 && typeof r[0] === 'string' && r[2] > 10.6 && r[2] < 10.95 && r[3] > 106.5 && r[3] < 106.9); }
+/* KHUNG TOẠ ĐỘ HỢP LỆ = CẢ VIỆT NAM, không phải mỗi TP.HCM.
+   LỖI CŨ (anh Long dính 06/08/2026): khung cũ là 10,6–10,95 / 106,5–106,9 — đúng bằng
+   TP.HCM. Chỉ cần MỘT quán nằm ngoài (Biên Hoà, Long An, Bình Dương…) là cả gói dữ liệu
+   bị .every() đánh trượt → app im lặng giữ bản cũ, tài xế tưởng "data nhiều nên không nạp
+   được nữa". Giờ khung là lãnh thổ VN; các phép kiểm còn lại (đủ số lượng, đúng kiểu dữ
+   liệu) vẫn giữ nguyên nên vẫn chặn được dữ liệu rác. */
+const trongVN = (la, lo) => la > 8 && la < 23.6 && lo > 102 && lo < 110;
+function validSpots(a) { return Array.isArray(a) && a.length >= 120 && a.every(r => Array.isArray(r) && r.length >= 7 && typeof r[0] === 'string' && trongVN(r[2], r[3])); }
 function loadSpotsCache() { try { const c = JSON.parse(localStorage.getItem(SPOTS_CACHE) || 'null'); if (c && validSpots(c.spots) && (Date.now() - (c.ts || 0)) < 7 * 864e5) return c; } catch (e) {} return null; }
-// Đếm TÁCH BẠCH: quán dùng chung (2 máy phải bằng nhau) vs điểm anh tự thêm (riêng từng máy).
-// Trước đây gộp chung một số → chỉ cần 1 máy thêm vài điểm là 2 máy đã hiện số khác nhau.
-function spotCounts() { let mine = 0; for (const s of SPOTS) if (s.source === 'mine') mine++; return { shared: SPOTS.length - mine, mine, total: SPOTS.length }; }
+/* Đếm TÁCH BẠCH 3 loại — 2 máy chỉ buộc phải khớp nhau ở "quán dùng chung":
+     shared = danh sách dùng chung (TP.HCM, đồng bộ theo MÃ BẢN)
+     mine   = điểm anh tự bấm ➕ (riêng từng máy, đồng bộ qua MÃ TÀI XẾ)
+     vung   = quán các KHU anh tự nạp (riêng từng máy — máy nào chạy tới đâu nạp tới đó)
+   Gộp chung một số thì chỉ cần một máy nạp thêm một khu là 2 máy hiện số khác nhau,
+   rồi lại tưởng dữ liệu lệch. */
+function spotCounts() {
+  let mine = 0, vung = 0;
+  for (const s of SPOTS) { if (s.source === 'mine') mine++; else if (s.vung) vung++; }
+  return { shared: SPOTS.length - mine - vung, mine, vung, total: SPOTS.length };
+}
 function hotSwap(spots, source, updatedAt, rev, extra) {
   buildSpots(spots); G.lastBestId = null; G.pendingLog = null; G.chainFrom = null;
   const c = spotCounts();
-  G.dataStatus = Object.assign({ count: c.shared, mine: c.mine, total: c.total, updatedAt: updatedAt || null, source, rev: rev || null }, extra || {});
+  G.dataStatus = Object.assign({ count: c.shared, mine: c.mine, vung: c.vung, total: c.total, updatedAt: updatedAt || null, source, rev: rev || null }, extra || {});
   recompute();
 }
 let refreshing = false, lastSync = 0;
@@ -1615,6 +1738,83 @@ async function hardResync() {
   if (!ok) { toast('⚠️ Chưa lấy được dữ liệu — kiểm tra mạng rồi bấm lại.', 4500); return; }
   setTimeout(() => location.reload(), 900);   // nạp lại để chắc chắn code cũng là bản mới nhất
 }
+
+/* ═══════════════ NẠP QUÁN KHU ĐANG ĐỨNG (chữa đúng lỗi anh Long báo) ═══════════════
+   Đứng ở đâu cũng bấm được một nút, app hỏi /api/quanh lấy quán THẬT quanh đó rồi
+   nhập thẳng vào radar — từ giây sau là có điểm P cho khu mới, chạy chung một thang
+   điểm với quán TP.HCM.
+   · Có GPS thật + khu này app chưa biết quán nào → TỰ nạp, khỏi phải nhớ bấm nút.
+   · Mỗi khu chỉ tự thử MỘT LẦN mỗi phiên: mạng chập chờn thì thôi, không quay vòng
+     gọi mãi làm nóng máy và tốn 4G của tài xế.
+   · Kết quả nói bằng SỐ ĐẾM ĐƯỢC ("đếm được 106 quán trong 4km, lấy 40 chỗ gần nhất"),
+     không phải lời hứa suông. */
+const _daThuVung = new Set();
+let _dangNapVung = false;
+function demQuanGan(m) {
+  const R = m || VUNG_GAN; let n = 0;
+  for (const s of SPOTS) if (haversine(G.you, s) <= R) n++;
+  return n;
+}
+const vungHienTai = () => VUNG.find(v => v.key === vungKey(G.you.lat, G.you.lng)) || null;
+async function napVung(tay) {
+  if (_dangNapVung) return false;
+  const key = vungKey(G.you.lat, G.you.lng);
+  if (!tay && _daThuVung.has(key)) return false;
+  /* Chỗ này app đã có đủ quán rồi thì THÔI, đừng gọi máy chủ cho tốn 4G của tài xế và
+     đừng nhồi thêm 40 chấm trùng lên bản đồ. (Chỉ bỏ qua khi app tự chạy — anh bấm tay
+     thì luôn nạp, vì đó là lúc anh muốn làm mới danh sách khu này.) */
+  if (!tay && demQuanGan() >= VUNG_IT) return false;
+  _daThuVung.add(key);
+  _dangNapVung = true; G.napVungLoi = ''; veVungBar();
+  try {
+    /* KHÔNG thêm ?v=/timestamp để phá cache CDN — chính cache CDN mới bảo đảm 2 máy
+       đứng cùng khu nhận CÙNG một bản chụp (cùng MÃ BẢN). cache:'no-store' chỉ bỏ qua
+       cache của trình duyệt, đúng như /api/spots đang làm. */
+    const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 15000);
+    let r; try { r = await fetch(`/api/quanh?lat=${G.you.lat.toFixed(5)}&lng=${G.you.lng.toFixed(5)}`, { cache: 'no-store', signal: ctl.signal }); } finally { clearTimeout(to); }
+    const j = r.ok ? await r.json() : null;
+    if (!j || !j.ok) {
+      G.napVungLoi = (j && j.loi) || 'Chưa hỏi được máy chủ — kiểm tra mạng rồi bấm lại.';
+      if (tay) toast('⚠️ ' + G.napVungLoi, 4600);
+      return false;
+    }
+    const rows = (j.spots || []).filter(x => Array.isArray(x) && x.length >= 7 && trongVN(x[2], x[3]));
+    const ten = (j.vung && j.vung.ten) || '';
+    if (!rows.length) {
+      G.napVungLoi = j.trong || 'Khu này chưa có quán nào trong kho dữ liệu.';
+      if (tay) toast('📍 ' + (ten ? ten + ': ' : '') + G.napVungLoi + ' Anh đứng ngay quán thì bấm ➕ để tự nạp.', 6000);
+      return false;
+    }
+    VUNG = VUNG.filter(v => v.key !== key);
+    VUNG.unshift({ key, ten, lat: (j.vung && j.vung.lat) || G.you.lat, lng: (j.vung && j.vung.lng) || G.you.lng, r: (j.vung && j.vung.r) || VUNG_GAN, ts: Date.now(), rev: j.rev || null, quanhDay: j.quanhDay || rows.length, spots: rows });
+    VUNG = VUNG.slice(0, VUNG_TOI_DA);
+    const luuDuoc = luuVung();
+    buildSpots(null); G.lastBestId = null;
+    const c = spotCounts();
+    if (G.dataStatus) { G.dataStatus.count = c.shared; G.dataStatus.mine = c.mine; G.dataStatus.vung = c.vung; G.dataStatus.total = c.total; }
+    recompute();
+    const themVao = rows.length, dem = j.quanhDay || rows.length;
+    toast(`✅ Đã nạp ${themVao} quán ở ${ten || 'khu này'}` +
+      (dem > themVao ? ` (đếm được ${dem} quán trong ${((j.vung && j.vung.r) || VUNG_GAN) / 1000}km, lấy ${themVao} chỗ gần nhất)` : '') +
+      (m0OffHours() ? ' · bản đồ vẽ quán từ 14h — giờ này mở ⚙️ “Hiện HẾT quán” nếu muốn xem ngay.' : ' — điểm P khu này đã chạy.') +
+      (luuDuoc ? '' : ' ⚠️ Bộ nhớ máy đầy nên chỉ dùng được tới khi tắt app.'), 7000);
+    return true;
+  } catch (e) {
+    G.napVungLoi = 'Mạng chậm hoặc mất sóng — bấm lại giúp em.';
+    if (tay) toast('⚠️ ' + G.napVungLoi, 4200);
+    return false;
+  } finally { _dangNapVung = false; veVungBar(); if ($('#dash-sheet') && !$('#dash-sheet').hidden) renderDash(G.metrics); }
+}
+const m0OffHours = () => !withinService(curHour());
+// Xoá một khu đã nạp (bản đồ đỡ rối khi đã chạy về sân nhà)
+window.__xoaVung = key => {
+  const v = VUNG.find(x => x.key === key); if (!v) return;
+  if (!window.confirm(`Xoá ${v.spots.length} quán khu “${v.ten || key}”? Lúc nào tới đó lại thì bấm nạp lại là có.`)) return;
+  VUNG = VUNG.filter(x => x.key !== key); luuVung(); _daThuVung.delete(key);
+  buildSpots(null); recompute(); renderDash(G.metrics);
+  toast('🗑 Đã xoá khu ' + (v.ten || key) + '.');
+};
+window.__napVung = () => napVung(true);
 
 /* ============ ĐỒNG BỘ ĐIỂM TỰ NẠP + BẰNG CHỨNG GIỮA CÁC MÁY ============
    MÃ TÀI XẾ = chìa khoá ghép 2 máy. Máy đầu tự sinh mã; máy thứ 2 nhập đúng mã đó là
@@ -1711,6 +1911,40 @@ function recompute() {
   if (!m.best || (G.bestRoute && G.bestRoute.id !== m.best.sp.id)) G.bestRoute = null;
   drawMap(m); renderReco(m); renderSimple(m); renderDash(m); renderScore(); renderFind(m); updateStatus();
   if (m.best) routeBest(m.best);
+  /* KHU MỚI: đếm quán app đang biết quanh chỗ đứng. Ít quá nghĩa là tài xế đã chạy ra
+     khỏi vùng dữ liệu — có GPS thật thì tự đi nạp luôn, khỏi bắt bác tài nhớ bấm nút.
+     (Chỉ tự nạp khi GPS thật: kéo tay cái chấm trên bản đồ mà cũng nạp thì kho đầy
+     những khu tài xế chưa từng đặt chân tới.) */
+  G.quanGan = demQuanGan();
+  veVungBar();
+  if (G.quanGan < VUNG_IT && G.hasGps && G.youFromGps && G.online) napVung(false);
+}
+/* Thanh "📍 NẠP QUÁN KHU NÀY" — hiện đúng lúc cần, tự ẩn khi khu đã có quán.
+   Vẽ ở CẢ 2 màn: bản đồ đầy đủ và bản 👴 đơn giản (bản đơn giản che kín màn hình,
+   không vẽ vào đó thì bác tài đang dùng bản đó chẳng bao giờ thấy nút này). */
+function veVungBar() {
+  const gan = G.quanGan == null ? demQuanGan() : G.quanGan;
+  const thieu = gan < VUNG_IT;
+  const bar = $('#vung-bar');
+  if (bar) {
+    if (_dangNapVung) {
+      bar.hidden = false; bar.className = 'vung-bar dang';
+      bar.innerHTML = '<div class="vb-t"><b>⏳ Đang nạp quán khu này…</b><small>Đang hỏi kho quán cả nước.</small></div>';
+    } else if (thieu) {
+      bar.hidden = false; bar.className = 'vung-bar';
+      bar.innerHTML = `<div class="vb-t"><b>📍 Khu này app chưa có quán</b><small>${G.napVungLoi || ('Quanh anh 4km app mới biết ' + gan + ' chỗ.')}</small></div>
+        <button class="vb-btn" onclick="__napVung()">NẠP QUÁN<br>KHU NÀY</button>`;
+    } else bar.hidden = true;
+  }
+  const sv = $('#sp-vung');
+  if (sv) {
+    if (_dangNapVung) { sv.hidden = false; sv.innerHTML = '<div class="spv-note">⏳ Đang nạp quán khu này…</div>'; }
+    else if (thieu) {
+      sv.hidden = false;
+      sv.innerHTML = `<div class="spv-note">📍 Khu này app chưa có quán${G.napVungLoi ? ' · ' + G.napVungLoi : ''}</div>
+        <button class="spv-btn" onclick="__napVung()">📍 NẠP QUÁN KHU NÀY</button>`;
+    } else sv.hidden = true;
+  }
 }
 function tick() { G.tick++; stepDemand(); recompute(); maybeNotify(G.metrics); }
 function updateStatus() {
@@ -1777,6 +2011,7 @@ function wire() {
   on('#btn-addpick', quickAddHere);
   on('#btn-addhere', quickAddHere);
   on('#sp-add', quickAddHere);
+  on('#btn-napvung', () => { closeSheets(); napVung(true); });
   on('#btn-install', async () => {
     const ib = $('#btn-install');
     if (!deferredPrompt) { toast('iPhone: bấm Chia sẻ → “Thêm vào MH chính”. Android sẽ tự hiện nút cài.', 4600); return; }
@@ -1810,7 +2045,7 @@ const _cache = loadSpotsCache();
 buildSpots(_cache ? _cache.spots : null);
 {
   const c = spotCounts();
-  G.dataStatus = { count: c.shared, mine: c.mine, total: c.total, updatedAt: _cache ? _cache.updatedAt : null, rev: _cache ? (_cache.rev || null) : null, source: _cache ? 'OSM · đã lưu' : 'OSM · bản dựng sẵn' };
+  G.dataStatus = { count: c.shared, mine: c.mine, vung: c.vung, total: c.total, updatedAt: _cache ? _cache.updatedAt : null, rev: _cache ? (_cache.rev || null) : null, source: _cache ? 'OSM · đã lưu' : 'OSM · bản dựng sẵn' };
 }
 G.jobsN = loadJobs().length;
 loadBrain();   // 🧠 nạp lại toàn bộ thứ AI đã học từ những ngày trước

@@ -59,11 +59,16 @@ const CURATED = [
   ['Nhậu Hương Lộ 2', 'phonhau', 10.77547, 106.59237, 9, 6, 'Bình Tân'],
 ];
 
+/* ═══ MỘT SỐ HÀM CÓ `export` — DÙNG CHUNG VỚI /api/quanh ═══
+   /api/quanh (nạp quán quanh chỗ tài xế đang đứng, ở BẤT KỲ đâu) phải tính khoảng cách,
+   sắp thứ tự chuẩn và tính MÃ BẢN (rev) y hệt file này — nếu không thì hai đường vào cho
+   ra hai kết quả khác nhau, rồi 2 máy lại lệch số như hồi 289 vs 652 quán.
+   Đừng chép các hàm này sang file khác: chép là sớm muộn hai bên lệch luật. */
 const R = 6371000, toR = d => d * Math.PI / 180;
-function hav(a1, o1, a2, o2) { const dLat = toR(a2 - a1), dLng = toR(o2 - o1); const s = Math.sin(dLat / 2) ** 2 + Math.cos(toR(a1)) * Math.cos(toR(a2)) * Math.sin(dLng / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(s)); }
+export function hav(a1, o1, a2, o2) { const dLat = toR(a2 - a1), dLng = toR(o2 - o1); const s = Math.sin(dLat / 2) ** 2 + Math.cos(toR(a1)) * Math.cos(toR(a2)) * Math.sin(dLng / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(s)); }
 function hash(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); }
 function catOf(t) { const a = t.amenity, nm = (t.name || '').toLowerCase(); if (/karaoke|ktv/.test(nm)) return 'karaoke'; if (a === 'nightclub' || a === 'biergarten' || /beer ?club|bia/.test(nm)) return 'beerclub'; if (a === 'bar' || a === 'pub') return 'bar'; if (/nhậu|ốc|nướng|hải sản|lẩu|bbq/.test(nm)) return 'phonhau'; if (a === 'restaurant') return 'nhahang'; return 'phonhau'; }
-const SIZE = { beerclub: 12, bar: 10, karaoke: 9, phonhau: 10, nhahang: 8, sanbong: 11 };
+export const SIZE = { beerclub: 12, bar: 10, karaoke: 9, phonhau: 10, nhahang: 8, sanbong: 11 };
 function normQuan(d) {
   d = (d || '').trim(); if (!d) return null;
   if (/bình tân|binh tan/i.test(d)) return 'Bình Tân'; if (/bình thạnh|binh thanh/i.test(d)) return 'Bình Thạnh';
@@ -117,8 +122,8 @@ async function fetchOverpass() {
 /* LƯU Ý: file này có hàm tên `process(els)` → nó CHE MẤT biến toàn cục `process` của Node,
    viết `process.env` ở đây là văng lỗi 500 ngay. Phải lấy env qua globalThis. */
 const ENV = (globalThis.process && globalThis.process.env) || {};
-const VM_KEY = () => (ENV.VIETMAP_API_KEY || ENV.VIETMAP_KEY || '').trim();
-async function vmGet(path, params, ms) {
+export const VM_KEY = () => (ENV.VIETMAP_API_KEY || ENV.VIETMAP_KEY || '').trim();
+export async function vmGet(path, params, ms) {
   const key = VM_KEY(); if (!key) return null;
   const u = new URL('https://maps.vietmap.vn/api/' + path);
   for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
@@ -210,7 +215,7 @@ function donTen(name, addr, addr2) {
   return s;
 }
 const CAT_VI = { phonhau: 'Quán nhậu', beerclub: 'Beer club', bar: 'Bar/Pub', karaoke: 'Karaoke', nhahang: 'Nhà hàng', sanbong: 'Quán bóng đá' };
-const shortAddr = a => String(a || '').replace(',Thành Phố Hồ Chí Minh', '').replace(/,\s*/g, ', ').trim();
+export const shortAddr = a => String(a || '').replace(',Thành Phố Hồ Chí Minh', '').replace(/,\s*/g, ', ').trim();
 /* Nhãn ngắn = số nhà + đường. Bản đồ đôi khi trả "Plus Code" (7P28RPR4+PG) thay cho số nhà —
    chuỗi đó vô nghĩa với tài xế, gặp thì lấy đoạn sau (phường) cho còn đọc được. */
 const laPlusCode = t => /^[A-Z0-9]{4,8}\+[A-Z0-9]{2,4}$/i.test(String(t || '').trim());
@@ -381,8 +386,8 @@ async function checkAll(rows, deadline) {
 /* ĐỒNG BỘ 2 MÁY: mọi bước dưới đây phải cho ra ĐÚNG MỘT kết quả với cùng dữ liệu OSM.
    Trước đây thứ tự phần tử Overpass trả về khác nhau mỗi lần gọi → lọc trùng/cắt danh sách
    ra kết quả khác nhau → máy A 289 quán, máy B 652 quán. Giờ sắp xếp chuẩn TRƯỚC khi lọc. */
-const canon = (a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0) || a[2] - b[2] || a[3] - b[3] || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0);
-function revOf(rows) { let h = 0x811c9dc5; const s = JSON.stringify(rows); for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0; } return h.toString(36).toUpperCase().padStart(7, '0').slice(-7); }
+export const canon = (a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0) || a[2] - b[2] || a[3] - b[3] || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0);
+export function revOf(rows) { let h = 0x811c9dc5; const s = JSON.stringify(rows); for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0; } return h.toString(36).toUpperCase().padStart(7, '0').slice(-7); }
 
 function process(els) {
   let rows = [];
