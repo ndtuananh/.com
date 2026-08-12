@@ -30,6 +30,17 @@ create table if not exists public.butl_sync (
 alter table public.butl_sync add column if not exists trips jsonb not null default '[]'::jsonb;
 alter table public.butl_sync add column if not exists meta  jsonb;
 
+-- ── NÂNG CẤP 12/08/2026 (2) ──────────────────────────────────────────────────
+-- `zones` = SỔ ĐĂNG KÝ KHU đã nạp của tài khoản. Trước đó khu nạp xong chỉ nằm
+-- trong localStorage một máy: anh Long chạy sang Biên Hoà, máy A nạp được quán,
+-- máy B mở lên vẫn trống trơn cho tới khi chính máy B cũng chạy tới đó. Đó là
+-- dữ liệu tài khoản bị lưu nhầm thành dữ liệu của máy.
+-- CHỈ lưu THÔNG TIN KHU (ô lưới, tên, tâm, bán kính, mốc thời gian) — KHÔNG lưu
+-- danh sách quán. Quán lấy từ /api/quanh: cùng ô lưới thì mọi máy nhận CÙNG một
+-- bản chụp CDN, cùng MÃ BẢN. Nhét cả quán vào đây chỉ làm gói đồng bộ phình ~36KB
+-- mỗi lần kéo, mà không chắc chắn hơn được tí nào.
+alter table public.butl_sync add column if not exists zones jsonb not null default '[]'::jsonb;
+
 create index if not exists butl_sync_code_idx on public.butl_sync (code);
 -- dùng cho câu hỏi rẻ "dữ liệu có đổi không?" (/api/pickups?probe=1)
 create index if not exists butl_sync_code_upd_idx on public.butl_sync (code, updated_at desc);

@@ -196,11 +196,12 @@ console.log('\nA3 · HIỆU NĂNG (điện thoại tài xế, không phải máy
 
 /* ═══════════════════ B · LUẬT GỘP NHIỀU MÁY (§40) ═══════════════════ */
 console.log('\nB · ĐỒNG BỘ NHIỀU MÁY — 10 kịch bản bắt buộc (§40)');
-const { merge, cleanPick, cleanTrip, cleanHidden } = await import(path.join(ROOT, 'api/pickups.js').replace(/\\/g, '/').replace(/^([a-zA-Z]):/, 'file:///$1:'));
+const { merge, cleanPick, cleanTrip, cleanHidden, cleanZone } = await import(path.join(ROOT, 'api/pickups.js').replace(/\\/g, '/').replace(/^([a-zA-Z]):/, 'file:///$1:'));
 
 const P = (id, name, lat, lng, o) => cleanPick({ id, name, lat, lng, cat: 'phonhau', ts: (o && o.ts) || 1000, n: (o && o.n) || 0, win: (o && o.win) || 0, del: (o && o.del) || 0, quan: 'Bình Tân' });
 const TR = (id, key, ts, win) => cleanTrip({ id, key, ts, win, cat: 'phonhau', hour: 22, band: 'vang', quan: 'Bình Tân', p: 0.7 });
 const H = (k, ts, on) => cleanHidden({ k, ts, on });
+const Z = (key, ten, ts, del) => cleanZone({ key, ten, lat: +key.split(',')[0], lng: +key.split(',')[1], r: 4000, ts, del, rev: 'AAA1111', n: 40 });
 
 T('TEST 1 · Máy A thêm điểm → máy B thấy', () => {
   const m = merge([{ dev: 'a', picks: [P('a1', 'Quán A1', 10.75, 106.61)], hidden: [], trips: [] },
@@ -295,6 +296,39 @@ T('BỔ SUNG · dữ liệu rác từ ngoài bị chặn ở máy chủ', () => 
   const t = cleanTrip({ id: 'a', ts: 1, key: 'k', type: 'dong', win: 1 });
   eq(t.win, 0, 'quan sát "đang đông" bị tính thành cuốc thắng');
 });
+T('KHU 1 · máy A tự nạp khu mới → khu vào sổ chung, máy B thấy ngay', () => {
+  const m = merge([{ dev: 'a', picks: [], hidden: [], trips: [], zones: [Z('10.95,106.82', 'Biên Hoà · Đồng Nai', 5000)] },
+                   { dev: 'b', picks: [], hidden: [], trips: [], zones: [] }]);
+  eq(m.zones.length, 1); eq(m.zones[0].ten, 'Biên Hoà · Đồng Nai');
+});
+T('KHU 2 · sổ khu chỉ mang Ô LƯỚI, KHÔNG mang danh sách quán (gói nhẹ)', () => {
+  const m = merge([{ dev: 'a', picks: [], hidden: [], trips: [], zones: [Z('10.95,106.82', 'X', 1)] }]);
+  const s = JSON.stringify(m.zones);
+  ok(!/spots/.test(s), 'nhét cả quán vào sổ → mỗi lần đồng bộ phình mấy chục KB');
+  ok(s.length < 200, 'sổ khu nặng ' + s.length + ' byte');
+});
+T('KHU 3 · máy B xoá khu → máy A theo, không hồi sinh', () => {
+  const m = merge([{ dev: 'a', picks: [], hidden: [], trips: [], zones: [Z('10.95,106.82', 'X', 1000)] },
+                   { dev: 'b', picks: [], hidden: [], trips: [], zones: [Z('10.95,106.82', 'X', 9000, 1)] }]);
+  eq(m.zones.length, 0, 'xoá xong nó sống lại');
+});
+T('KHU 4 · hai máy nạp cùng khu → một dòng, bản mới nhất thắng', () => {
+  const m = merge([{ dev: 'a', picks: [], hidden: [], trips: [], zones: [Z('10.95,106.82', 'tên cũ', 1000)] },
+                   { dev: 'b', picks: [], hidden: [], trips: [], zones: [Z('10.95,106.82', 'tên mới', 9000)] }]);
+  eq(m.zones.length, 1); eq(m.zones[0].ten, 'tên mới');
+});
+T('KHU 5 · ô lưới rác bị chặn ở máy chủ', () => {
+  eq(cleanZone({ key: 'hack', lat: 10, lng: 106 }), null);
+  eq(cleanZone({ key: '10.95,106.82', lat: 99, lng: 99 }), null, 'toạ độ ngoài VN vẫn lọt');
+});
+T('THIẾT BỊ · máy chủ trả danh sách máy + MÃ BẢN mỗi máy đang chạy', () => {
+  const m = merge([
+    { dev: 'a', picks: [], hidden: [], trips: [], zones: [], meta: { app: 'v1', platform: 'and', seen: 100, srev: 'AAA', sat: 100 } },
+    { dev: 'b', picks: [], hidden: [], trips: [], zones: [], meta: { app: 'v1', platform: 'ios', seen: 200, srev: 'BBB', sat: 200 } },
+  ]);
+  eq(m.devs.length, 2);
+  eq(m.devs.find(d => d.dev === 'b').srev, 'BBB', 'không lan được MÃ BẢN → 2 máy chạy 2 danh sách nửa tiếng');
+});
 T('BỔ SUNG · cuốc trả về sắp mới→cũ và bị chặn trần', () => {
   const trips = []; for (let i = 0; i < 1200; i++) trips.push(TR('t' + i, 'K', i, i % 2));
   const m = merge([{ dev: 'a', picks: [], hidden: [], trips }]);
@@ -357,6 +391,27 @@ if (BASE) {
   await Ta('THẬT 7 · mã tài xế sai bị từ chối', async () => {
     const j = await fetch(`${BASE}/api/pickups?code=xx`).then(r => r.json());
     eq(j.ok, false);
+  });
+  await Ta('THẬT 8 · máy A tự nạp khu → máy B thấy khu trong sổ chung', async () => {
+    const a = await post('devaaaaaaaa', { picks: [], hidden: [], trips: [],
+      zones: [Z('10.95,106.82', 'Biên Hoà · Đồng Nai', Date.now())] });
+    ok(a.ok, JSON.stringify(a).slice(0, 140));
+    if (!Array.isArray(a.zones)) { console.log('      (bỏ qua: bảng chưa có cột zones — chạy supabase/schema.sql)'); return true; }
+    const b = await get();
+    ok((b.zones || []).some(z => z.key === '10.95,106.82'), 'máy B không thấy khu máy A vừa nạp');
+  });
+  await Ta('THẬT 9 · máy B xoá khu → máy A không còn (bia mộ, không hồi sinh)', async () => {
+    const g0 = await get(); if (!Array.isArray(g0.zones)) return true;
+    await post('devbbbbbbbb', { picks: [], hidden: [], trips: [],
+      zones: [Z('10.95,106.82', 'Biên Hoà · Đồng Nai', Date.now() + 5000, 1)] });
+    const g = await get();
+    ok(!(g.zones || []).some(z => z.key === '10.95,106.82'), 'xoá xong nó sống lại');
+  });
+  await Ta('THẬT 10 · máy chủ khai báo được các máy đang dùng chung', async () => {
+    const g = await get();
+    if (!Array.isArray(g.devs)) { console.log('      (bỏ qua: bảng chưa có cột meta)'); return true; }
+    ok(g.devs.length >= 2, 'chỉ thấy ' + g.devs.length + ' máy');
+    ok(g.devs.every(d => d.app), 'thiếu phiên bản app của máy');
   });
   // dọn dữ liệu thử
   for (const d of ['devaaaaaaaa', 'devbbbbbbbb', 'devcccccccc']) await post(d, { picks: [], hidden: [], trips: [], tripsFull: true }).catch(() => {});

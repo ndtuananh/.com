@@ -39,6 +39,7 @@ const CATS = new Set(['phonhau', 'beerclub', 'bar', 'karaoke', 'nhahang', 'sanbo
 const MAX_PICKS = 500, MAX_HIDDEN = 3000, MAX_DEVICES = 12;
 const MAX_TRIPS_DEV = 1000;    // giữ tối đa 1000 cuốc/máy trong kho
 const MAX_TRIPS_OUT = 900;     // trả về tối đa 900 cuốc gần nhất (giữ payload 4G nhẹ)
+const MAX_ZONES = 16;          // sổ khu của cả tài khoản (mỗi máy tự chọn 6 khu gần nó nhất)
 const R = 6371000, toR = d => d * Math.PI / 180;
 function hav(a1, o1, a2, o2) { const dLat = toR(a2 - a1), dLng = toR(o2 - o1); const s = Math.sin(dLat / 2) ** 2 + Math.cos(toR(a1)) * Math.cos(toR(a2)) * Math.sin(dLng / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(s)); }
 function fnv(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0; } return h.toString(36).toUpperCase().padStart(7, '0').slice(-7); }
@@ -89,7 +90,23 @@ function cleanTrip(t) {
 }
 function cleanMeta(m) {
   if (!m || typeof m !== 'object') return null;
-  return { app: str(m.app, 32), platform: str(m.platform, 24), seen: num(m.seen, 0, 4e12) || Date.now() };
+  return { app: str(m.app, 32), platform: str(m.platform, 24), seen: num(m.seen, 0, 4e12) || Date.now(),
+    // MÃ BẢN danh sách quán dùng chung máy đó đang chạy + lúc nó lấy về. Máy nào thấy
+    // máy khác có mã KHÁC mà MỚI HƠN thì tự đi lấy lại ngay, khỏi đợi hết 30 phút.
+    srev: str(m.srev, 12), sat: num(m.sat, 0, 4e12) || 0 };
+}
+/* MỘT KHU ĐÃ NẠP — chỉ THÔNG TIN KHU, không kèm danh sách quán.
+   Quán lấy từ /api/quanh theo đúng ô lưới này: mọi máy hỏi cùng ô → cùng bản chụp
+   CDN → cùng MÃ BẢN. Đồng bộ cái ô lưới là đủ, và gói dữ liệu nhẹ hơn ~100 lần. */
+function cleanZone(z) {
+  if (!z || typeof z !== 'object') return null;
+  const key = str(z.key, 24); if (!/^-?\d+\.\d+,-?\d+\.\d+$/.test(key)) return null;
+  const lat = num(z.lat, 8.0, 24.0), lng = num(z.lng, 102.0, 110.5);
+  if (lat == null || lng == null) return null;
+  return { key, ten: str(z.ten, 60), lat: +lat.toFixed(2), lng: +lng.toFixed(2),
+    r: Math.max(1000, Math.min(8000, Math.round(num(z.r, 0, 8000) || 4000))),
+    ts: num(z.ts, 0, 4e12) || 0, del: z.del ? 1 : 0,
+    rev: str(z.rev, 12), n: Math.max(0, Math.min(999, Math.round(num(z.n, 0, 999) || 0))) };
 }
 
 /* ---------------- GỘP (thứ tự cố định để mọi máy nhận cùng một chuỗi byte) --------------- */
@@ -132,12 +149,29 @@ function merge(files) {
   }
   const trips = [...tri.values()].sort((a, b) => b.ts - a.ts || (a.id < b.id ? -1 : 1)).slice(0, MAX_TRIPS_OUT);
 
+  /* ---- KHU ĐÃ NẠP: gộp theo ô lưới, bản ts MỚI NHẤT thắng (kể cả bản xoá).
+         Máy nào nạp được khu nào là cả tài khoản có khu đó — không bắt từng máy
+         phải tự chạy tới nơi mới có dữ liệu. ---- */
+  const zon = new Map();
+  for (const f of files) for (const z of (f.zones || [])) {
+    const cur = zon.get(z.key);
+    if (!cur || z.ts > cur.ts) zon.set(z.key, z);
+  }
+  const zones = [...zon.values()].filter(z => !z.del)
+    .sort((a, b) => b.ts - a.ts).slice(0, MAX_ZONES)
+    .sort((a, b) => (a.key < b.key ? -1 : 1));
+
+  /* ---- THIẾT BỊ: ai đang dùng chung tài khoản này, chạy bản nào, online lúc nào.
+         Chỉ dùng cho màn Chẩn đoán (§36) và để lan truyền MÃ BẢN danh sách quán. ---- */
+  const devs = files.filter(f => f.meta).map(f => ({ dev: f.dev, ...f.meta }))
+    .sort((a, b) => (a.dev < b.dev ? -1 : 1));
+
   const cmp = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   return {
     picks: kept.filter(p => !p.del).sort(cmp),
     tomb: tomb.sort(cmp).filter((t, i, a) => i === 0 || t.id !== a[i - 1].id),
     hidden: [...hid.values()].filter(h => h.on).map(h => h.k).sort(),
-    trips,
+    trips, zones, devs,
   };
 }
 
@@ -171,7 +205,7 @@ async function sbTry(fnMoi, fnCu) {
 async function readAll(code) {
   const q = c => '/' + TABLE + '?code=eq.' + encodeURIComponent(code) + '&select=' + c + '&limit=' + MAX_DEVICES;
   const r = await sbTry(
-    () => sbFetch(q('device,picks,hidden,trips,meta'), { headers: sbHeaders() }),
+    () => sbFetch(q('device,picks,hidden,trips,meta,zones'), { headers: sbHeaders() }),
     () => sbFetch(q('device,picks,hidden'), { headers: sbHeaders() }));
   const rows = await r.json();
   return (Array.isArray(rows) ? rows : []).map(x => ({
@@ -179,7 +213,8 @@ async function readAll(code) {
     picks: (Array.isArray(x.picks) ? x.picks : []).map(cleanPick).filter(Boolean),
     hidden: (Array.isArray(x.hidden) ? x.hidden : []).map(cleanHidden).filter(Boolean),
     trips: (Array.isArray(x.trips) ? x.trips : []).map(cleanTrip).filter(Boolean),
-    meta: x.meta && typeof x.meta === 'object' ? x.meta : null,
+    zones: (Array.isArray(x.zones) ? x.zones : []).map(cleanZone).filter(Boolean),
+    meta: cleanMeta(x.meta),
   })).sort((a, b) => (a.dev < b.dev ? -1 : a.dev > b.dev ? 1 : 0));   // thứ tự cố định → rev ổn định
 }
 /* HỎI RẺ: chỉ lấy mốc thời gian các dòng để biết "có gì mới không". Không gộp, không
@@ -200,7 +235,7 @@ async function writeOne(code, dev, row) {
     body: JSON.stringify([Object.assign(
       { code, device: dev, picks: row.picks, hidden: row.hidden, updated_at: new Date().toISOString() }, extra)]),
   });
-  await sbTry(() => put({ trips: row.trips, meta: row.meta }), () => put({}));
+  await sbTry(() => put({ trips: row.trips, meta: row.meta, zones: row.zones }), () => put({}));
 }
 
 function reply(res, files, extra) {
@@ -242,7 +277,8 @@ export default async function handler(req, res) {
       const picks = (Array.isArray(body.picks) ? body.picks : []).map(cleanPick).filter(Boolean).slice(0, MAX_PICKS);
       const hidden = (Array.isArray(body.hidden) ? body.hidden : []).map(cleanHidden).filter(Boolean).slice(0, MAX_HIDDEN);
       const gui = (Array.isArray(body.trips) ? body.trips : []).map(cleanTrip).filter(Boolean);
-      const meta = cleanMeta(body.device) || { app: '', platform: '', seen: Date.now() };
+      const zones = (Array.isArray(body.zones) ? body.zones : []).map(cleanZone).filter(Boolean).slice(0, MAX_ZONES);
+      const meta = cleanMeta(body.device) || cleanMeta({});
 
       /* Cuốc thì HỢP NHẤT vào những gì dòng này đã có, không ghi đè.
          Máy chỉ cần gửi phần CHƯA gửi (delta) → gói nhẹ, mà gửi trùng cũng vô hại vì
@@ -255,7 +291,7 @@ export default async function handler(req, res) {
       for (const t of cu.concat(gui)) if (!map.has(t.id)) map.set(t.id, t);
       const trips = [...map.values()].sort((a, b) => b.ts - a.ts).slice(0, MAX_TRIPS_DEV);
 
-      await writeOne(code, dev, { picks, hidden, trips, meta });
+      await writeOne(code, dev, { picks, hidden, trips, zones, meta });
       // Postgres ghi xong đọc lại là thấy ngay → trả bản GỘP MỚI NHẤT luôn cho chắc.
       const files = await readAll(code);
       const t = await readTag(code).catch(() => ({ tag: null }));
@@ -269,4 +305,4 @@ export default async function handler(req, res) {
 
 /* Xuất ra để bộ thử (scripts/test-sync.mjs) chạy thẳng luật gộp, không cần máy chủ.
    Luật gộp mà sai thì mọi máy sai theo — phải thử được nó một cách độc lập. */
-export { merge, cleanPick, cleanTrip, cleanHidden };
+export { merge, cleanPick, cleanTrip, cleanHidden, cleanZone };

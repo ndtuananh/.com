@@ -96,6 +96,7 @@ const SYNC = (() => {
     state: 'idle',        // idle | syncing | offline
     at: 0, rev: null, tag: null, devices: 0, err: null,
     tripsReady: null,     // máy chủ đã có chỗ chứa cuốc chưa (xem migration trong supabase/schema.sql)
+    zones: 0, devs: [],
     pulls: 0, pushes: 0, fails: 0, conflicts: 0, lastMs: 0,
   };
   let busy = false, pushTimer = null, wantPush = false, failStreak = 0, lastFull = 0, reseeded = false;
@@ -111,7 +112,7 @@ const SYNC = (() => {
       dot: st.state === 'syncing' ? '🟡' : st.state === 'offline' ? '🔴' : '🟢',
       vi: st.state === 'syncing' ? 'Đang đồng bộ' : st.state === 'offline' ? 'Mất kết nối' : 'Đã đồng bộ',
       pending: QUEUE.length, at: st.at, rev: st.rev, devices: st.devices, err: st.err,
-      code: CODE, dev: DEV, ver: APP_VER, tripsReady: st.tripsReady,
+      code: CODE, dev: DEV, ver: APP_VER, tripsReady: st.tripsReady, zones: st.zones, devs: st.devs,
       pulls: st.pulls, pushes: st.pushes, fails: st.fails, conflicts: st.conflicts, lastMs: st.lastMs,
     };
   }
@@ -129,7 +130,19 @@ const SYNC = (() => {
     id: DEV, app: APP_VER,
     platform: (typeof navigator !== 'undefined' && navigator.platform) ? String(navigator.platform).slice(0, 24) : '',
     seen: Date.now(),
+    // khai luôn MÃ BẢN danh sách quán dùng chung máy này đang chạy + lúc lấy về,
+    // để máy nào đang giữ bản cũ tự biết mà đi lấy lại ngay (xem theoDoiBanQuan)
+    srev: RADAR.spotsRev(), sat: RADAR.spotsAt(),
   });
+  /* Máy khác vừa cập nhật danh sách quán dùng chung và đang chạy MÃ BẢN khác mình,
+     mà nó lấy SAU mình → mình đang cũ, đi lấy lại luôn. Không có chỗ này thì phải
+     đợi hết chu kỳ 30 phút, tức là 2 máy chạy 2 danh sách quán khác nhau nửa tiếng. */
+  function theoDoiBanQuan(devs) {
+    if (!Array.isArray(devs) || !G.autoData) return;
+    const toi = RADAR.spotsRev(), luc = RADAR.spotsAt();
+    const moiHon = devs.filter(d => d.dev !== DEV && d.srev && d.srev !== toi && (d.sat || 0) > luc);
+    if (moiHon.length) RADAR.act.refreshSpots(true, false);
+  }
 
   /* ---- ÁP BẢN ĐÃ GỘP TỪ MÁY CHỦ VÀO KHO ----
      Máy chủ là cấp trên: nó bảo điểm nào bị gộp vào điểm nào, điểm nào đã xoá,
@@ -155,8 +168,8 @@ const SYNC = (() => {
        Máy chủ chưa có dòng nào (tài xế mới, hoặc vừa đổi mã, hoặc dòng bị mất) mà máy
        này đang có điểm/cuốc thật → GIỮ NGUYÊN bản của máy và đẩy lên, chứ không xoá.
        Không có chốt này thì lần mở app đầu tiên là mất sạch dữ liệu đã tích. */
-    const srvTrong = !(j.picks || []).length && !(j.hidden || []).length && !(j.trips || []).length;
-    const coCuaMinh = RADAR.picks.live(MY).length || RADAR.trips.mine().length || S.hiddenSet().size;
+    const srvTrong = !(j.picks || []).length && !(j.hidden || []).length && !(j.trips || []).length && !(j.zones || []).length;
+    const coCuaMinh = RADAR.picks.live(MY).length || RADAR.trips.mine().length || S.hiddenSet().size || RADAR.vung.live().length;
     if (srvTrong && coCuaMinh) {
       S.rebuildPicksAll();
       FORCE_FULL = true;
@@ -178,6 +191,12 @@ const SYNC = (() => {
     // cuốc thật của các máy KHÁC → nuôi chung một bộ não (§31 học toàn cục)
     if (Array.isArray(j.trips)) { RADAR.trips.addNet(j.trips, DEV); st.tripsReady = true; }
     else if (j.tripsReady === false) st.tripsReady = false;
+    /* SỔ KHU: máy nào nạp được khu nào thì cả tài khoản có khu đó. Máy này theo sổ
+       rồi TỰ đi lấy quán của khu chưa có — tài xế không phải bấm gì, không phải
+       chạy tới tận nơi mới có dữ liệu. */
+    if (Array.isArray(j.zones)) { RADAR.vung.apply(j.zones); st.zones = j.zones.length; }
+    st.devs = Array.isArray(j.devs) ? j.devs : [];
+    theoDoiBanQuan(st.devs);
 
     st.rev = j.rev || null; st.devices = j.devices || 1; st.at = Date.now();
     if (sig() !== before) { S.buildSpots(); G.lastBestId = null; RADAR.recompute(); }
@@ -187,7 +206,7 @@ const SYNC = (() => {
   // vân tay của thứ ẢNH HƯỞNG tới màn hình — đổi thì mới dựng lại bản đồ (đỡ giật)
   function sig() {
     const p = RADAR.picks.all().map(x => x.id + ':' + x.n + ':' + x.win + ':' + x.name + ':' + x.lat + ',' + x.lng).join('|');
-    return p + '#' + RADAR.trips.all().length + '#' + S.hiddenSet().size;
+    return p + '#' + RADAR.trips.all().length + '#' + S.hiddenSet().size + '#' + RADAR.vung.live().length;
   }
 
   /* ---- ĐẨY LÊN (gửi TOÀN BỘ phần đóng góp của máy này) ---- */
@@ -210,6 +229,7 @@ const SYNC = (() => {
             picks: RADAR.picks.my(),
             hidden: RADAR.hidden.log(),
             trips: guiTrips, tripsFull: full,
+            zones: RADAR.vung.reg(),
           }),
         },
       });

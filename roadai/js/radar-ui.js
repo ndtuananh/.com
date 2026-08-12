@@ -423,11 +423,18 @@ const UI = (() => {
       ${row('Xung đột đã xử lý', s.conflicts)}
       ${row('Kho cuốc trên máy chủ', s.tripsReady === false ? '⚠️ chưa bật (chạy supabase/schema.sql)' : s.tripsReady ? 'sẵn sàng' : '—')}
       ${row('Cuốc: máy này / tất cả', RADAR.trips.mine().length + ' / ' + RADAR.trips.all().length)}
+      ${row('Khu trong sổ dùng chung', (s.zones || 0) + ' · máy này giữ ' + RADAR.vung.list().length)}
       ${row('Mã máy', s.dev)}
       ${row('Mã tài xế', s.code)}
       ${row('Phiên bản app', s.ver)}
       ${s.err ? row('Lỗi gần nhất', '<span class="bad">' + esc(s.err) + '</span>') : ''}
       <div class="dev-code">MÃ BẢN ĐỒNG BỘ<b>${esc(s.rev || '—')}</b></div>
+
+      <h4>Máy đang dùng chung tài khoản</h4>
+      ${(s.devs || []).length ? s.devs.map(d => `<div class="cal"><span>${d.dev === s.dev ? '🟢 máy này' : '📱 ' + esc(d.dev.slice(0, 8))}</span>
+        <b>${esc(d.app || '—')}</b><i>${d.seen ? t(d.seen) : '—'}${d.srev ? ' · #' + esc(d.srev) : ''}</i></div>`).join('')
+        : '<p class="hint">Chưa nhận được danh sách — bấm ⚙️ Cài đặt → Ghép máy để nối máy thứ hai.</p>'}
+      <p class="hint">Cột cuối là giờ máy đó online lần cuối và MÃ BẢN danh sách điểm nó đang chạy. Hai máy khác mã bản thì máy cũ tự đi lấy lại ngay, không phải đợi.</p>
 
       <h4>Nguồn dữ liệu điểm</h4>
       ${row('Điểm đón thật (chuyến BUTL)', n(x => x.source === 'butl'))}
@@ -442,10 +449,14 @@ const UI = (() => {
       <button id="dg-refresh" class="more">Cập nhật danh sách điểm</button>
       <button id="dg-resync" class="more ghost">Đồng bộ lại máy này</button>
 
-      <h4>Khu đã nạp (${RADAR.vung.list().length}/${RADAR.vung.max})</h4>
-      ${RADAR.vung.list().length ? RADAR.vung.list().map(v => `<div class="cal"><span>${esc(v.ten || v.key)}</span><b>${v.spots.length} điểm</b><i class="x" data-vung="${esc(v.key)}">xoá</i></div>`).join('')
-        : '<p class="hint">Chưa nạp khu nào. App tự nạp khi bạn chạy sang vùng chưa có dữ liệu.</p>'}
+      <h4>Sổ khu dùng chung (${RADAR.vung.live().length})</h4>
+      ${RADAR.vung.live().length ? RADAR.vung.live().map(z => {
+        const v = RADAR.vung.list().find(x => x.key === z.key);
+        return `<div class="cal"><span>${esc(z.ten || z.key)}</span>
+          <b>${v ? v.spots.length + ' điểm' : '⏳ đang nạp'}</b><i class="x" data-vung="${esc(z.key)}">xoá</i></div>`;
+      }).join('') : '<p class="hint">Sổ khu trống. App tự nạp khi bạn chạy sang vùng chưa có dữ liệu — và máy kia sẽ tự có theo.</p>'}
       ${row('Điểm quanh đây (4km)', RADAR.vung.near())}
+      <p class="hint">Máy nào nạp được khu nào là cả tài khoản có khu đó; máy còn lại đang mở app sẽ tự lấy quán của khu đó trong khoảng 12 giây. Sổ chỉ giữ ô lưới — danh sách quán mỗi máy tự lấy từ cùng một bản chụp nên luôn khớp nhau.</p>
       <button id="dg-nap" class="more ghost">Nạp điểm khu đang đứng</button>
 
       <h4>Mô phỏng (chỉ để thử)</h4>

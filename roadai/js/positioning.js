@@ -240,9 +240,20 @@ function mergeLearned(base) {
   return Ls.concat(base.filter(b => !Ls.some(l => near(l, b))));
 }
 
-/* ---- QUÁN KHU MỚI (chạy sang tỉnh khác) — cache theo Ô LƯỚI của MÁY này ----
-   Đây là DEVICE DATA: máy nào chạy tới đâu nạp tới đó, không bắt máy kia phải giống. */
+/* ═══ QUÁN KHU MỚI (chạy sang tỉnh khác) — TÁCH LÀM HAI THỨ KHÁC NHAU ═══
+   SỔ KHU (ZONE_REG)  = DỮ LIỆU TÀI KHOẢN. Chỉ ghi Ô LƯỚI + tên + tâm + mốc thời
+       gian. Đồng bộ lên máy chủ: MỘT máy nạp được khu nào là CẢ TÀI KHOẢN có khu
+       đó, máy khác đang mở app tự nạp theo trong ~12 giây, không ai phải bấm gì.
+   KHO QUÁN KHU (VUNG) = CACHE CỦA MÁY. Danh sách quán thật, lấy từ /api/quanh.
+       KHÔNG đồng bộ, và KHÔNG CẦN đồng bộ: /api/quanh làm tròn toạ độ về ô lưới
+       0,01° rồi trả bản chụp CDN, nên mọi máy hỏi cùng ô luôn nhận CÙNG danh sách,
+       CÙNG MÃ BẢN. Nhét cả danh sách quán lên máy chủ chỉ làm gói đồng bộ phình
+       ~36KB mỗi lần kéo mà không chắc chắn hơn được tí nào.
+   Trước bản 12/08/2026 chỉ có VUNG: anh Long chạy sang Biên Hoà, máy A nạp được
+   quán, máy B mở lên vẫn trống trơn — dữ liệu tài khoản bị lưu nhầm thành dữ liệu
+   của máy, đúng thứ §22 cấm. */
 const VUNG_LS = 'roadai_laiho_vung_v1';
+const ZONEREG_LS = 'roadai_butl_zones_v1';
 const VUNG_TOI_DA = 6;                 // 6 khu gần đây nhất (mỗi khu ≤40 quán)
 const VUNG_HAN = 45 * 864e5;           // quá 45 ngày không tới thì bỏ, quán cũng đổi rồi
 const VUNG_GAN = 4000;                 // xét "khu này app có quán chưa" trong bán kính 4km
@@ -265,6 +276,62 @@ function luuVung() {
   G.boNhoDay = true; return false;
 }
 const vungRows = () => VUNG.flatMap(v => v.spots.map(r => { const x = r.slice(); x[8] = 'vung:' + v.key; return x; }));
+
+/* ---- SỔ KHU DÙNG CHUNG ---- */
+let ZONE_REG = (() => { const a = ls(ZONEREG_LS, []); return Array.isArray(a) ? a : []; })();
+// máy cũ nâng cấp lên: khu nào đang có trong máy thì đưa vào sổ, để đẩy lên cho máy kia
+if (!ZONE_REG.length && VUNG.length) {
+  ZONE_REG = VUNG.map(v => ({ key: v.key, ten: v.ten || '', lat: +(+v.lat).toFixed(2), lng: +(+v.lng).toFixed(2),
+    r: v.r || VUNG_GAN, ts: v.ts || Date.now(), rev: v.rev || '', n: (v.spots || []).length, del: 0 }));
+  lsSet(ZONEREG_LS, ZONE_REG);
+}
+const luuSoKhu = () => lsSet(ZONEREG_LS, ZONE_REG);
+const soKhuSong = () => ZONE_REG.filter(z => !z.del);
+function ghiSoKhu(z) {
+  const i = ZONE_REG.findIndex(x => x.key === z.key);
+  if (i < 0) ZONE_REG.push(z); else ZONE_REG[i] = z;
+  luuSoKhu();
+}
+/* Máy chủ trả sổ khu đã gộp → máy này theo, rồi TỰ ĐI NẠP những khu chưa có.
+   Đây chính là "một máy nạp xong, mọi máy đang mở đều có" — không thao tác tay. */
+function applyZones(list) {
+  if (!Array.isArray(list)) return false;
+  const truoc = soKhuSong().map(z => z.key).sort().join('|');
+  ZONE_REG = list.map(z => ({ ...z })); luuSoKhu();
+  // khu bị máy khác xoá → bỏ luôn kho quán của khu đó ở máy này
+  const song = new Set(soKhuSong().map(z => z.key));
+  const truocN = VUNG.length;
+  VUNG = VUNG.filter(v => song.has(v.key));
+  if (VUNG.length !== truocN) { luuVung(); buildSpots(null); }
+  const sau = [...song].sort().join('|');
+  napKhuThieu();
+  return truoc !== sau;
+}
+/* Nạp nốt những khu có trong sổ mà máy này chưa có quán. Chỉ giữ VUNG_TOI_DA khu
+   GẦN CHỖ ĐANG ĐỨNG NHẤT — sổ có thể tới 16 khu, nhưng điện thoại tài xế không cần
+   ôm hết cả nước; khu nào xa thì lúc chạy tới sẽ nạp. */
+let _dangNapThieu = false;
+async function napKhuThieu() {
+  if (_dangNapThieu || !G.autoData) return;
+  const co = new Set(VUNG.map(v => v.key));
+  const can = soKhuSong()
+    .map(z => ({ z, d: haversine(G.you, z) }))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, VUNG_TOI_DA)
+    // _daThuVung: khu nào đã thử trong phiên này thì thôi. Thiếu chốt này, một khu
+    // rỗng (kho không có quán nào) sẽ bị gọi lại mỗi 12 giây suốt buổi tối.
+    .filter(x => !co.has(x.z.key) && !_daThuVung.has(x.z.key));
+  if (!can.length) return;
+  _dangNapThieu = true;
+  try {
+    for (const { z } of can) {
+      // nạp theo ĐÚNG ô lưới trong sổ (không phải chỗ mình đang đứng) và KHÔNG ghi
+      // lại mốc thời gian — ghi lại là hai máy đẩy qua đẩy lại nhau không dứt.
+      const ok = await napVung(false, z);
+      if (!ok) break;                      // mạng hỏng thì thôi, lát nữa hỏi lại
+    }
+  } finally { _dangNapThieu = false; }
+}
 function themVung(base) {
   const rows = vungRows(); if (!rows.length) return base;
   const G80 = 0.00072;                                     // ~80m theo độ, khỏi gọi haversine 100.000 lần
@@ -1063,16 +1130,22 @@ function demQuanGan(m) {
   return n;
 }
 const vungHienTai = () => VUNG.find(v => v.key === vungKey(G.you.lat, G.you.lng)) || null;
-async function napVung(tay) {
+/* napVung(tay, khu)
+     tay  = tài xế tự bấm nút (luôn nạp, kể cả khu đã có dữ liệu)
+     khu  = nạp theo Ô LƯỚI CỦA MÁY KHÁC lấy từ sổ khu dùng chung. Có `khu` thì
+            KHÔNG ghi mốc thời gian mới vào sổ — ghi lại là hai máy đẩy qua đẩy
+            lại nhau, mỗi vòng đồng bộ lại tưởng có thay đổi, không bao giờ dứt. */
+async function napVung(tay, khu) {
   if (_dangNapVung) return false;
-  const key = vungKey(G.you.lat, G.you.lng);
-  if (!tay && _daThuVung.has(key)) return false;      // mỗi khu chỉ tự thử MỘT LẦN mỗi phiên
-  if (!tay && demQuanGan() >= VUNG_IT) return false;
+  const lat = khu ? khu.lat : G.you.lat, lng = khu ? khu.lng : G.you.lng;
+  const key = khu ? khu.key : vungKey(lat, lng);
+  if (!tay && !khu && _daThuVung.has(key)) return false;   // mỗi khu chỉ tự thử MỘT LẦN mỗi phiên
+  if (!tay && !khu && demQuanGan() >= VUNG_IT) return false;
   _daThuVung.add(key);
   _dangNapVung = true; G.napVungLoi = ''; paint();
   try {
     const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 15000);
-    let r; try { r = await fetch(`/api/quanh?lat=${G.you.lat.toFixed(5)}&lng=${G.you.lng.toFixed(5)}`, { cache: 'no-store', signal: ctl.signal }); } finally { clearTimeout(to); }
+    let r; try { r = await fetch(`/api/quanh?lat=${lat.toFixed(5)}&lng=${lng.toFixed(5)}`, { cache: 'no-store', signal: ctl.signal }); } finally { clearTimeout(to); }
     const j = r.ok ? await r.json() : null;
     if (!j || !j.ok) {
       G.napVungLoi = (j && j.loi) || 'Chưa hỏi được máy chủ.';
@@ -1086,15 +1159,26 @@ async function napVung(tay) {
       if (tay) UIsay('📍 ' + G.napVungLoi);
       return false;
     }
+    const zlat = (j.vung && j.vung.lat) != null ? j.vung.lat : lat;
+    const zlng = (j.vung && j.vung.lng) != null ? j.vung.lng : lng;
+    const zr = (j.vung && j.vung.r) || VUNG_GAN;
     VUNG = VUNG.filter(v => v.key !== key);
-    VUNG.unshift({ key, ten, lat: (j.vung && j.vung.lat) || G.you.lat, lng: (j.vung && j.vung.lng) || G.you.lng, r: (j.vung && j.vung.r) || VUNG_GAN, ts: Date.now(), rev: j.rev || null, quanhDay: j.quanhDay || rows.length, spots: rows });
+    VUNG.unshift({ key, ten, lat: zlat, lng: zlng, r: zr, ts: Date.now(), rev: j.rev || null, quanhDay: j.quanhDay || rows.length, spots: rows });
     VUNG = VUNG.slice(0, VUNG_TOI_DA);
     const luuDuoc = luuVung();
+    /* GHI VÀO SỔ KHU DÙNG CHUNG rồi đẩy lên ngay → máy kia đang mở app sẽ tự nạp
+       khu này trong ~12 giây. Đây là chỗ biến "máy nào chạy tới đâu biết tới đó"
+       thành "một máy biết là cả tài khoản biết".
+       Nạp theo ô lưới của máy khác (có `khu`) thì giữ nguyên mốc thời gian cũ. */
+    if (!khu) {
+      ghiSoKhu({ key, ten, lat: +zlat.toFixed(2), lng: +zlng.toFixed(2), r: zr, ts: Date.now(), rev: j.rev || '', n: rows.length, del: 0 });
+      if (typeof SYNC !== 'undefined') SYNC.dirty('zone', key);
+    }
     buildSpots(null); G.lastBestId = null;
     const c = spotCounts();
     if (G.dataStatus) { G.dataStatus.count = c.shared; G.dataStatus.mine = c.mine; G.dataStatus.vung = c.vung; G.dataStatus.total = c.total; }
     recompute();
-    if (tay || rows.length) UIsay(`✓ Đã có ${rows.length} điểm ở ${ten || 'khu này'}.` + (luuDuoc ? '' : ' (bộ nhớ máy đầy — chỉ dùng tới khi tắt app)'));
+    if (tay || (!khu && rows.length)) UIsay(`✓ Đã có ${rows.length} điểm ở ${ten || 'khu này'}.` + (luuDuoc ? '' : ' (bộ nhớ máy đầy — chỉ dùng tới khi tắt app)'));
     return true;
   } catch (e) {
     G.napVungLoi = 'Mạng chậm hoặc mất sóng.';
@@ -1102,10 +1186,17 @@ async function napVung(tay) {
     return false;
   } finally { _dangNapVung = false; paint(); }
 }
+/* Xoá khu = "bia mộ" trong sổ dùng chung rồi đẩy lên, KHÔNG xoá trắng.
+   Xoá trắng thì vòng đồng bộ sau máy kia còn giữ khu đó sẽ đẩy về — xoá xong nó sống lại. */
 function xoaVung(key) {
-  const v = VUNG.find(x => x.key === key); if (!v) return false;
+  const z = ZONE_REG.find(x => x.key === key);
+  const v = VUNG.find(x => x.key === key);
+  if (!z && !v) return false;
+  ghiSoKhu({ ...(z || { key, ten: (v && v.ten) || '', lat: +(+(v ? v.lat : 0)).toFixed(2), lng: +(+(v ? v.lng : 0)).toFixed(2), r: VUNG_GAN, rev: '', n: 0 }), del: 1, ts: Date.now() });
   VUNG = VUNG.filter(x => x.key !== key); luuVung(); _daThuVung.delete(key);
-  buildSpots(null); recompute(); return true;
+  buildSpots(null); recompute();
+  if (typeof SYNC !== 'undefined') SYNC.dirty('zone', key);
+  return true;
 }
 
 /* ═══════════════════ PHẦN 11 · THÔNG BÁO ═══════════════════ */
@@ -1310,8 +1401,13 @@ const RADAR = {
   trips: { all: allTrips, mine: () => MY_TRIPS, addNet: applyNetTrips, invalidate: invalidateTrips },
   hidden: { set: () => HIDDEN, log: hideLogArr, add: hideSpotKey, del: unhideKey, save: saveHidden },
   vung: { list: () => VUNG, cur: vungHienTai, nap: napVung, xoa: xoaVung, near: demQuanGan,
-          busy: () => _dangNapVung, min: VUNG_IT, max: VUNG_TOI_DA },
+          busy: () => _dangNapVung || _dangNapThieu, min: VUNG_IT, max: VUNG_TOI_DA,
+          // sổ khu dùng chung — tầng đồng bộ đọc/ghi qua đây
+          reg: () => ZONE_REG, live: soKhuSong, apply: applyZones, fill: napKhuThieu },
   flags: { set: flagSet, get: flagGet, canNotify },
+  // MÃ BẢN danh sách quán dùng chung máy này đang chạy — để máy khác biết mình có cũ không
+  spotsRev: () => (G.dataStatus && G.dataStatus.rev) || '',
+  spotsAt: () => (G.dataStatus && (G.dataStatus.checkedAt || 0)) || 0,
   stats: { jobs: jobStats, calib: calibReport, band: bandStats, peak: peakSpots, counts: spotCounts },
   /* Cửa DUY NHẤT để tầng đồng bộ (js/radar-sync.js) ghi bản đã gộp từ máy chủ vào kho.
      Không cho ai khác đụng thẳng vào biến — sai một chỗ là 2 máy lệch số ngay. */
