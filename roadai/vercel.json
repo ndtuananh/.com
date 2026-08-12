@@ -1,6 +1,9 @@
 {
   "cleanUrls": true,
-  "crons": [{ "path": "/api/spots", "schedule": "0 11 * * *" }],
+  "crons": [
+    { "path": "/api/spots", "schedule": "0 11 * * *" },
+    { "path": "/api/health", "schedule": "0 4 * * *" }
+  ],
   "headers": [
     {
       "source": "/sw.js",

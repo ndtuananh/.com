@@ -147,13 +147,35 @@ T('bấm ⚙️ Cài đặt → đúng 4 công tắc, KHÔNG có số liệu k�
   ok(t.includes('chẩn đoán'), 'thiếu lối vào Chẩn đoán');
   ok(!t.includes('mô phỏng'), 'vẫn còn chữ "mô phỏng" — đây là app thật');
 });
+T('Cài đặt có nút NẠP QUÁN tay + ngày giờ nạp lần cuối', () => {
+  ok(!!$('#set-nap'), 'thiếu nút nạp quán thủ công');
+  const t = txt('#set-body');
+  ok(t.includes('Nạp lần cuối'), 'không ghi ngày giờ nạp');
+  ok(t.includes('Điểm đang dùng'), 'không cho biết đang có bao nhiêu điểm');
+});
 T('Chẩn đoán hệ thống (tầng 3) mới là nơi có OSM / MÃ BẢN / đồng bộ', () => {
   $('#set-diag').onclick();
   ok(!$('#sheet-diag').hidden, 'không mở');
   const t = txt('#diag-body');
   for (const need of ['MÃ BẢN', 'Đồng bộ', 'Mã máy', 'Mã tài xế'])
     ok(t.includes(need), 'thiếu "' + need + '" ở màn chẩn đoán');
+});
+T('Chẩn đoán có MÃ QUÁN để đối chiếu 2 máy, và tình trạng kho dữ liệu', () => {
+  const t = txt('#diag-body');
+  ok(t.includes('MÃ QUÁN'), 'không có cách nào kiểm 2 máy giống nhau 100%');
+  ok(/[A-Z0-9]{7}/.test(t), 'mã quán rỗng');
+  ok(t.includes('Kho dữ liệu'), 'không hiện tình trạng kho');
+  ok(!!$('#dg-health'), 'thiếu nút kiểm tra kho');
+  ok(!!$('#dg-nap'), 'thiếu nút nạp khu trong chẩn đoán');
   w.UI.closeSheets();
+});
+T('MÃ QUÁN đổi khi kho điểm đổi, không đổi khi chỉ dựng lại', () => {
+  const a = w.RADAR.banQuan().ma;
+  w.RADAR.store.buildSpots(null);
+  eq(w.RADAR.banQuan().ma, a, 'dựng lại ra mã khác → tài xế tưởng 2 máy lệch');
+  const r = w.RADAR.metrics().best;
+  w.RADAR.act.hideSpot(r.sp.id);
+  ok(w.RADAR.banQuan().ma !== a || w.RADAR.spots().length === 0, 'ẩn điểm mà mã không đổi');
 });
 T('bấm 📝 Ghi cuốc → hiện 3 nút to', () => {
   $('#nav-log').onclick();

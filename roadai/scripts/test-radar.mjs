@@ -177,10 +177,37 @@ console.log('\nA2 · HỌC TỪ CUỐC THẬT + HỌC TOÀN CỤC');
   });
 }
 
-console.log('\nA3 · HIỆU NĂNG (điện thoại tài xế, không phải máy chủ)');
+console.log('\nA3 · MÃ QUÁN — bằng chứng 2 máy giống nhau 100%');
 {
+  const spots = [
+    SPOT('Quán A', 'phonhau', 10.7440, 106.6130, 16),
+    SPOT('Quán B', 'beerclub', 10.7460, 106.6150, 14),
+    SPOT('Quán C', 'bar', 10.7500, 106.6100, 10),
+  ];
+  const mayA = loadEngine({ spots }).R;
+  const mayB = loadEngine({ spots: spots.slice().reverse() }).R;   // cùng dữ liệu, KHÁC thứ tự
+  mayA.store.buildSpots(null); mayB.store.buildSpots(null);
+  T('cùng dữ liệu, khác thứ tự nạp → CÙNG mã quán', () => {
+    eq(mayB.banQuan().ma, mayA.banQuan().ma, 'mã đổi theo thứ tự → không kiểm chứng được gì');
+    eq(mayB.banQuan().n, mayA.banQuan().n);
+  });
+  T('thiếu một điểm → mã KHÁC ngay (không im lặng bỏ qua)', () => {
+    const mayC = loadEngine({ spots: spots.slice(0, 2) }).R;
+    mayC.store.buildSpots(null);
+    ok(mayC.banQuan().ma !== mayA.banQuan().ma, 'lệch dữ liệu mà mã vẫn giống');
+  });
+  T('mã quán không phụ thuộc nhiễu ngẫu nhiên (dựng lại vẫn y hệt)', () => {
+    const truoc = mayA.banQuan().ma;
+    mayA.store.buildSpots(null);
+    eq(mayA.banQuan().ma, truoc, 'dựng lại ra mã khác → tài xế tưởng 2 máy lệch');
+  });
+}
+
+console.log('\nA4 · HIỆU NĂNG (điện thoại tài xế, ở quy mô THẬT sau khi giữ hết 16 khu)');
+{
+  // 400 điểm dùng chung + 16 khu × 40 điểm = 1.040 điểm, đúng mức xấu nhất thực tế
   const spots = [];
-  for (let i = 0; i < 650; i++) {
+  for (let i = 0; i < 1040; i++) {
     spots.push(SPOT('Quán ' + i, ['phonhau', 'beerclub', 'bar', 'karaoke', 'nhahang'][i % 5],
       10.70 + (i % 40) * 0.004, 106.58 + Math.floor(i / 40) * 0.004, 8 + (i % 12)));
   }
@@ -188,10 +215,12 @@ console.log('\nA3 · HIỆU NĂNG (điện thoại tài xế, không phải máy
   R.G.simHour = 22;
   let t0 = Date.now(); R.store.buildSpots(null); const tBuild = Date.now() - t0;
   t0 = Date.now(); for (let i = 0; i < 5; i++) R.recompute(); const tCalc = (Date.now() - t0) / 5;
-  console.log(`     · 650 điểm: dựng kho ${tBuild}ms · một vòng tính+vẽ ${tCalc.toFixed(0)}ms`);
-  T('dựng kho 650 điểm dưới 400ms (lỗi cũ: 2.100ms)', () => ok(tBuild < 400, tBuild + 'ms'));
+  t0 = Date.now(); R.banQuan(); const tHash = Date.now() - t0;
+  console.log(`     · 1.040 điểm: dựng kho ${tBuild}ms · một vòng tính ${tCalc.toFixed(0)}ms · mã quán ${tHash}ms`);
+  T('dựng kho 1.040 điểm dưới 400ms (lỗi cũ ở 645 điểm: 2.100ms)', () => ok(tBuild < 400, tBuild + 'ms'));
   T('một vòng tính lại dưới 250ms', () => ok(tCalc < 250, tCalc + 'ms'));
-  T('bảng khoảng cách chỉ tính hàng nào dùng tới', () => ok(R.metrics().raw.length === 650));
+  T('tính mã quán dưới 60ms (chạy mỗi lần mở Chẩn đoán)', () => ok(tHash < 60, tHash + 'ms'));
+  T('bảng khoảng cách chỉ tính hàng nào dùng tới', () => ok(R.metrics().raw.length === 1040));
 }
 
 /* ═══════════════════ B · LUẬT GỘP NHIỀU MÁY (§40) ═══════════════════ */
@@ -349,6 +378,18 @@ if (BASE) {
   await Ta('máy chủ sống & Supabase đã cấu hình', async () => {
     const j = await get();
     ok(j.ok, 'API trả: ' + JSON.stringify(j).slice(0, 120));
+  });
+  await Ta('KHO · /api/health đánh thức được Supabase và nói thật tình trạng', async () => {
+    const j = await fetch(`${BASE}/api/health`, { cache: 'no-store' }).then(r => r.json());
+    console.log(`      db=${j.db} · ${j.ms}ms · ${j.rows} dòng · cấu trúc ${j.schema}`);
+    ok(j.ok && j.db === 'song', 'kho không sống: ' + JSON.stringify(j).slice(0, 140));
+    eq(j.schema, 'day_du', 'bảng còn thiếu cột — chạy supabase/schema.sql');
+    ok(j.ms < 8000, 'kho phản hồi chậm ' + j.ms + 'ms (có thể vừa ngủ dậy)');
+  });
+  await Ta('KHO · /api/health KHÔNG lộ dữ liệu nghiệp vụ của tài xế', async () => {
+    const t = await fetch(`${BASE}/api/health`).then(r => r.text());
+    for (const bad of ['picks', 'trips', 'hidden', 'zones', 'code', 'device'])
+      ok(!t.includes('"' + bad + '"'), 'lộ trường ' + bad);
   });
   await Ta('THẬT 1 · máy A thêm điểm → máy B đọc thấy', async () => {
     const a = await post('devaaaaaaaa', { picks: [P('ta1', 'Quán Kiểm Thử A', 10.7501, 106.6101, { ts: Date.now(), n: 1, win: 1 })], hidden: [], trips: [] });

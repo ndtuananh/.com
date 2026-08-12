@@ -37,6 +37,21 @@ const UI = (() => {
   const toneOf = d => TONE[d && d.status] || TONE.LOW;
   // nhãn ngắn cho 4 loại ngày — cắt K.DAY_VI theo dấu cách ra 2 chữ "Ngày" trùng nhau
   const DAY_SHORT = { weekday: 'Thường', weekend: 'Cuối tuần', payday: 'Ngày lương', holiday: 'Lễ/Tết' };
+  /* "14:32 hôm nay" dễ đọc hơn "12/08/2026 14:32:07" khi đang cầm lái.
+     Quá 1 ngày mới hiện ngày tháng. */
+  function lucNao(ms) {
+    if (!ms) return 'chưa nạp';
+    const d = new Date(ms), n = new Date(), gio = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    const cach = Math.floor((n - d) / 60000);
+    if (cach < 1) return 'vừa xong';
+    if (cach < 60) return cach + ' phút trước';
+    if (d.toDateString() === n.toDateString()) return gio + ' hôm nay';
+    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) + ' ' + gio;
+  }
+  // lần nạp gần nhất = khu mới nhất trong sổ, hoặc lần làm mới danh sách dùng chung
+  const napAt = () => Math.max(
+    (RADAR.vung.live()[0] ? Math.max(...RADAR.vung.live().map(z => z.ts || 0)) : 0),
+    (G.dataStatus && (G.dataStatus.napAt || G.dataStatus.checkedAt)) || 0);
 
   /* ═════════════ THÔNG BÁO NGẮN ═════════════ */
   let toastT;
@@ -376,6 +391,13 @@ const UI = (() => {
       <div class="seg"><button data-base="dark"${G.base === 'dark' ? ' class="on"' : ''}>🌙 Tối</button><button data-base="light"${G.base === 'light' ? ' class="on"' : ''}>☀️ Sáng</button></div>
       <button id="set-install" class="more" hidden>📲 Cài app vào máy</button>
 
+      <h4>Dữ liệu quán</h4>
+      <div class="dev-row"><span>Điểm đang dùng</span><b>${RADAR.banQuan().n}</b></div>
+      <div class="dev-row"><span>Điểm quanh bạn (4km)</span><b>${RADAR.vung.near()}</b></div>
+      <div class="dev-row"><span>Nạp lần cuối</span><b>${lucNao(napAt())}</b></div>
+      <button id="set-nap" class="more">📍 NẠP QUÁN KHU NÀY</button>
+      <p class="hint">App tự nạp khi bạn chạy sang khu chưa có dữ liệu. Bấm nút này khi muốn làm mới ngay — nạp xong app báo luôn <b>điểm cao nhất</b> của khu, và máy kia đang mở app cũng có theo.</p>
+
       <h4>Thiết bị</h4>
       <div class="dev-row"><span>Trạng thái</span><b>${s.dot} ${s.vi}${s.pending ? ' · ' + s.pending + ' chờ gửi' : ''}</b></div>
       <div class="dev-row"><span>Máy đang dùng chung</span><b>${s.devices || 1}</b></div>
@@ -400,6 +422,12 @@ const UI = (() => {
       toast(r.ok ? `✓ Đã ghép · ${r.n} điểm · ${r.trips} cuốc dùng chung` : (r.why || 'Chưa ghép được — kiểm tra mạng'), 4200);
       paintSet();
     };
+    $('#set-nap').onclick = async () => {
+      const b = $('#set-nap'); b.textContent = '⏳ ĐANG NẠP…'; b.disabled = true;
+      await RADAR.vung.nap(true);          // toast của engine sẽ báo số điểm + điểm P cao nhất
+      SYNC.push();                          // đẩy sổ khu lên ngay cho máy kia có theo
+      paintSet();
+    };
     $('#set-diag').onclick = () => openSheet('#sheet-diag');
     if (deferredPrompt) { const b = $('#set-install'); b.hidden = false; b.onclick = doInstall; }
   }
@@ -408,10 +436,11 @@ const UI = (() => {
   function paintDiag() {
     const el = $('#diag-body'); if (!el || $('#sheet-diag').hidden) return;
     const d = G.dataStatus || {}, s = SYNC.status(), c = RADAR.stats.counts();
-    const sp = RADAR.spots();
+    const sp = RADAR.spots(), bq = RADAR.banQuan(), kho = G.kho;
     const n = f => sp.filter(f).length;
     const row = (k, v) => `<div class="dev-row"><span>${k}</span><b>${v}</b></div>`;
     const t = ms => ms ? new Date(ms).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '—';
+    if (!kho) RADAR.health().then(paintDiag);   // hỏi một lần khi mở màn này
     el.innerHTML = `
       <h4>Đồng bộ</h4>
       ${row('Trạng thái', s.dot + ' ' + s.vi)}
@@ -443,17 +472,27 @@ const UI = (() => {
       ${row('Bản đồ mở · chỉ có địa chỉ', n(x => x.source === 'osm-addr'))}
       ${row('Dùng chung / tự thêm / khu tự nạp', c.shared + ' / ' + c.mine + ' / ' + c.vung)}
       ${row('Nguồn', esc(d.source || '—'))}
-      ${row('Cập nhật lúc', d.updatedAt ? new Date(d.updatedAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '—')}
-      <div class="dev-code">MÃ BẢN DỮ LIỆU<b>#${esc(d.rev || '—')}</b></div>
-      <p class="hint">Nguồn: OpenStreetMap (© OpenStreetMap contributors, ODbL) · Overture Maps (© Overture Maps Foundation, CDLA-Permissive 2.0) · tên &amp; địa chỉ đối chiếu VietMap. Hai máy cùng MÃ BẢN = chắc chắn cùng dữ liệu.</p>
+      ${row('Danh sách dùng chung cập nhật', d.updatedAt ? new Date(d.updatedAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '—')}
+      ${row('Nạp quán lần cuối', lucNao(napAt()))}
+      <div class="dev-code">MÃ QUÁN (toàn bộ kho)<b>${esc(bq.ma)}</b></div>
+      <p class="hint"><b>Cách kiểm 2 máy giống nhau 100%:</b> mở mục này trên cả hai máy — <b>MÃ QUÁN</b> và số điểm (${bq.n}) phải y hệt. Khác mã nghĩa là còn khu nào đó chưa nạp xong, chờ chút hoặc bấm "Nạp điểm khu đang đứng".<br>
+      MÃ BẢN dữ liệu chung: <b>#${esc(d.rev || '—')}</b>. Nguồn: OpenStreetMap (© OpenStreetMap contributors, ODbL) · Overture Maps (© Overture Maps Foundation, CDLA-Permissive 2.0) · tên &amp; địa chỉ đối chiếu VietMap.</p>
       <button id="dg-refresh" class="more">Cập nhật danh sách điểm</button>
       <button id="dg-resync" class="more ghost">Đồng bộ lại máy này</button>
+
+      <h4>Kho dữ liệu (Supabase)</h4>
+      ${row('Tình trạng', kho ? (kho.ok ? '🟢 sống · ' + kho.ms + ' ms' : '🔴 ' + esc(kho.db || 'lỗi')) : '⏳ đang hỏi…')}
+      ${kho && kho.rows != null ? row('Số dòng đang giữ', kho.rows) : ''}
+      ${kho && kho.schema ? row('Cấu trúc bảng', kho.schema === 'day_du' ? 'đầy đủ' : '⚠️ thiếu cột') : ''}
+      <p class="hint">Kho chạy gói miễn phí nên sẽ <b>tự ngủ</b> nếu nhiều ngày không ai dùng — lúc đó đồng bộ sẽ lỗi. App có lịch tự đánh thức mỗi ngày, và mỗi lần anh mở app cũng là một lần đánh thức.</p>
+      <button id="dg-health" class="more ghost">Kiểm tra kho ngay</button>
 
       <h4>Sổ khu dùng chung (${RADAR.vung.live().length})</h4>
       ${RADAR.vung.live().length ? RADAR.vung.live().map(z => {
         const v = RADAR.vung.list().find(x => x.key === z.key);
-        return `<div class="cal"><span>${esc(z.ten || z.key)}</span>
-          <b>${v ? v.spots.length + ' điểm' : '⏳ đang nạp'}</b><i class="x" data-vung="${esc(z.key)}">xoá</i></div>`;
+        const p = v ? RADAR.vung.pCao(z.key) : null;
+        return `<div class="cal"><span>${esc(z.ten || z.key)}<br><em style="font-style:normal;opacity:.6;font-size:10.5px">nạp ${lucNao(z.ts)}</em></span>
+          <b>${v ? v.spots.length + ' điểm' : '⏳ đang nạp'}${p ? ' · P ' + p.p + '%' : ''}</b><i class="x" data-vung="${esc(z.key)}">xoá</i></div>`;
       }).join('') : '<p class="hint">Sổ khu trống. App tự nạp khi bạn chạy sang vùng chưa có dữ liệu — và máy kia sẽ tự có theo.</p>'}
       ${row('Điểm quanh đây (4km)', RADAR.vung.near())}
       <p class="hint">Máy nào nạp được khu nào là cả tài khoản có khu đó; máy còn lại đang mở app sẽ tự lấy quán của khu đó trong khoảng 12 giây. Sổ chỉ giữ ô lưới — danh sách quán mỗi máy tự lấy từ cùng một bản chụp nên luôn khớp nhau.</p>
@@ -474,7 +513,8 @@ const UI = (() => {
 
     $('#dg-refresh').onclick = () => { toast('Đang cập nhật…'); A.refreshSpots(true, true).then(paintDiag); };
     $('#dg-resync').onclick = A.hardResync;
-    $('#dg-nap').onclick = () => { RADAR.vung.nap(true).then(paintDiag); };
+    $('#dg-health').onclick = () => { G.kho = null; paintDiag(); RADAR.health().then(paintDiag); };
+    $('#dg-nap').onclick = () => { RADAR.vung.nap(true).then(() => { SYNC.push(); paintDiag(); }); };
     $$('#diag-body .x[data-vung]').forEach(e => e.onclick = () => { RADAR.vung.xoa(e.dataset.vung); paintDiag(); });
     $('#dg-hour').oninput = e => { const v = +e.target.value; G.simHour = v < 0 ? null : v; $('#dg-hl').textContent = v < 0 ? 'giờ thực' : String(v).padStart(2, '0') + ':00'; RADAR.recompute(); };
     $('#dg-rain').oninput = e => { G.rain = +e.target.value / 100; G.rainManual = true; $('#dg-rl').textContent = e.target.value + '%'; RADAR.recompute(); };

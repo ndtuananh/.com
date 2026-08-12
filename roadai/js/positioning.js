@@ -254,7 +254,13 @@ function mergeLearned(base) {
    của máy, đúng thứ §22 cấm. */
 const VUNG_LS = 'roadai_laiho_vung_v1';
 const ZONEREG_LS = 'roadai_butl_zones_v1';
-const VUNG_TOI_DA = 6;                 // 6 khu gần đây nhất (mỗi khu ≤40 quán)
+/* 16 KHU — BẰNG ĐÚNG sức chứa sổ khu trên máy chủ (MAX_ZONES trong api/pickups.js).
+   Trước để 6 "khu gần chỗ đang đứng nhất" cho nhẹ máy, nhưng thế thì máy A ở Bình Tân
+   và máy B ở Biên Hoà giữ hai bộ khu khác nhau → KHÔNG bao giờ đồng nhất 100% được.
+   Giữ hết sổ thì mọi máy có y hệt nhau, kiểm chứng được bằng MÃ QUÁN (banQuan()).
+   Giá phải trả: ~640 điểm khu + ~400 điểm dùng chung ≈ 1.040 điểm — đã đo, một vòng
+   tính lại vẫn dưới 250ms, và 128KB trong bộ nhớ máy (giới hạn ~5MB). */
+const VUNG_TOI_DA = 16;
 const VUNG_HAN = 45 * 864e5;           // quá 45 ngày không tới thì bỏ, quán cũng đổi rồi
 const VUNG_GAN = 4000;                 // xét "khu này app có quán chưa" trong bán kính 4km
 const VUNG_IT = 6;                     // dưới 6 quán trong 4km = coi như khu chưa có dữ liệu
@@ -381,6 +387,21 @@ function buildSpots(data) {
   }
 }
 const spotKey = sp => sp.name + '@' + (+sp.lat).toFixed(4) + ',' + (+sp.lng).toFixed(4);
+
+/* ═══ MÃ QUÁN — vân tay của TOÀN BỘ kho điểm máy này đang chạy ═══
+   Hai máy mở mục Chẩn đoán, thấy MÃ QUÁN giống nhau = dữ liệu quán giống nhau
+   100%, không phải tin suông. Khác mã = còn khu nào đó chưa nạp xong.
+   Băm trên danh sách ĐÃ SẮP XẾP nên không phụ thuộc thứ tự gộp; cố ý bỏ id
+   (đánh theo vị trí) và closeH (có nhiễu ngẫu nhiên) ra ngoài. */
+function fnv(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0; } return h.toString(36).toUpperCase().padStart(7, '0').slice(-7); }
+function banQuan() {
+  /* Phải trừ ĐIỂM ĐÃ ẨN ra. Điểm bị báo "đóng cửa/sai" vẫn nằm trong SPOTS nhưng
+     không được đề xuất, nên hai máy lệch nhau đúng chỗ đó mà mã vẫn giống thì mã
+     này vô dụng. Băm trên đúng thứ đang CHẠY. (Bộ tự kiểm bắt được lỗi này.) */
+  const a = SPOTS.filter(s => !HIDDEN.has(spotKey(s)))
+    .map(s => s.source + '|' + (+s.lat).toFixed(5) + ',' + (+s.lng).toFixed(5) + '|' + s.name).sort();
+  return { ma: fnv(a.join('\n')), n: a.length };
+}
 /* Đếm TÁCH BẠCH 3 loại — 2 máy chỉ buộc phải khớp nhau ở "quán dùng chung". */
 function spotCounts() {
   let mine = 0, vung = 0;
@@ -1121,6 +1142,16 @@ async function hardResync() {
   setTimeout(() => location.reload(), 900);
 }
 
+/* Kho dữ liệu có sống không — hỏi /api/health (endpoint này cũng là thứ giữ cho
+   project Supabase gói free không rơi vào trạng thái ngủ). */
+async function kiemKho() {
+  try {
+    const r = await fetch('/api/health', { cache: 'no-store' });
+    G.kho = r.ok ? await r.json() : { ok: false, db: 'khong_noi_duoc' };
+  } catch (e) { G.kho = { ok: false, db: 'khong_noi_duoc' }; }
+  return G.kho;
+}
+
 /* --- Quán khu đang đứng (/api/quanh) — CHẠY NGẦM, tài xế không phải hiểu quy trình --- */
 const _daThuVung = new Set();
 let _dangNapVung = false;
@@ -1130,6 +1161,16 @@ function demQuanGan(m) {
   return n;
 }
 const vungHienTai = () => VUNG.find(v => v.key === vungKey(G.you.lat, G.you.lng)) || null;
+/* ĐIỂM P CAO NHẤT của một khu — bằng chứng khu vừa nạp đã được chấm điểm thật,
+   chạy chung MỘT thang với quán TP.HCM chứ không có thang riêng.
+   Ngoài giờ lái hộ (trước 14h) thì mọi quán đóng cửa → không có P, nói thẳng. */
+function pCaoNhat(key) {
+  const m = G.metrics; if (!m) return null;
+  const ds = m.raw.filter(r => r.sp.vung === key && r.open);
+  if (!ds.length) return null;
+  const b = ds.reduce((a, r) => (r.p > a.p ? r : a), ds[0]);
+  return { p: b.hotScore, ten: cleanName(b.sp).slice(0, 22) };
+}
 /* napVung(tay, khu)
      tay  = tài xế tự bấm nút (luôn nạp, kể cả khu đã có dữ liệu)
      khu  = nạp theo Ô LƯỚI CỦA MÁY KHÁC lấy từ sổ khu dùng chung. Có `khu` thì
@@ -1176,9 +1217,16 @@ async function napVung(tay, khu) {
     }
     buildSpots(null); G.lastBestId = null;
     const c = spotCounts();
-    if (G.dataStatus) { G.dataStatus.count = c.shared; G.dataStatus.mine = c.mine; G.dataStatus.vung = c.vung; G.dataStatus.total = c.total; }
+    if (G.dataStatus) { G.dataStatus.count = c.shared; G.dataStatus.mine = c.mine; G.dataStatus.vung = c.vung; G.dataStatus.total = c.total; G.dataStatus.napAt = Date.now(); }
     recompute();
-    if (tay || (!khu && rows.length)) UIsay(`✓ Đã có ${rows.length} điểm ở ${ten || 'khu này'}.` + (luuDuoc ? '' : ' (bộ nhớ máy đầy — chỉ dùng tới khi tắt app)'));
+    /* BÁO LUÔN ĐIỂM P CAO NHẤT của khu vừa nạp. Chỉ nói "đã có 40 điểm" thì tài xế
+       không biết nạp xong có dùng được không — con số P mới là thứ chứng minh khu
+       này đã chạy chung một thang điểm với TP.HCM. */
+    const cao = pCaoNhat(key);
+    if (tay || (!khu && rows.length)) UIsay(
+      `✓ ${rows.length} điểm ở ${ten || 'khu này'}` +
+      (cao ? ` · điểm cao nhất ${cao.p}% (${cao.ten})` : ' · ngoài giờ lái hộ nên chưa chấm điểm') +
+      (luuDuoc ? '' : ' ⚠️ bộ nhớ máy đầy'), 6000);
     return true;
   } catch (e) {
     G.napVungLoi = 'Mạng chậm hoặc mất sóng.';
@@ -1403,7 +1451,8 @@ const RADAR = {
   vung: { list: () => VUNG, cur: vungHienTai, nap: napVung, xoa: xoaVung, near: demQuanGan,
           busy: () => _dangNapVung || _dangNapThieu, min: VUNG_IT, max: VUNG_TOI_DA,
           // sổ khu dùng chung — tầng đồng bộ đọc/ghi qua đây
-          reg: () => ZONE_REG, live: soKhuSong, apply: applyZones, fill: napKhuThieu },
+          reg: () => ZONE_REG, live: soKhuSong, apply: applyZones, fill: napKhuThieu, pCao: pCaoNhat },
+  banQuan, health: kiemKho,
   flags: { set: flagSet, get: flagGet, canNotify },
   // MÃ BẢN danh sách quán dùng chung máy này đang chạy — để máy khác biết mình có cũ không
   spotsRev: () => (G.dataStatus && G.dataStatus.rev) || '',
