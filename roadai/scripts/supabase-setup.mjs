@@ -14,7 +14,9 @@ import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 
 const PAT = (process.env.SB_PAT || '').trim();
-const REF = (process.env.SB_REF || 'nxvcsotzybjxykadbxbr').trim();   // project Supabase anh đang dùng
+// ⚠️ ĐÚNG project của roadai-vn. nxvcsotzybjxykadbxbr là project antigravity ở TÀI KHOẢN
+// KHÁC — mặc định cũ trỏ nhầm sang đó, chạy vào là báo 401 mà không hiểu vì sao.
+const REF = (process.env.SB_REF || 'incugzqdezergjzxwote').trim();
 const SB_URL = 'https://' + REF + '.supabase.co';
 const base = 'https://api.supabase.com/v1/projects/' + REF;
 const H = { Authorization: 'Bearer ' + PAT, 'Content-Type': 'application/json' };

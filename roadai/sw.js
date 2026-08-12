@@ -6,11 +6,13 @@
    giữ luôn code cũ + danh sách quán cũ, không bao giờ nhận bản mới → 2 máy khác dữ liệu.
    Bản này: CODE (html/js/css) luôn lấy MẠNG TRƯỚC, chỉ dùng cache khi mất sóng.
    → Mở app có mạng là 2 máy luôn chạy CÙNG một bản. */
-const CACHE = 'roadai-v51';
+const CACHE = 'roadai-v52';
 const SHELL = [
   './', './index.html', './kiem-cuoc.html',
   './css/style.css', './css/positioning.css',
-  './js/app.js', './js/data.js', './js/config.js', './js/positioning.js', './js/spots.js', './js/butl-partners.js', './js/learned-spots.js',
+  './js/app.js', './js/data.js', './js/config.js',
+  './js/positioning.js', './js/radar-sync.js', './js/radar-ui.js',
+  './js/spots.js', './js/butl-partners.js', './js/learned-spots.js',
   './manifest.webmanifest', './radar.webmanifest', './icon.svg'
 ];
 self.addEventListener('install', e => {

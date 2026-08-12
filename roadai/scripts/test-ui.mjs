@@ -1,0 +1,238 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   BỘ TỰ KIỂM GIAO DIỆN — chạy:  node scripts/test-ui.mjs
+
+   Nạp THẬT kiem-cuoc.html + 3 file js vào một trình duyệt giả (jsdom) rồi:
+     · chạy UI.boot() như khi mở app;
+     · bấm thử từng nút, mở từng màn, ghi thử một cuốc;
+     · đếm CHỮ trên màn chính (mục tiêu của lần refactor này: giảm 50–70%);
+     · soi xem có chữ kỹ thuật nào lọt lên màn tài xế không (OSM, rev, Overture…).
+   Leaflet được thay bằng một Proxy tự trả về chính nó — đủ để code chạy hết đường,
+   mà không cần trình duyệt thật.
+
+   Cần: npm i --no-save jsdom
+   ══════════════════════════════════════════════════════════════════════════════ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { JSDOM } from 'jsdom';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+let pass = 0, fail = 0;
+const T = (n, f) => { try { const r = f(); if (r === false) throw new Error('false'); console.log('  ✓ ' + n); pass++; } catch (e) { console.log('  ✗ ' + n + '\n      → ' + (e.message || e)); fail++; } };
+const ok = (c, m) => { if (!c) throw new Error(m || 'sai'); };
+const eq = (a, b, m) => { if (a !== b) throw new Error(`${m || ''} — chờ ${JSON.stringify(b)}, nhận ${JSON.stringify(a)}`); };
+
+/* ---------- LEAFLET GIẢ: Proxy tự trả về chính nó cho mọi thứ ---------- */
+function fakeL() {
+  const rec = { markers: 0, layers: 0, popups: 0 };
+  const self = new Proxy(function () {}, {
+    get(_, k) {
+      if (k === 'then') return undefined;                 // đừng để await tưởng đây là promise
+      if (k === 'getBounds') return () => ({ contains: () => true, pad: () => ({ contains: () => true, getWest: () => 106.5, getSouth: () => 10.7 }), getWest: () => 106.5, getSouth: () => 10.7 });
+      if (k === 'getZoom') return () => 14;
+      if (k === 'latLngToLayerPoint') return (ll) => ({ x: (ll[1] || ll.lng || 0) * 1e4, y: (ll[0] || ll.lat || 0) * 1e4 });
+      if (k === 'getElement') return () => null;
+      if (k === 'getLatLng') return () => ({ lat: 10.74, lng: 106.61 });
+      return self;
+    },
+    apply() { return self; },
+    construct() { return self; },
+  });
+  const L = new Proxy({}, { get(_, k) {
+    if (k === 'map') return () => { rec.layers++; return self; };
+    if (k === 'marker') return () => { rec.markers++; return self; };
+    if (k === 'popup') return () => { rec.popups++; return self; };
+    return () => self;
+  } });
+  return { L, rec };
+}
+
+/* ---------- DỰNG TRANG ---------- */
+const html = fs.readFileSync(path.join(ROOT, 'kiem-cuoc.html'), 'utf8')
+  .replace(/<script src="https:\/\/unpkg[\s\S]*?<\/script>/g, '')          // bỏ Leaflet CDN
+  .replace(/<link rel="stylesheet" href="https:\/\/unpkg[\s\S]*?\/>/g, '')
+  .replace(/<script src="js\/[\s\S]*?<\/script>/g, '')                     // tự nạp js bên dưới
+  .replace(/<script>[\s\S]*?<\/script>/g, '');                             // bỏ đoạn service worker
+
+const dom = new JSDOM(html, { runScripts: 'outside-only', pretendToBeVisual: true, url: 'https://roadai-vn.vercel.app/kiem-cuoc' });
+const w = dom.window;
+const { L, rec } = fakeL();
+w.L = L;
+w.fetch = () => Promise.reject(new Error('offline trong bộ thử'));
+w.setInterval = () => 0;
+w.scrollTo = () => {};
+w.alert = () => {}; w.confirm = () => true; w.prompt = () => null;
+w.open = () => null;
+Object.defineProperty(w.navigator, 'onLine', { value: true, configurable: true });
+delete w.navigator.geolocation;                                            // không có GPS trong bộ thử
+const store = new Map();
+Object.defineProperty(w, 'localStorage', { value: {
+  getItem: k => (store.has(k) ? store.get(k) : null),
+  setItem: (k, v) => store.set(k, String(v)),
+  removeItem: k => store.delete(k), clear: () => store.clear(), get length() { return store.size; },
+}, configurable: true });
+
+const run = f => w.eval(fs.readFileSync(path.join(ROOT, f), 'utf8'));
+w.eval('var window = globalThis;');
+run('js/spots.js'); run('js/butl-partners.js'); run('js/learned-spots.js');
+run('js/positioning.js'); run('js/radar-sync.js'); run('js/radar-ui.js');
+
+const $ = s => w.document.querySelector(s);
+const txt = s => ($(s) ? ($(s).textContent || '').replace(/\s+/g, ' ').trim() : '');
+
+console.log('\nGIAO DIỆN · nạp thật kiem-cuoc.html + 3 file js vào jsdom');
+T('3 tầng nạp được, không lỗi', () => ok(w.RADAR && w.SYNC && w.UI, 'thiếu tầng nào đó'));
+
+w.RADAR.G.simHour = 22;
+w.UI.boot();
+w.RADAR.G.simHour = 22; w.RADAR.recompute();
+
+T('boot() chạy trót lọt, có dựng bản đồ', () => ok(rec.layers >= 1, 'không dựng bản đồ'));
+T('có vẽ chấm điểm lên bản đồ', () => ok(rec.markers > 0, 'không có chấm nào'));
+T('thanh trạng thái hiện đúng 1 dòng', () => {
+  const t = txt('#statusbar');
+  ok(t.length > 0 && t.length <= 46, 'dài ' + t.length + ' ký tự: "' + t + '"');
+  ok(/ĐANG CÓ KHÁCH|CHỜ KHÁCH|ÍT CẦU|CHƯA TỚI GIỜ|ĐANG NGHỈ/.test(t), 'không có trạng thái: ' + t);
+});
+T('thẻ quyết định có ĐÚNG 1 con số lớn (%) + 1 nút hành động', () => {
+  const h = $('#card').innerHTML;
+  const pcts = (txt('#card').match(/\d+%/g) || []);
+  eq(pcts.length, 1, 'có ' + pcts.length + ' con số % trên thẻ: ' + pcts.join(','));
+  ok(/c-go/.test(h), 'thiếu nút hành động');
+});
+T('màn chính KHÔNG có đoạn văn dài (§11)', () => {
+  for (const id of ['#statusbar', '#card', '#filters', '#nav']) {
+    for (const s of txt(id).split(/[.·\n]/)) ok(s.trim().length < 60, id + ' có câu dài: "' + s.trim() + '"');
+  }
+});
+T('màn chính KHÔNG lộ chữ kỹ thuật cho tài xế (§1)', () => {
+  const t = (txt('#statusbar') + ' ' + txt('#card') + ' ' + txt('#filters') + ' ' + txt('#nav')).toLowerCase();
+  for (const bad of ['osm', 'overture', 'digital twin', 'mã bản', 'rev', 'vietmap', 'đồng bộ', 'api', 'database', 'mô phỏng'])
+    ok(!t.includes(bad), 'lộ "' + bad + '" ra màn chính');
+});
+
+/* ĐẾM CHỮ — mục tiêu lần refactor này là giảm 50–70% chữ trên màn hình */
+const chuMoi = ['#statusbar', '#card', '#filters', '#nav'].reduce((s, id) => s + txt(id).length, 0);
+console.log(`     · chữ trên màn chính: ${chuMoi} ký tự`);
+T('màn chính dưới 220 ký tự (bản cũ ~950)', () => ok(chuMoi < 220, chuMoi + ' ký tự'));
+
+console.log('\nTHAO TÁC · bấm thử từng nút như tài xế');
+T('bấm "Vì sao?" → mở đúng màn giải thích, có lý do', () => {
+  $('#c-why').onclick();
+  ok(!$('#sheet-why').hidden, 'màn không mở');
+  const t = txt('#why-body');
+  ok(t.length > 40, 'trống trơn');
+  ok(/Khả năng có khách/.test(t), 'thiếu câu trả lời chính');
+  w.UI.closeSheets();
+});
+T('bấm 📊 Điều phối → đúng 3 con số ở tầng 1', () => {
+  $('#nav-dash').onclick();
+  ok(!$('#sheet-dash').hidden);
+  eq($('#dash-body').querySelectorAll('.kpi').length, 3, 'không phải 3 chỉ số');
+  ok(!!$('#dash-more'), 'thiếu nút XEM CHI TIẾT');
+  ok($('#dash-detail').hidden, 'chi tiết phải ẩn sẵn (progressive disclosure)');
+});
+T('bấm XEM CHI TIẾT → mới hiện tầng 2', () => {
+  $('#dash-more').onclick();
+  ok(!$('#dash-detail').hidden, 'không mở ra');
+  ok(txt('#dash-detail').length > 30, 'tầng 2 trống');
+  w.UI.closeSheets();
+});
+T('bấm ⚙️ Cài đặt → đúng 4 công tắc, KHÔNG có số liệu kỹ thuật', () => {
+  $('#nav-set').onclick();
+  eq($('#set-body').querySelectorAll('.sw').length, 4, 'số công tắc sai');
+  const t = txt('#set-body').toLowerCase();
+  for (const bad of ['osm', 'overture', 'mã bản dữ liệu', 'rev', 'database'])
+    ok(!t.includes(bad), 'lộ "' + bad + '" ở màn Cài đặt');
+  ok(t.includes('chẩn đoán'), 'thiếu lối vào Chẩn đoán');
+  ok(!t.includes('mô phỏng'), 'vẫn còn chữ "mô phỏng" — đây là app thật');
+});
+T('Chẩn đoán hệ thống (tầng 3) mới là nơi có OSM / MÃ BẢN / đồng bộ', () => {
+  $('#set-diag').onclick();
+  ok(!$('#sheet-diag').hidden, 'không mở');
+  const t = txt('#diag-body');
+  for (const need of ['MÃ BẢN', 'Đồng bộ', 'Mã máy', 'Mã tài xế'])
+    ok(t.includes(need), 'thiếu "' + need + '" ở màn chẩn đoán');
+  w.UI.closeSheets();
+});
+T('bấm 📝 Ghi cuốc → hiện 3 nút to', () => {
+  $('#nav-log').onclick();
+  ok(!!$('#lg-yes') && !!$('#lg-busy') && !!$('#lg-no'), 'thiếu nút ghi cuốc');
+});
+T('✅ CÓ KHÁCH → hỏi loại xe rồi mới ghi', () => {
+  $('#lg-yes').onclick();
+  ok(!!$('#lg-oto') && !!$('#lg-may'), 'không hỏi ô tô / xe máy');
+});
+T('chọn 🚗 Ô TÔ → ghi được cuốc thật, AI học ngay', () => {
+  const n0 = w.RADAR.trips.all().length;
+  $('#lg-oto').onclick();
+  eq(w.RADAR.trips.all().length, n0 + 1, 'không ghi được cuốc');
+  const t = w.RADAR.trips.mine()[0];
+  eq(t.xe, 'oto'); ok(t.id, 'cuốc thiếu idempotency key'); ok(typeof t.p === 'number', 'không lưu % đã dự báo');
+});
+T('ghi cuốc xong → xếp hàng đẩy lên máy chủ (không im lặng nuốt)', () => {
+  ok(w.SYNC.status().pending > 0, 'không có việc nào trong hàng đợi');
+});
+T('mất mạng thì hàng đợi giữ nguyên, không mất dữ liệu (§26)', () => {
+  const q = JSON.parse(store.get('roadai_butl_queue_v1') || '[]');
+  ok(q.length > 0, 'hàng đợi không được ghi xuống máy → tắt app là mất');
+});
+T('👀 "quán đang đông" ghi được và KHÔNG tính vào tỉ lệ nổ cuốc', () => {
+  const r = w.RADAR.metrics().best;
+  const key = w.RADAR.util.spotKey(r.sp);
+  const before = w.RADAR.util.empOf(key) || { n: 0 };
+  w.RADAR.G.pendingLog = r; w.UI.paint();
+  $('#lg-busy').onclick();
+  eq((w.RADAR.util.empOf(key) || { n: 0 }).n, before.n, 'quan sát bị tính thành cuốc');
+});
+T('nút ↻ đổi sang điểm khác được', () => {
+  w.RADAR.G.pendingLog = null; w.UI.paint();
+  const a = w.RADAR.decision().recommended_name;
+  $('#c-skip').onclick();
+  ok(w.RADAR.decision().recommended_name !== a || w.RADAR.metrics().byHot.length < 2, 'không đổi điểm');
+});
+T('bộ lọc 🚗 / 🏍️ đổi được danh sách', () => {
+  const btns = [...w.document.querySelectorAll('#filters button')];
+  eq(btns.length, 3, 'số nút lọc sai');
+  btns[1].onclick(); eq(w.RADAR.G.filter, 'oto');
+  btns[0].onclick(); eq(w.RADAR.G.filter, 'all');
+});
+T('nút "Nhận khách / Nghỉ" bật tắt được', () => {
+  const on0 = w.RADAR.G.online;
+  $('#tb-online').onclick();
+  eq(w.RADAR.G.online, !on0);
+  $('#tb-online').onclick();
+  eq(w.RADAR.G.online, on0);
+});
+T('chỉ báo đồng bộ 🟢/🟡/🔴 có cập nhật', () => {
+  w.UI.syncBadge(w.SYNC.status());
+  ok(/[🟢🟡🔴]/.test(txt('#syncdot')), 'không có chỉ báo: ' + txt('#syncdot'));
+});
+T('mọi id giao diện js đi tìm đều tồn tại (trong html tĩnh hoặc do chính js dựng ra)', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'js/radar-ui.js'), 'utf8');
+  const co = new Set();
+  for (const m of html.matchAll(/\sid="([^"]+)"/g)) co.add(m[1]);          // id trong html tĩnh
+  for (const m of src.matchAll(/id="([a-z0-9-]+)"/gi)) co.add(m[1]);       // id do js dựng
+  const thieu = [];
+  for (const m of src.matchAll(/\$\('#([a-z0-9-]+)'\)/gi)) if (!co.has(m[1])) thieu.push('#' + m[1]);
+  eq(thieu.length, 0, 'js đi tìm id không tồn tại: ' + thieu.join(', '));
+  // các id CÓ TRONG HTML TĨNH phải tồn tại ngay từ đầu
+  for (const id of ['#map', '#statusbar', '#filters', '#card', '#nav', '#toast', '#btn-center', '#btn-add',
+    '#newzone', '#syncdot', '#sheet-why', '#sheet-dash', '#sheet-set', '#sheet-diag',
+    '#why-body', '#dash-body', '#set-body', '#diag-body', '#nav-log', '#nav-dash', '#nav-set'])
+    ok(!!$(id), 'thiếu ' + id + ' trong kiem-cuoc.html');
+});
+T('không có id trùng nhau trong html', () => {
+  const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]);
+  eq(new Set(ids).size, ids.length, 'id bị trùng');
+});
+T('không còn tham chiếu tới file/hàm đã bỏ', () => {
+  const h = fs.readFileSync(path.join(ROOT, 'kiem-cuoc.html'), 'utf8');
+  ok(!/css\/style\.css/.test(h), 'vẫn nạp style.css (trang này không cần nữa)');
+  for (const f of ['js/positioning.js', 'js/radar-sync.js', 'js/radar-ui.js']) ok(h.includes(f), 'thiếu ' + f);
+  const sw = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
+  for (const f of ['radar-sync.js', 'radar-ui.js']) ok(sw.includes(f), 'sw.js chưa cache ' + f);
+});
+
+console.log(`\n${'═'.repeat(56)}\n  ĐẠT ${pass}  ·  HỎNG ${fail}\n${'═'.repeat(56)}\n`);
+process.exit(fail ? 1 : 0);

@@ -4,169 +4,96 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0b1220" />
-  <title>Driver Radar — Bạn Uống Tôi Lái (AI định vị tài xế lái hộ TP.HCM)</title>
-  <meta name="description" content="Driver Radar cho tài xế Bạn Uống Tôi Lái tại TP.HCM: mở lên là biết TỐI NAY ĐỨNG ĐÂU. Điểm chờ tối ưu giữa cụm quán nhậu/bar/karaoke, đúng GIỜ VÀNG tan quán, lãi/giờ đã trừ chi phí quay về, Google Maps dẫn đường, học từ nhật ký cuốc của chính bạn. Giúp người đã uống rượu bia không tự lái xe." />
+  <title>Driver Radar — Bạn Uống Tôi Lái</title>
+  <meta name="description" content="Driver Radar cho tài xế Bạn Uống Tôi Lái: mở lên là biết tối nay đứng đâu. Một con số duy nhất — khả năng có khách trong 30 phút — học từ chính cuốc thật của bạn, đồng bộ trên mọi thiết bị." />
   <link rel="manifest" href="radar.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon.svg" />
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/positioning.css" />
 </head>
-<body class="pos">
-  <!-- BẢN ĐỒ -->
-  <div id="map" aria-label="Bản đồ điểm đứng chờ lái hộ"></div>
+<body>
+  <!-- ═══ BẢN ĐỒ: thành phần quan trọng nhất, chiếm cả màn hình ═══ -->
+  <div id="map" aria-label="Bản đồ điểm đứng chờ"></div>
 
-  <!-- THANH TRÊN -->
-  <header id="topbar" class="glass">
-    <div class="tb-row">
-      <button id="back-nav" class="mini" title="Về Chỉ đường">←</button>
-      <div class="brand-txt">
-        <b>🍺 Driver Radar</b>
-        <small>Bạn Uống Tôi Lái · tối nay đứng đâu?</small>
-      </div>
-      <button id="find-btn" class="mini" title="Tìm &amp; lọc quán">🔍</button>
-      <button id="online-toggle" class="pill-toggle" title="Bật/tắt nhận khách">Nhận khách</button>
-    </div>
-    <div id="status" class="status">Đang khởi động…</div>
-  </header>
+  <!-- ═══ ① TRẠNG THÁI — một dòng, trả lời "có nên nhận khách không" ═══ -->
+  <header id="statusbar" class="glass"></header>
 
-  <!-- CHÚ THÍCH — rút còn 4 thứ hay dùng, chữ to. Bấm vào để xem đầy đủ. -->
-  <button id="legend" class="glass" title="Bấm để xem đầy đủ chú thích">
-    <span class="lg">⭐ nên tới</span>
-    <span class="lg">📍 đã nổ cuốc</span>
-    <span class="lg">🚗 cần ô tô</span>
-    <span class="lg">🏍️ cần xe máy</span>
-    <span class="lg lg-more">▾</span>
-  </button>
+  <!-- lọc theo loại xe điểm đó thường nổ (dữ liệu thật, không phải loại quán) -->
+  <div id="filters" class="glass">
+    <button data-f="all" class="on">Tất cả</button>
+    <button data-f="oto">🚗 Ô tô</button>
+    <button data-f="may">🏍️ Xe máy</button>
+    <span id="syncdot" class="syncdot" title="Đồng bộ">🟢</span>
+  </div>
 
-  <!-- KHU MỚI: chạy ra khỏi vùng app có dữ liệu thì hiện đúng một nút to, bấm là có quán.
-       (Anh Long 06/08/2026: "đi địa điểm mới không nạp dữ liệu quán vào được nữa".) -->
-  <div id="vung-bar" class="vung-bar" hidden></div>
+  <!-- chạy sang khu chưa có dữ liệu → đúng MỘT nút, bấm là có điểm -->
+  <button id="newzone" class="newzone" hidden>📍 TÌM ĐIỂM QUANH ĐÂY</button>
 
-  <!-- NÚT BẢN ĐỒ — gộp "về vị trí" và "dùng GPS" làm một, đỡ một nút phải nhớ -->
-  <button id="btn-center" class="map-fab" title="Về vị trí của tôi (bật GPS)">◎</button>
-  <button id="btn-addhere" class="map-fab fab-add" title="Tôi đang ở quán — thêm điểm đón thật">➕</button>
+  <button id="btn-center" class="fab" title="Về vị trí của tôi">◎</button>
+  <button id="btn-add" class="fab fab-add" title="Thêm điểm đón">＋</button>
 
-  <!-- THẺ ĐỀ XUẤT (⭐) -->
-  <section id="reco" class="glass reco"></section>
+  <!-- ═══ ② QUYẾT ĐỊNH — thứ tài xế nhìn 2 giây là biết phải làm gì ═══ -->
+  <section id="card" class="card glass"></section>
 
-  <!-- DOCK ĐIỀU KHIỂN -->
-  <nav id="dock" class="glass">
-    <button id="btn-log" title="Ghi kết quả cuốc thật (nuôi Digital Twin)">📝<span>Ghi cuốc</span></button>
-    <button id="btn-dash" title="Trung tâm điều phối — có cả điểm của tôi">📊<span>Điều phối</span></button>
-    <button id="btn-simple" title="Chế độ đơn giản — chữ to">👴<span>Đơn giản</span></button>
-    <button id="btn-set" title="Cài đặt">⚙️<span>Cài đặt</span></button>
+  <!-- ═══ THANH DƯỚI: 3 việc, không hơn ═══ -->
+  <nav id="nav" class="glass">
+    <button id="nav-log">📝<span>Ghi cuốc</span></button>
+    <button id="nav-dash">📊<span>Điều phối</span></button>
+    <button id="nav-set">⚙️<span>Cài đặt</span></button>
   </nav>
 
-  <!-- SHEET: TÔI ĐANG Ở QUÁN — gõ tên, app gợi ý từ chính dữ liệu radar -->
-  <div id="here-sheet" class="sheet glass big" hidden>
-    <div class="sheet-head"><b>🍺 Tôi đang ở quán nào?</b><button class="mini sheet-close">✕</button></div>
-    <input id="here-search" class="key-input" type="search" placeholder="Gõ tên quán… (vd: A1, Ốc Quyên, Cửu Long)" autocomplete="off" />
-    <p class="sheet-hint" style="margin:6px 0 4px">Gõ tên quán anh <b>đã từng nhập</b> hoặc quán có sẵn trên radar → chọn đúng quán đó, app ghi luôn “anh đang ở đây” kèm giờ. Chưa có thì bấm <b>Thêm quán mới</b> ở cuối danh sách.</p>
-    <div id="here-body"></div>
+  <!-- ═══ TẦNG 2 — "VÌ SAO?" ═══ -->
+  <div id="sheet-why" class="sheet glass" hidden>
+    <div class="sheet-h"><b>Vì sao đề xuất chỗ này?</b><button class="sheet-x">✕</button></div>
+    <div id="why-body"></div>
   </div>
 
-  <!-- SHEET: TÌM & LỌC + TOP 20 -->
-  <div id="find-sheet" class="sheet glass big" hidden>
-    <div class="sheet-head"><b>🔍 Tìm &amp; lọc điểm</b><button class="mini sheet-close">✕</button></div>
-    <input id="find-search" class="key-input" type="search" placeholder="Tìm tên quán / quận…" autocomplete="off" />
-    <div id="find-chips" class="find-chips"></div>
-    <div id="find-body"></div>
-  </div>
-
-  <!-- SHEET: TRUNG TÂM ĐIỀU PHỐI -->
-  <div id="dash-sheet" class="sheet glass big" hidden>
-    <div class="sheet-head"><b>📊 Trung tâm điều phối thời gian thực</b><button class="mini sheet-close">✕</button></div>
-    <button id="btn-score" class="ghost" style="width:100%;margin-bottom:8px">🎖️ Điểm của tôi &amp; Digital Twin</button>
+  <!-- ═══ TẦNG 2 — ĐIỀU PHỐI ═══ -->
+  <div id="sheet-dash" class="sheet glass" hidden>
+    <div class="sheet-h"><b>📊 Hiệu quả của bạn</b><button class="sheet-x">✕</button></div>
     <div id="dash-body"></div>
   </div>
 
-  <!-- SHEET: DRIVER SCORE + DIGITAL TWIN -->
-  <div id="score-sheet" class="sheet glass big" hidden>
-    <div class="sheet-head"><b>⭐ Điểm tài xế &amp; Digital Twin</b><button class="mini sheet-close">✕</button></div>
-    <div id="score-body"></div>
+  <!-- ═══ CÀI ĐẶT ═══ -->
+  <div id="sheet-set" class="sheet glass" hidden>
+    <div class="sheet-h"><b>⚙️ Cài đặt</b><button class="sheet-x">✕</button></div>
+    <div id="set-body"></div>
   </div>
 
-  <!-- SHEET: CÀI ĐẶT MÔ PHỎNG -->
-  <div id="set-sheet" class="sheet glass" hidden>
-    <div class="sheet-head"><b>⚙️ Cài đặt mô phỏng</b><button class="mini sheet-close">✕</button></div>
-    <button id="btn-install" class="primary" style="width:100%;margin-bottom:8px" hidden>📲 Cài Driver Radar vào máy</button>
-    <label class="set-row"><input id="notif-toggle" type="checkbox" /> 🔔 Thông báo điểm nóng (giờ vàng &amp; điểm gần dễ nổ cuốc)</label>
-    <label class="set-row"><input id="all-toggle" type="checkbox" /> 🗺️ Hiện HẾT quán trên bản đồ (kể cả quán đang đóng &amp; ngoài 5km)</label>
-    <p class="sheet-hint" style="margin:-2px 0 8px">Mặc định tắt: bản đồ chỉ hiện quán <b>đang mở trong 5km</b> + chỗ đã nổ cuốc, cho đỡ rối mắt. Bật lên nếu anh muốn xem toàn bộ.</p>
-    <button id="btn-testnotif" class="ghost" style="width:100%;margin:6px 0 2px">📨 Gửi thử thông báo ngay (test)</button>
-    <p class="sheet-hint">Số liệu cầu là mô phỏng theo quy luật nghề lái hộ; <b>quán là thật</b> (OpenStreetMap, tự cập nhật). Chỉnh các nút dưới để xem AI điều phối lại tức thì.</p>
-    <label class="set-lbl">🕒 Khung giờ <b id="hour-lbl">Giờ thực</b></label>
-    <input id="hour-slider" class="slider" type="range" min="-1" max="23" step="1" value="-1" />
-    <label class="set-lbl">📅 Loại ngày (đẩy cầu lái hộ)</label>
-    <div id="day-seg" class="base-seg">
-      <button data-day="weekday" class="active">Thường</button>
-      <button data-day="weekend">Cuối tuần</button>
-      <button data-day="payday">Ngày lương</button>
-      <button data-day="holiday">Lễ/Tết</button>
-    </div>
-    <label class="set-row"><input id="match-toggle" type="checkbox" /> ⚽ Đêm có bóng đá lớn (khách xem bóng nhậu khuya)</label>
-    <label class="set-lbl">🌧️ Mưa <b id="rain-lbl">Tắt</b></label>
-    <input id="rain-slider" class="slider" type="range" min="0" max="100" step="5" value="0" />
-    <label class="set-lbl">🗺️ Nền bản đồ</label>
-    <div id="base-seg" class="base-seg">
-      <button data-base="dark" class="active">🌙 Tối</button>
-      <button data-base="light">☀️ Sáng</button>
-    </div>
-    <button id="btn-napvung" class="primary" style="width:100%;margin-top:12px">📍 Nạp quán khu tôi đang đứng</button>
-    <p class="sheet-hint" style="margin-top:4px">Chạy sang khu lạ (tỉnh khác, quận app chưa có dữ liệu) mà bản đồ trống thì bấm nút này — app lấy quán thật quanh anh trong 4km và chấm điểm % ngay. Bình thường app <b>tự nạp</b> khi thấy khu mới, nút này để anh chủ động.</p>
-    <button id="btn-addpick" class="primary" style="width:100%;margin-top:12px">➕ Tôi đang ở quán — thêm điểm đón thật</button>
-    <p class="sheet-hint" style="margin-top:4px">Đang đứng ngay quán/khu hay có khách → bật GPS (📍) cho đúng chỗ rồi bấm. App lưu vào não, ưu tiên đứng đây & học liên tục. Cũng có nút <b>➕</b> ngay trên bản đồ.</p>
-    <button id="btn-unhide" class="ghost" style="margin-top:8px;width:100%">👁️ Bỏ ẩn tất cả điểm (đã báo đóng cửa)</button>
-    <button id="reset-twin" class="ghost" style="margin-top:8px;width:100%">🧹 Xoá Digital Twin (bắt đầu học lại)</button>
+  <!-- ═══ TẦNG 3 — CHẨN ĐOÁN (kỹ thuật, tài xế không cần thấy) ═══ -->
+  <div id="sheet-diag" class="sheet glass" hidden>
+    <div class="sheet-h"><b>⚙️ Chẩn đoán hệ thống</b><button class="sheet-x">✕</button></div>
+    <div id="diag-body"></div>
   </div>
 
-  <!-- ============ CHẾ ĐỘ ĐƠN GIẢN (mặc định — chữ to, 3 nút, cho người lớn tuổi) ============ -->
-  <div id="simple" class="simple" hidden>
-    <div class="sp-top">
-      <button id="sp-online" class="sp-pill">🟢 Nhận khách</button>
-      <button id="sp-add" class="sp-link sp-add">➕ Tôi đang ở quán</button>
-      <button id="sp-full" class="sp-link">Chi tiết ▾</button>
-    </div>
-    <div class="sp-mid">
-      <div class="sp-label">TỐI NAY ĐỨNG ĐÂY</div>
-      <div id="sp-name" class="sp-name">Đang tìm…</div>
-      <div id="sp-addr" class="sp-addr"></div>
-      <div id="sp-meta" class="sp-meta"></div>
-      <div id="sp-chance" class="sp-chance"></div>
-      <div id="sp-warn" class="sp-warn"></div>
-      <!-- chạy sang khu app chưa có quán → nút nạp ngay tại đây, khỏi phải thoát ra bản đồ -->
-      <div id="sp-vung" class="sp-vung" hidden></div>
-    </div>
-    <a id="sp-nav" class="sp-nav" target="_blank" rel="noopener">🧭 CHỈ ĐƯỜNG</a>
-    <!-- GHI KẾT QUẢ: 3 tình huống thật ngoài đường, nút to bấm bằng ngón cái -->
-    <div class="sp-log" id="sp-log">
-      <button id="sp-yes" class="sp-btn sp-yes sp-wide">✅ CÓ KHÁCH</button>
-      <button id="sp-busy" class="sp-btn sp-busy">👀 QUÁN<br>ĐANG ĐÔNG</button>
-      <button id="sp-no" class="sp-btn sp-no">❌ CHƯA<br>CÓ</button>
-    </div>
-    <!-- Hỏi loại xe ngay sau khi bấm CÓ KHÁCH (radar học riêng ô tô / xe máy) -->
-    <div class="sp-log" id="sp-xe" hidden>
-      <div class="sp-xe-hd sp-wide">🚘 Cuốc này là xe gì?</div>
-      <button id="sp-oto" class="sp-btn sp-yes">🚗 Ô TÔ</button>
-      <button id="sp-may" class="sp-btn sp-yes">🏍️ XE MÁY</button>
-    </div>
-  </div>
-
-  <!-- nút mở lại thẻ gợi ý (khi đã ẩn) -->
-  <button id="reco-reopen">⭐ Xem gợi ý</button>
-
-  <!-- toast -->
   <div id="toast" class="toast" hidden></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- kho điểm dựng sẵn (dùng lúc mới mở app / mất mạng) -->
   <script src="js/spots.js"></script>
   <script src="js/butl-partners.js"></script>
   <script src="js/learned-spots.js"></script>
+  <!-- ba tầng, đúng thứ tự: LÕI → ĐỒNG BỘ → GIAO DIỆN -->
   <script src="js/positioning.js"></script>
+  <script src="js/radar-sync.js"></script>
+  <script src="js/radar-ui.js"></script>
+  <script>
+    // Service worker: có bản mới thì tự nạp lại một lần, để mọi máy không kẹt ở 2 phiên bản code.
+    if ('serviceWorker' in navigator && navigator.serviceWorker.register) {
+      let done = false; const had = !!navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener('controllerchange', () => { if (done || !had) return; done = true; location.reload(); });
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+        reg.update().catch(() => {});
+        reg.addEventListener('updatefound', () => {
+          const w = reg.installing; if (!w) return;
+          w.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) w.postMessage({ type: 'SKIP_WAITING' }); });
+        });
+      }).catch(() => {});
+    }
+  </script>
 </body>
 </html>
