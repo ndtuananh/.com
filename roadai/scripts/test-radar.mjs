@@ -20,9 +20,16 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASE = process.argv[2] || '';
 
 let pass = 0, fail = 0;
+/* T() chỉ nhận hàm ĐỒNG BỘ. Đưa hàm async vào thì nó trả Promise, `r === false`
+   không bao giờ đúng → test luôn báo ĐẠT dù bên trong hỏng. Chặn thẳng, cần chờ
+   thì dùng Ta(). */
 const T = (name, fn) => {
-  try { const r = fn(); if (r === false) throw new Error('trả về false'); console.log('  ✓ ' + name); pass++; }
-  catch (e) { console.log('  ✗ ' + name + '\n      → ' + (e && e.message || e)); fail++; }
+  try {
+    const r = fn();
+    if (r && typeof r.then === 'function') throw new Error('hàm async phải dùng Ta(), không phải T()');
+    if (r === false) throw new Error('trả về false');
+    console.log('  ✓ ' + name); pass++;
+  } catch (e) { console.log('  ✗ ' + name + '\n      → ' + (e && e.message || e)); fail++; }
 };
 const Ta = async (name, fn) => {
   try { const r = await fn(); if (r === false) throw new Error('trả về false'); console.log('  ✓ ' + name); pass++; }
@@ -227,7 +234,7 @@ console.log('\nA4 · HIỆU NĂNG (điện thoại tài xế, ở quy mô THẬT
 console.log('\nB · ĐỒNG BỘ NHIỀU MÁY — 10 kịch bản bắt buộc (§40)');
 const { merge, cleanPick, cleanTrip, cleanHidden, cleanZone } = await import(path.join(ROOT, 'api/pickups.js').replace(/\\/g, '/').replace(/^([a-zA-Z]):/, 'file:///$1:'));
 
-const P = (id, name, lat, lng, o) => cleanPick({ id, name, lat, lng, cat: 'phonhau', ts: (o && o.ts) || 1000, n: (o && o.n) || 0, win: (o && o.win) || 0, del: (o && o.del) || 0, quan: 'Bình Tân' });
+const P = (id, name, lat, lng, o) => cleanPick({ id, name, lat, lng, cat: 'phonhau', ts: (o && o.ts) || 1000, n: (o && o.n) || 0, win: (o && o.win) || 0, del: (o && o.del) || 0, xe: (o && o.xe) || '', quan: 'Bình Tân' });
 const TR = (id, key, ts, win) => cleanTrip({ id, key, ts, win, cat: 'phonhau', hour: 22, band: 'vang', quan: 'Bình Tân', p: 0.7 });
 const H = (k, ts, on) => cleanHidden({ k, ts, on });
 const Z = (key, ten, ts, del) => cleanZone({ key, ten, lat: +key.split(',')[0], lng: +key.split(',')[1], r: 4000, ts, del, rev: 'AAA1111', n: 40 });
@@ -324,6 +331,24 @@ T('BỔ SUNG · dữ liệu rác từ ngoài bị chặn ở máy chủ', () => 
   eq(cleanTrip({ id: '<script>', ts: 1, key: 'k' }).id, 'script', 'không lọc ký tự nguy hiểm trong id');
   const t = cleanTrip({ id: 'a', ts: 1, key: 'k', type: 'dong', win: 1 });
   eq(t.win, 0, 'quan sát "đang đông" bị tính thành cuốc thắng');
+});
+T('XE 1 · máy A khai "khách đi xe máy" → máy B nhận được lời khai', () => {
+  const m = merge([{ dev: 'a', picks: [P('a1', 'Ốc Quyên', 10.75, 106.61, { ts: 2000, xe: 'may' })], hidden: [], trips: [], zones: [] },
+                   { dev: 'b', picks: [], hidden: [], trips: [], zones: [] }]);
+  eq(m.picks[0].xe, 'may');
+});
+T('XE 2 · lời khai KHÔNG được cộng vào số cuốc đếm được (không bịa thành tích)', () => {
+  const m = merge([{ dev: 'a', picks: [P('a1', 'Q', 10.75, 106.61, { xe: 'oto' })], hidden: [], trips: [], zones: [] }]);
+  eq(m.picks[0].oto, 0, 'lời khai bị tính thành cuốc ô tô thật');
+  eq(m.picks[0].n, 0); eq(m.picks[0].win, 0);
+});
+T('XE 3 · khai lại loại xe → bản MỚI NHẤT thắng', () => {
+  const m = merge([{ dev: 'a', picks: [P('a1', 'Q', 10.75, 106.61, { ts: 1000, xe: 'may' })], hidden: [], trips: [], zones: [] },
+                   { dev: 'b', picks: [P('a1', 'Q', 10.75, 106.61, { ts: 9000, xe: 'oto' })], hidden: [], trips: [], zones: [] }]);
+  eq(m.picks[0].xe, 'oto');
+});
+T('XE 4 · loại xe lạ bị chặn ở máy chủ', () => {
+  eq(cleanPick({ id: 'x', lat: 10.75, lng: 106.61, xe: '<script>' }).xe, '');
 });
 T('KHU 1 · máy A tự nạp khu mới → khu vào sổ chung, máy B thấy ngay', () => {
   const m = merge([{ dev: 'a', picks: [], hidden: [], trips: [], zones: [Z('10.95,106.82', 'Biên Hoà · Đồng Nai', 5000)] },
@@ -432,6 +457,14 @@ if (BASE) {
   await Ta('THẬT 7 · mã tài xế sai bị từ chối', async () => {
     const j = await fetch(`${BASE}/api/pickups?code=xx`).then(r => r.json());
     eq(j.ok, false);
+  });
+  await Ta('THẬT 7b · máy A thêm quán kèm loại xe → máy B nhận đúng loại xe', async () => {
+    await post('devaaaaaaaa', { picks: [P('txe1', 'Quán Xe Máy', 10.7777, 106.6777, { ts: Date.now(), xe: 'may' })], hidden: [], trips: [] });
+    const b = await get();
+    const p = (b.picks || []).find(x => x.name === 'Quán Xe Máy');
+    ok(p, 'máy B không thấy quán vừa thêm');
+    eq(p.xe, 'may', 'loại xe không sang được máy kia');
+    eq(p.n, 0, 'lời khai bị tính thành cuốc thật');
   });
   await Ta('THẬT 8 · máy A tự nạp khu → máy B thấy khu trong sổ chung', async () => {
     const a = await post('devaaaaaaaa', { picks: [], hidden: [], trips: [],

@@ -62,7 +62,10 @@ function cleanPick(p) {
   const oto = Math.max(0, Math.min(win, Math.round(num(p.oto, 0, 9999) || 0)));
   const may = Math.max(0, Math.min(win, Math.round(num(p.may, 0, 9999) || 0)));
   const dong = Math.max(0, Math.min(9999, Math.round(num(p.dong, 0, 9999) || 0)));
-  return { id, name, cat, lat: +lat.toFixed(5), lng: +lng.toFixed(5), quan: str(p.quan, 40), ts, del: p.del ? 1 : 0, n, win, oto, may, dong };
+  /* `xe` = LOẠI XE TÀI XẾ KHAI lúc thêm quán ('oto'|'may'|'ca2'). Là LỜI KHAI,
+     KHÔNG phải cuốc đếm được — để riêng, tuyệt đối không cộng vào oto/may. */
+  const xe = (p.xe === 'oto' || p.xe === 'may' || p.xe === 'ca2') ? p.xe : '';
+  return { id, name, cat, lat: +lat.toFixed(5), lng: +lng.toFixed(5), quan: str(p.quan, 40), ts, del: p.del ? 1 : 0, n, win, oto, may, dong, xe };
 }
 function cleanHidden(h) {
   if (!h || typeof h !== 'object') return null;
@@ -118,7 +121,8 @@ function merge(files) {
     if (!cur) { byId.set(p.id, { ...p }); continue; }
     cur.n += p.n; cur.win += p.win;                    // mỗi máy ghi cuốc khác nhau → cộng dồn
     cur.oto += p.oto; cur.may += p.may; cur.dong += p.dong;
-    if (p.ts > cur.ts) { cur.name = p.name; cur.cat = p.cat; cur.lat = p.lat; cur.lng = p.lng; cur.quan = p.quan; cur.del = p.del; cur.ts = p.ts; }
+    if (p.ts > cur.ts) { cur.name = p.name; cur.cat = p.cat; cur.lat = p.lat; cur.lng = p.lng; cur.quan = p.quan; cur.del = p.del; cur.ts = p.ts; if (p.xe) cur.xe = p.xe; }
+    else if (p.xe && !cur.xe) cur.xe = p.xe;      // máy kia khai loại xe, máy này chưa → nhận
   }
   const all = [...byId.values()].sort((a, b) => a.ts - b.ts || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   // Gộp theo khoảng cách: 2 điểm <55m là cùng một quán (GPS lệch, hoặc 2 máy tự nạp cùng chỗ)
@@ -129,6 +133,7 @@ function merge(files) {
     if (!hit) { kept.push({ ...p }); continue; }
     hit.n += p.n; hit.win += p.win; hit.oto += p.oto; hit.may += p.may; hit.dong += p.dong;
     if (auto(hit.name) && !auto(p.name)) hit.name = p.name;   // tên thật thắng tên máy tự đặt
+    if (p.xe && (!hit.xe || p.ts > hit.ts)) hit.xe = p.xe;     // lời khai mới nhất thắng
     if (p.del && p.ts > hit.ts) hit.del = 1;
     if (p.id !== hit.id) tomb.push({ id: p.id, into: hit.id });   // máy khác biết mà xoá bản trùng
   }

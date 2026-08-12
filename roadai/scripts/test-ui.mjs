@@ -18,7 +18,21 @@ import { JSDOM } from 'jsdom';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let pass = 0, fail = 0;
-const T = (n, f) => { try { const r = f(); if (r === false) throw new Error('false'); console.log('  ✓ ' + n); pass++; } catch (e) { console.log('  ✗ ' + n + '\n      → ' + (e.message || e)); fail++; } };
+/* T() chỉ nhận hàm ĐỒNG BỘ. Đưa hàm async vào thì nó trả về Promise, `r === false`
+   không bao giờ đúng → test luôn báo ĐẠT dù bên trong hỏng. Đã dính đúng bẫy này
+   nên chặn thẳng: cần chờ thì dùng Ta(). */
+const T = (n, f) => {
+  try {
+    const r = f();
+    if (r && typeof r.then === 'function') throw new Error('hàm async phải dùng Ta(), không phải T()');
+    if (r === false) throw new Error('false');
+    console.log('  ✓ ' + n); pass++;
+  } catch (e) { console.log('  ✗ ' + n + '\n      → ' + (e.message || e)); fail++; }
+};
+const Ta = async (n, f) => {
+  try { const r = await f(); if (r === false) throw new Error('false'); console.log('  ✓ ' + n); pass++; }
+  catch (e) { console.log('  ✗ ' + n + '\n      → ' + (e.message || e)); fail++; }
+};
 const ok = (c, m) => { if (!c) throw new Error(m || 'sai'); };
 const eq = (a, b, m) => { if (a !== b) throw new Error(`${m || ''} — chờ ${JSON.stringify(b)}, nhận ${JSON.stringify(a)}`); };
 
@@ -176,6 +190,45 @@ T('MÃ QUÁN đổi khi kho điểm đổi, không đổi khi chỉ dựng lại
   const r = w.RADAR.metrics().best;
   w.RADAR.act.hideSpot(r.sp.id);
   ok(w.RADAR.banQuan().ma !== a || w.RADAR.spots().length === 0, 'ẩn điểm mà mã không đổi');
+});
+T('bấm ➕ → mở màn thêm quán, có ô tên + 3 lựa chọn loại xe', () => {
+  $('#btn-add').onclick();
+  ok(!$('#sheet-add').hidden, 'không mở màn thêm quán');
+  ok(!!$('#add-name'), 'thiếu ô gõ tên quán');
+  eq(w.document.querySelectorAll('#add-body .vch').length, 3, 'thiếu lựa chọn loại xe');
+  ok(!!$('#add-save'), 'thiếu nút lưu');
+});
+T('thiếu tên hoặc thiếu loại xe thì KHÔNG lưu (không đẻ điểm trống)', () => {
+  const n0 = w.RADAR.picks.my().length;
+  $('#add-save').onclick();                       // chưa gõ gì
+  eq(w.RADAR.picks.my().length, n0, 'lưu được điểm không tên');
+  $('#add-name').value = 'Quán Thử Nghiệm';
+  $('#add-save').onclick();                       // có tên, chưa chọn xe
+  eq(w.RADAR.picks.my().length, n0, 'lưu được điểm không rõ loại xe');
+});
+await Ta('chọn 🏍️ rồi lưu → có điểm mới, kèm loại xe, và xếp hàng đẩy lên máy chủ', async () => {
+  const n0 = w.RADAR.picks.my().length, q0 = w.SYNC.status().pending;
+  w.document.querySelectorAll('#add-body .vch')[0].onclick();   // xe máy
+  $('#add-name').value = 'Quán Thử Nghiệm';
+  await $('#add-save').onclick();
+  eq(w.RADAR.picks.my().length, n0 + 1, 'không lưu được');
+  const p = w.RADAR.picks.my()[w.RADAR.picks.my().length - 1];
+  eq(p.name, 'Quán Thử Nghiệm'); eq(p.xe, 'may', 'không lưu loại xe');
+  ok(w.SYNC.status().pending > q0, 'không xếp hàng đẩy lên máy chủ');
+});
+T('loại xe đã khai làm điểm đó lọc được ngay bằng 🏍️ (chưa cần cuốc nào)', () => {
+  w.RADAR.store.buildSpots(); w.RADAR.recompute();
+  const sp = w.RADAR.spots().find(s => s.name === 'Quán Thử Nghiệm');
+  ok(sp, 'điểm không vào kho');
+  const x = w.RADAR.util.xeCuaSpot(sp);
+  ok(x && x.chinh === 'may', 'không nhận ra loại xe: ' + JSON.stringify(x));
+  eq(x.khai, true, 'lời khai bị tính thành cuốc thật → app tự bịa thành tích');
+  eq(x.oto + x.may, 0, 'lời khai bị cộng vào số cuốc đếm được');
+});
+T('gõ tên trùng → gợi ý quán đã có, không bắt tạo chấm mới', () => {
+  const g = w.RADAR.act.timQuanGan('Quán Thử', 5);
+  ok(g.length && g[0].sp.name === 'Quán Thử Nghiệm', 'không gợi ý ra quán vừa thêm');
+  w.UI.closeSheets();
 });
 T('bấm 📝 Ghi cuốc → hiện 3 nút to', () => {
   $('#nav-log').onclick();

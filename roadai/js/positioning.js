@@ -163,7 +163,11 @@ function rebuildPicksAll() {
   }
   PICKS_ALL = kept;
 }
-const pickRow = p => [p.name, p.cat || 'phonhau', p.lat, p.lng, 13, 7, p.quan || 'Tôi thêm', 'mine', p.id];
+/* Ô thứ 18 (xeKhai) = LOẠI XE TÀI XẾ KHAI lúc thêm quán. Đây là LỜI KHAI, không
+   phải cuốc đếm được — cố ý để riêng, không cộng vào oto/may (thứ đếm từ cuốc
+   thật). Trộn hai cái là app tự bịa thành tích. */
+const pickRow = p => [p.name, p.cat || 'phonhau', p.lat, p.lng, 13, 7, p.quan || 'Tôi thêm', 'mine', p.id,
+  '', '', '', undefined, undefined, null, null, '', p.xe || ''];
 /* LỌC TRÙNG 3 kho điểm THẬT: chỉ gộp khi gần như chắc chắn LÀ MỘT CHỖ —
    cùng tên & dưới 250m, hoặc sát nhau dưới 35m. Gộp bừa theo khoảng cách sẽ nuốt
    quán thật (Nam Phương Lầu và Warning Zone Võ Văn Tần cách ~100m nhưng là 2 quán). */
@@ -189,16 +193,17 @@ const myPick = id => PICKS_ALL.find(p => p.id === id) || null;
 const ownPick = id => MY_PICKS.find(p => p.id === id) || null;
 function nearPick(list, lat, lng, m) { let best = null, bd = m == null ? PICK_MERGE_M : m; for (const p of list) { if (p.del) continue; const d = haversine({ lat, lng }, p); if (d < bd) { bd = d; best = p; } } return best; }
 /* Thêm điểm — TRÙNG CHỖ THÌ GỘP, không đẻ chấm mới. Trả về {p, gop}. */
-function upsertPick(name, lat, lng, cat, quan) {
+function upsertPick(name, lat, lng, cat, quan, xe) {
   lat = +(+lat).toFixed(5); lng = +(+lng).toFixed(5);
   const hit = nearPick(MY_PICKS, lat, lng);
   if (hit) {
     if (name && !isAutoName(name) && isAutoName(hit.name)) hit.name = name;
     if (cat) hit.cat = cat;
+    if (xe) hit.xe = xe;                 // khai lại loại xe thì lấy lời khai mới nhất
     hit.ts = Date.now(); hit.del = 0;
     savePicks(); return { p: hit, gop: true };
   }
-  const p = { id: 'm' + rid(7), name: (name || 'Điểm đón của tôi').trim().slice(0, 70), cat: cat || 'phonhau', lat, lng, quan: quan || 'Tôi thêm', ts: Date.now(), n: 0, win: 0, fix: 0, del: 0 };
+  const p = { id: 'm' + rid(7), name: (name || 'Điểm đón của tôi').trim().slice(0, 70), cat: cat || 'phonhau', lat, lng, quan: quan || 'Tôi thêm', xe: xe || '', ts: Date.now(), n: 0, win: 0, fix: 0, del: 0 };
   MY_PICKS.push(p); savePicks(); return { p, gop: false };
 }
 /* NẮN TOẠ ĐỘ: mỗi cuốc thật ở đây kéo điểm về đúng chỗ GPS đo được (trung bình động). */
@@ -364,7 +369,7 @@ let BASE_SPOTS = null;
 function buildSpots(data) {
   if (data && data.length) BASE_SPOTS = data;
   const src = mergeLearned(themVung(BASE_SPOTS && BASE_SPOTS.length ? BASE_SPOTS : OSM_SPOTS));
-  SPOTS = src.map(([name, cat0, lat, lng, size, homeKm, quan, source, pid, addr, prec, evi, gioMo, gioDong, sao, luot, ghiChu], i) => {
+  SPOTS = src.map(([name, cat0, lat, lng, size, homeKm, quan, source, pid, addr, prec, evi, gioMo, gioDong, sao, luot, ghiChu, xeKhai], i) => {
     const cat = autoCat(name, cat0);
     /* CHỐT CHẶN CUỐI: dòng nào KHÔNG ghi rõ nguồn đã kiểm thì coi là CHƯA KIỂM ĐƯỢC TÊN
        → app tự thay tên bằng địa chỉ thật, không bao giờ hiện tên chưa tra. */
@@ -375,6 +380,8 @@ function buildSpots(data) {
       id: 's' + i, pid: pid || null, name: nameOut, cat, cat0, lat, lng, size, homeKm, quan, source: src2,
       vung: (typeof pid === 'string' && pid.indexOf('vung:') === 0) ? pid.slice(5) : null,
       addr: addr || '', prec: prec || '', evi: evi || '', ghiChu: ghiChu || '',
+      // LỜI KHAI của tài xế lúc thêm quán — dùng khi chưa có cuốc thật nào để đếm
+      xeKhai: (xeKhai === 'oto' || xeKhai === 'may' || xeKhai === 'ca2') ? xeKhai : '',
       sao: sao || null, luot: luot || null, gioMo: isFinite(gioMo) ? +gioMo : null,
       gioThat: isFinite(gioDong),
       closeH: isFinite(gioDong) ? +gioDong : (CLOSE_H[cat] != null ? CLOSE_H[cat] : 0) + (Math.random() - .5) * 0.5,
@@ -602,8 +609,12 @@ function xeCuaSpot(sp) {
   const e = String(sp.evi || '');
   if (/xe hơi|xe hoi|ô ?tô|oto/i.test(e)) oto++;
   else if (/xe máy|xe may/i.test(e)) may++;
-  if (!oto && !may) return null;
-  return { oto, may, chinh: oto === may ? 'ca2' : (oto > may ? 'oto' : 'may') };
+  /* CHƯA có cuốc thật nào để đếm → dùng LỜI KHAI của tài xế lúc thêm quán, và
+     đánh dấu khai:true để màn hình nói rõ "tài xế khai" chứ không khoe thành
+     "N/M cuốc". Điểm mới thêm mà im lặng thì bộ lọc 🚗/🏍️ không lọc ra được nó,
+     tức là nhập xong như không nhập. */
+  if (!oto && !may) return sp.xeKhai ? { oto: 0, may: 0, chinh: sp.xeKhai, khai: true } : null;
+  return { oto, may, chinh: oto === may ? 'ca2' : (oto > may ? 'oto' : 'may'), khai: false };
 }
 const XE_ICON = { oto: '🚗', may: '🏍️', ca2: '🚗🏍️' };
 
@@ -1326,11 +1337,50 @@ function skipBest() {
   recompute();
   return G.metrics && G.metrics.best;
 }
-/* THÊM ĐIỂM — một chạm, không hỏi gì. Backend tự: GPS → gộp trùng → chấm điểm → lưu → đồng bộ. */
-function addPointHere(name, cat) {
-  const { p, gop } = upsertPick(name || '★ Điểm đón của tôi', G.you.lat, G.you.lng, cat || 'phonhau');
+/* THÊM QUÁN. Backend tự: gộp trùng trong 55m → chấm điểm → lưu → đồng bộ mọi máy. */
+function addPointHere(name, cat, xe) {
+  const { p, gop } = upsertPick(name || '★ Điểm đón của tôi', G.you.lat, G.you.lng, cat || 'phonhau', null, xe);
   buildSpots(); G.lastBestId = null; SKIPPED.clear(); recompute();
   return { p, gop };
+}
+/* Khai lại loại xe cho một quán đã có (kể cả quán từ bản đồ, không phải điểm tự nạp).
+   Quán bản đồ thì tạo một điểm tự nạp ngay tại đó — máy chủ sẽ gộp vào cùng chỗ. */
+function setXe(spotId, xe) {
+  const r = findR(spotId); if (!r) return false;
+  if (r.sp.source === 'mine' && r.sp.pid) {
+    let own = ownPick(r.sp.pid);
+    if (!own) { const m = myPick(r.sp.pid); if (!m) return false; own = { ...m, n: 0, win: 0, fix: 0, del: 0 }; MY_PICKS.push(own); }
+    own.xe = xe; own.ts = Date.now(); savePicks();
+  } else {
+    upsertPick(cleanName(r.sp), r.sp.lat, r.sp.lng, r.sp.cat, r.sp.quan, xe);
+  }
+  buildSpots(); recompute(); return true;
+}
+/* GỢI Ý QUÁN ĐÃ CÓ khi tài xế gõ tên — chống nhập trùng.
+   Bài học cũ: gõ tay mỗi lần một kiểu ("Ốc Quyên", "oc quyen", "Quán Ốc Quyên")
+   sinh 3 chấm khác nhau cho CÙNG một quán, không chấm nào đủ cuốc để kết luận gì.
+   Xếp theo: khớp tên → GẦN CHỖ ĐANG ĐỨNG → ưu tiên điểm mình đã nạp. */
+const boDau = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, ' ').trim();
+function timQuanGan(q, n) {
+  const k = boDau(q);
+  const ds = [];
+  for (const sp of SPOTS) {
+    const d = haversine(G.you, sp);
+    if (d > 3000 && !k) continue;                 // chưa gõ gì thì chỉ gợi ý quán trong 3km
+    let diem = 0;
+    if (k) {
+      const t = boDau(sp.name), a = boDau(sp.addr);
+      if (t.startsWith(k)) diem = 100; else if (t.includes(k)) diem = 70; else if (a.includes(k)) diem = 40;
+      else { const tu = k.split(' ').filter(Boolean); diem = (tu.length && tu.every(w => t.includes(w))) ? 55 : 0; }
+      if (!diem) continue;
+    }
+    diem += d < 150 ? 60 : d < 400 ? 40 : d < 1500 ? 20 : d < 5000 ? 8 : 0;
+    if (sp.source === 'mine') diem += 25;
+    else if (sp.source === 'butl') diem += 15;
+    ds.push({ sp, d, diem });
+  }
+  ds.sort((a, b) => b.diem - a.diem || a.d - b.d);
+  return ds.slice(0, n || 6);
 }
 function renamePick(pid, name) {
   const own = ownPick(pid) || myPick(pid); if (!own) return false;
@@ -1470,7 +1520,7 @@ const RADAR = {
     ls, lsSet, rid,
   },
   // hành động
-  act: { setOnline, setFilter, skipBest, addPointHere, renamePick, delPick, toggleFav, setNote,
+  act: { setOnline, setFilter, skipBest, addPointHere, renamePick, delPick, toggleFav, setNote, setXe, timQuanGan,
          hideSpot, unhideAll, fixSpot, resetBrain, logJob, logDong, locateNow, setYou,
          refreshSpots, hardResync, enableNotif, notifyBest, fetchWeather },
   // tiện ích dùng chung

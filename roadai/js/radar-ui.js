@@ -543,7 +543,7 @@ const UI = (() => {
         <span>${U.fmtDist(r.dist)} · ${U.fmtMin(r.eta)}</span>
         ${r.emp && r.emp.n ? `<span>✅ ${r.emp.win}/${r.emp.n} cuốc thật</span>` : ''}
         ${bb ? `<span>${bb.ico} ${bb.vi}</span>` : ''}
-        ${x ? `<span>${K.XE_ICON[x.chinh]}</span>` : ''}
+        ${x ? `<span>${K.XE_ICON[x.chinh]}${x.khai ? ' khai' : ` ${Math.max(x.oto, x.may)}/${x.oto + x.may}`}</span>` : ''}
         ${r.sp.cat !== 'diemdon' ? `<span>🕛 tan ${U.fmtClose(r.sp.closeH)}</span>` : ''}
       </div>
       ${note ? `<div class="pop-n">📝 ${esc(note)}</div>` : ''}
@@ -595,24 +595,73 @@ const UI = (() => {
     if (id === '#sheet-set') paintSet();
     if (id === '#sheet-diag') paintDiag();
     if (id === '#sheet-why') paintWhy();
+    if (id === '#sheet-add') paintAdd();
   }
   function closeSheets() { $$('.sheet').forEach(s => s.hidden = true); document.body.classList.remove('sheet-open'); }
 
-  /* ═════════════ THÊM ĐIỂM — MỘT CHẠM (§8, §9) ═════════════
-     Tài xế chỉ thấy: "Đang xác định vị trí…" → "✓ Đã ghi nhận điểm đón."
-     Phía sau: GPS → gộp trùng trong 55m → chấm điểm → lưu → đẩy lên máy chủ → mọi máy thấy. */
-  let adding = false;
-  async function addHere() {
-    if (adding) return; adding = true;
-    toast('Đang xác định vị trí…', 6000);
+  /* ═════════════ THÊM QUÁN (§8, §9) ═════════════
+     Hỏi đúng HAI thứ tài xế biết mà máy không đoán được: TÊN QUÁN và KHÁCH Ở ĐÂY
+     THƯỜNG ĐI XE GÌ. Còn lại chạy ngầm hết: GPS → gộp trùng 55m → chấm điểm →
+     lưu → đẩy lên máy chủ → mọi máy đang mở app đều có.
+     Gõ tên thì gợi ý quán ĐÃ CÓ gần đây — chống chuyện cùng một quán bị nhập 3
+     kiểu tên thành 3 chấm, không chấm nào đủ cuốc để kết luận gì. */
+  let addXe = '', addBusy = false;
+  function openAdd() {
+    addXe = '';
+    openSheet('#sheet-add');
+    A.locateNow().then(() => paintAdd());     // lấy GPS ngầm, không chặn tay tài xế
+    paintAdd();
+    setTimeout(() => { const i = $('#add-name'); if (i) i.focus(); }, 150);
+  }
+  function paintAdd() {
+    const el = $('#add-body'); if (!el || $('#sheet-add').hidden) return;
+    const q = (($('#add-name') && $('#add-name').value) || '').trim();
+    const goi = A.timQuanGan(q, 5);
+    const veh = (k, ico, lbl) => `<button data-xe="${k}" class="vch${addXe === k ? ' on' : ''}">${ico}<span>${lbl}</span></button>`;
+    el.innerHTML = `
+      <input id="add-name" class="inp" type="search" autocomplete="off" placeholder="Tên quán…" value="${esc(q)}" />
+      ${goi.length ? `<div class="goi">${goi.map(x => `<button class="goi-r" data-sp="${x.sp.id}">
+          <b>${esc(U.cleanName(x.sp))}</b><small>${esc(x.sp.addr || K.CAT_VI[x.sp.cat] || '')} · cách ${U.fmtDist(x.d)}</small></button>`).join('')}
+        </div><p class="hint">Quán đã có sẵn thì bấm vào dòng trên — app gộp vào đúng chỗ đó thay vì tạo chấm trùng.</p>` : ''}
+
+      <h4>Khách ở đây thường đi</h4>
+      <div class="vehs">${veh('may', '🏍️', 'Xe máy')}${veh('oto', '🚗', 'Ô tô')}${veh('ca2', '🚗🏍️', 'Cả hai')}</div>
+
+      <div class="dev-row"><span>Vị trí</span><b>${G.hasGps ? '📍 GPS · ' + G.you.lat.toFixed(5) + ', ' + G.you.lng.toFixed(5) : '⏳ đang lấy GPS…'}</b></div>
+      <button id="add-save" class="more"${addBusy ? ' disabled' : ''}>${addBusy ? '⏳ ĐANG LƯU…' : 'LƯU QUÁN'}</button>
+      <p class="hint">Lưu xong app đẩy lên kho chung ngay — máy còn lại đang mở app sẽ có quán này trong khoảng 12 giây.</p>`;
+    const inp = $('#add-name');
+    if (inp) { inp.oninput = () => { clearTimeout(inp._t); inp._t = setTimeout(paintAdd, 220); }; }
+    $$('#add-body .vch').forEach(b => b.onclick = () => { addXe = addXe === b.dataset.xe ? '' : b.dataset.xe; paintAdd(); });
+    $$('#add-body .goi-r').forEach(b => b.onclick = () => chonQuanCo(b.dataset.sp));
+    $('#add-save').onclick = luuQuan;
+  }
+  // Chọn quán đã có → chỉ cập nhật loại xe cho nó, KHÔNG đẻ chấm mới
+  function chonQuanCo(id) {
+    const r = RADAR.findR(id); if (!r) return;
+    if (!addXe) { toast('Chọn khách ở đây đi xe máy hay ô tô trước'); return; }
+    A.setXe(id, addXe); SYNC.dirty('pick', id);
+    closeSheets();
+    toast(`✓ ${U.cleanName(r.sp)} · khách đi ${addXe === 'oto' ? 'ô tô' : addXe === 'may' ? 'xe máy' : 'cả hai'}`, 3600);
+    if (map) map.setView([r.sp.lat, r.sp.lng], Math.max(16, map.getZoom()));
+  }
+  async function luuQuan() {
+    if (addBusy) return;
+    const nm = (($('#add-name') && $('#add-name').value) || '').trim();
+    if (!nm) { toast('Gõ tên quán đã'); const i = $('#add-name'); if (i) i.focus(); return; }
+    if (!addXe) { toast('Chọn khách ở đây đi xe máy hay ô tô'); return; }
+    addBusy = true; paintAdd();
     try {
-      await A.locateNow();
-      const { p, gop } = A.addPointHere();
+      if (!G.hasGps) await A.locateNow();
+      const { p, gop } = A.addPointHere(nm, 'phonhau', addXe);
       SYNC.dirty('pick', p.id);
-      toast(gop ? '✓ Đã ghi nhận (gộp vào điểm có sẵn)' : '✓ Đã ghi nhận điểm đón.', 3000);
+      await SYNC.push();                       // đẩy lên NGAY, không đợi chu kỳ
+      closeSheets();
+      toast(gop ? `✓ Đã gộp vào “${U.cleanName({ name: p.name })}” — đã đồng bộ`
+                : `✓ Đã lưu “${nm}” · ${K.XE_ICON[addXe]} — đã đồng bộ`, 4000);
       if (map) map.setView([p.lat, p.lng], Math.max(16, map.getZoom()));
-    } catch (e) { toast('Chưa lấy được vị trí — thử lại giúp em', 3400); }
-    finally { adding = false; }
+    } catch (e) { toast('Lưu được vào máy, chưa đẩy lên được — app sẽ tự gửi khi có mạng', 4200); closeSheets(); }
+    finally { addBusy = false; }
   }
 
   /* ═════════════ CÀI APP ═════════════ */
@@ -663,7 +712,7 @@ const UI = (() => {
       toast(ok ? '📍 Đã lấy đúng vị trí' : 'Chưa lấy được GPS — kéo chấm xanh tới chỗ bạn đứng', 3600);
       if (ok) centerMap(true);
     };
-    $('#btn-add').onclick = addHere;
+    $('#btn-add').onclick = openAdd;
     $('#nav-log').onclick = () => {
       const r = (G.metrics && G.metrics.best) || null;
       if (!r) return toast('Chưa có điểm nào để ghi');

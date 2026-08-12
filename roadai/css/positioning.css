@@ -221,6 +221,24 @@ body.sheet-open .fab,body.sheet-open .newzone{opacity:0;pointer-events:none}
 .why-grid b{display:block;font-size:15px;font-weight:800}
 .why-grid span{font-size:10px;color:var(--sub)}
 
+/* THÊM QUÁN — ô gõ tên, gợi ý quán đã có, chọn loại xe */
+.inp{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:14px;color:var(--txt);
+  font-size:16px;padding:15px 14px;outline:0;-webkit-appearance:none}
+.inp:focus{border-color:var(--brand)}
+.inp::placeholder{color:var(--sub)}
+.goi{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.goi-r{text-align:left;padding:11px 12px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);width:100%}
+.goi-r b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.goi-r small{display:block;font-size:11px;color:var(--sub);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.goi-r:active{border-color:var(--brand)}
+.vehs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.vch{display:flex;flex-direction:column;align-items:center;gap:5px;min-height:74px;justify-content:center;
+  border-radius:14px;background:var(--panel2);border:2px solid var(--line);color:var(--sub);font-size:26px}
+.vch span{font-size:12.5px;font-weight:700}
+.vch.on{border-color:var(--brand);background:rgba(45,212,191,.14);color:var(--txt)}
+.vch:active{transform:scale(.97)}
+.more[disabled]{opacity:.6}
+
 /* CÔNG TẮC */
 .sw{display:flex;align-items:center;gap:12px;padding:14px 4px;border-bottom:1px solid var(--line);
   font-size:14.5px;cursor:pointer}
