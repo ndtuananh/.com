@@ -163,15 +163,32 @@ const UI = (() => {
         continue;
       }
       const r = c.solo, t = pinTone(r), real = r.sp.source === 'butl' || r.sp.source === 'mine';
-      const cls = 'pin' + (r.isBest ? ' pin-best' : '') + (real ? ' pin-real' : '') + (r.open ? '' : ' pin-off');
-      const sz = r.isBest ? 54 : 40;
+      /* HẠNG trong bảng xếp hạng DUY NHẤT (byHot) — đây là thứ trả lời "khu nào
+         đáng đứng". Giờ vắng thì mọi quán đều 2%: con số đúng nhưng nhìn vào
+         không biết đi đâu. Hạng ①②③ vẫn chỉ ra được chỗ tốt nhất quanh mình,
+         mà không phải bịa cho con số % đẹp lên. */
+      const hang = r.hotRank != null && r.hotRank < 3 ? r.hotRank + 1 : 0;
+      const cls = 'pin' + (r.isBest ? ' pin-best' : hang ? ' pin-top' : '') + (real ? ' pin-real' : '') + (r.open ? '' : ' pin-off');
+      const sz = r.isBest ? 56 : hang ? 46 : 40;
       const face = r.open
-        ? `<b>${r.hotScore}<i>%</i></b>` + (r.isBest ? '<span class="pin-star">⭐</span>' : r.p >= 0.5 ? '<span class="pin-star">🔥</span>' : '')
+        ? `<b>${r.hotScore}<i>%</i></b>` +
+          (r.isBest ? '<span class="pin-star">⭐</span>'
+           : hang ? `<span class="pin-rank">${hang}</span>`
+           : r.p >= 0.5 ? '<span class="pin-star">🔥</span>' : '')
         : '<b class="pin-x">·</b>';
       const icon = L.divIcon({ className: '', iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
         html: `<div class="${cls}" style="--c:${t.c}">${face}</div>` });
-      L.marker([r.sp.lat, r.sp.lng], { icon, zIndexOffset: r.isBest ? 1000 : real ? 600 : r.tier * 100 })
+      L.marker([r.sp.lat, r.sp.lng], { icon, zIndexOffset: r.isBest ? 1000 : hang ? 900 : real ? 600 : r.tier * 100 })
         .addTo(pinLayer).on('click', () => openSpot(r));
+    }
+    /* 🅿️ ĐIỂM CHỜ TỐI ƯU — chỗ đứng giữa cụm quán để với tới nhiều chỗ cùng lúc.
+       Đây mới đúng là "vị trí tốt nhất để đứng"; bản refactor trước làm mất nó. */
+    const w = m && m.wait && m.wait.cnt >= 3 ? m.wait : null;
+    if (w && G.showForecast && b.contains([w.center.lat, w.center.lng])) {
+      const wi = L.divIcon({ className: '', iconSize: [46, 46], iconAnchor: [23, 23],
+        html: '<div class="pin pin-wait"><b>🅿️</b></div>' });
+      L.marker([w.center.lat, w.center.lng], { icon: wi, zIndexOffset: 950 }).addTo(pinLayer)
+        .on('click', () => toast(`🅿️ Đứng giữa cụm ${w.cnt} điểm · cách ${U.fmtDist(w.distYou)} — phủ nhiều chỗ cùng lúc`, 4600));
     }
   }
   /* Nền: vùng phủ sóng 5km + quầng nhiệt + đường tới điểm.
@@ -180,10 +197,17 @@ const UI = (() => {
   function drawRings(m) {
     if (!map || !m) return;
     const sig = [G.you.lat.toFixed(4), G.you.lng.toFixed(4), G.showForecast ? 1 : 0,
-      m.best ? m.best.sp.id : '-', m.route ? m.route.seq.map(r => r.sp.id).join('') : '-'].join('|');
+      m.best ? m.best.sp.id : '-', m.route ? m.route.seq.map(r => r.sp.id).join('') : '-',
+      m.wait ? m.wait.center.lat.toFixed(4) : '-'].join('|');
     if (sig === lastRing) return;
     lastRing = sig;
     ringLayer.clearLayers(); lineLayer.clearLayers();
+    // vòng đi bộ 750m quanh điểm chờ tối ưu
+    const w0 = m.wait && m.wait.cnt >= 3 ? m.wait : null;
+    if (w0 && G.showForecast) {
+      L.circle([w0.center.lat, w0.center.lng], { radius: 750, color: '#0b1220', weight: 7, opacity: .45, fillOpacity: 0, interactive: false }).addTo(ringLayer);
+      L.circle([w0.center.lat, w0.center.lng], { radius: 750, color: '#fcd34d', weight: 2.5, opacity: .95, dashArray: '8 7', fillColor: '#fbbf24', fillOpacity: .1, interactive: false }).addTo(ringLayer);
+    }
     // vùng phủ sóng — viền tối lót dưới nên nổi hẳn trên bản đồ đêm
     L.circle([G.you.lat, G.you.lng], { radius: K.COVER_R, color: '#04121f', weight: 8, opacity: .5, fillOpacity: 0, interactive: false }).addTo(ringLayer);
     L.circle([G.you.lat, G.you.lng], { radius: K.COVER_R, color: '#7dd3fc', weight: 3, opacity: .9, dashArray: '14 10', fillColor: '#38bdf8', fillOpacity: .05, interactive: false }).addTo(ringLayer);
@@ -237,15 +261,22 @@ const UI = (() => {
       <div class="c-top" style="--c:${t.c}"><span class="c-tag">${head}</span>
         <button id="c-why" class="c-why">Vì sao?</button></div>
       <div class="c-main">
-        <div class="c-name"><b>${esc(d.recommended_name)}${veh}</b>
-          <small>${esc(d.recommended_area)}${d.here ? ' · bạn đang ở đây' : ` · ${d.distance} km · ${d.eta} phút`}</small></div>
+        <button id="c-name" class="c-name"><b>${esc(d.recommended_name)}${veh}</b>
+          <small>${esc(d.recommended_area)}${d.here ? ' · bạn đang ở đây' : ` · ${d.distance} km · ${d.eta} phút`}</small></button>
         <div class="c-p" style="--c:${t.c}"><b>${d.demand_score}<i>%</i></b><small>trong 30 phút</small></div>
       </div>
+      ${d.peak ? `<button id="c-peak" class="c-peak">⏰ <b>${esc(d.peak.at)}</b> chỗ này lên <b>${d.peak.p}%</b>${d.peak.name !== d.recommended_name ? ` ở <b>${esc(d.peak.name)}</b>` : ''} — nghỉ tới đó</button>` : ''}
+      ${!d.peak && d.wait && !d.here ? `<button id="c-wait" class="c-peak">🅿️ Đứng giữa cụm <b>${d.wait.n} điểm</b> · cách ${d.wait.km} km — phủ nhiều chỗ cùng lúc</button>` : ''}
       <div class="c-act">
         <a id="c-go" class="c-go" href="${esc(d.nav)}" target="_blank" rel="noopener">${d.here ? '🧭 MỞ BẢN ĐỒ' : 'ĐI ĐẾN'}</a>
         <button id="c-skip" class="c-alt" title="Đề xuất điểm khác">↻</button>
       </div>`;
     $('#c-why').onclick = () => openSheet('#sheet-why');
+    // Bấm tên → bản đồ bay tới đúng chỗ đó. Điểm tốt nhất hay nằm ngoài khung
+    // đang nhìn (4km), tài xế nhìn bản đồ toàn 2% mà không thấy ⭐ đâu.
+    $('#c-name').onclick = () => { const r = RADAR.findR(d.spot_id); if (r) { map.setView([r.sp.lat, r.sp.lng], Math.max(15, map.getZoom())); openSpot(r); } };
+    const pk = $('#c-peak'); if (pk) pk.onclick = () => openSheet('#sheet-why');
+    const wt = $('#c-wait'); if (wt) wt.onclick = () => { map.setView([d.wait.lat, d.wait.lng], Math.max(15, map.getZoom())); toast(`🅿️ Đứng đây phủ ${d.wait.n} điểm · ~${d.wait.eta} phút chạy tới`, 4200); };
     $('#c-skip').onclick = () => {
       const nb = A.skipBest();
       toast(nb ? '↪ ' + U.cleanName(nb.sp) : 'Đã xem hết điểm gần đây');
@@ -299,10 +330,12 @@ const UI = (() => {
     el.innerHTML = `
       <div class="why-hero"><b>${d.demand_score}%</b><span>Khả năng có khách trong 30 phút<br>tại <b>${esc(d.recommended_name)}</b></span></div>
       <div class="why-rows">
+        ${d.peak ? `<div class="why-r"><span>⏰</span>Quanh đây giờ này gần như không ai gọi lái hộ. Đáng đi nhất là <b>${esc(d.peak.at)}</b> — lúc đó <b>${esc(d.peak.name)}</b> lên <b>${d.peak.p}%</b>. Con số này chạy đúng công thức đang dùng, chỉ đổi giờ; tới giờ mở app ra sẽ thấy y hệt.</div>` : ''}
         ${d.reasons.map(r => `<div class="why-r"><span>${r.ico}</span>${esc(r.t)}</div>`).join('') || '<div class="why-r"><span>ℹ️</span>Chưa đủ cuốc thật ở đây để nói chắc — ghi vài cuốc nữa app sẽ nói rõ hơn.</div>'}
         ${w ? `<div class="why-r"><span>🅿️</span>Đứng giữa cụm <b>${w.cnt} điểm</b> (cách ${U.fmtDist(w.distYou)}) thì phủ được nhiều chỗ cùng lúc —
           <a href="${esc(U.gmapsDir(w.center.lat, w.center.lng))}" target="_blank" rel="noopener">mở chỗ đó</a></div>` : ''}
       </div>
+      <p class="hint">Trên bản đồ: ⭐ là chỗ tốt nhất, ② ③ là hai chỗ kế tiếp, 🅿️ là chỗ đứng giữa cụm. Giờ vắng thì mọi chỗ đều vài phần trăm — con số đúng như vậy, nhưng thứ hạng vẫn chỉ ra được chỗ nào hơn.</p>
       <div class="why-grid">
         <div><b>${d.distance} km</b><span>Khoảng cách</span></div>
         <div><b>${d.eta} phút</b><span>Tới nơi</span></div>

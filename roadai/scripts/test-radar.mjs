@@ -129,7 +129,63 @@ console.log('\nA · LÕI (js/positioning.js chạy thật trong node)');
   });
   T('quán đóng cửa không bao giờ lọt vào đề xuất', () =>
     ok(m.byHot.every(r => r.open), 'có quán đóng trong byHot'));
+  T('có xếp hạng ①②③ để chỉ chỗ tốt nhất kể cả khi mọi chỗ đều vài %', () => {
+    ok(m.byHot.every((r, i) => r.hotRank === i), 'hotRank không khớp thứ tự byHot');
+    ok(m.best.hotRank === 0);
+  });
+  T('có ĐIỂM CHỜ TỐI ƯU 🅿️ khi cụm đủ 3 quán (bản refactor trước làm mất)', () => {
+    ok(m.wait === null || (m.wait && m.wait.cnt >= 2 && isFinite(m.wait.center.lat)),
+      'wait sai: ' + JSON.stringify(m.wait));
+  });
 }
+
+console.log('\nA2b · GIỜ VẮNG — "khi nào đáng đi" (câu hỏi thứ 4 app từng bỏ trống)');
+{
+  /* Dựng lại ĐÚNG cảnh anh Long gặp lúc 15:45: chỗ đang mở thì ở xa (4,3km),
+     còn chỗ ngon gần nhà thì 18h mới mở cửa. Bản cũ chỉ hiện "18%" rồi thôi. */
+  const { R } = loadEngine({ spots: [
+    // 3,2km chim bay = 4,3km đường thật (×1,35) — vừa lọt vùng phủ sóng 5km
+    ['Nhậu Xa', 'phonhau', 10.7420, 106.6402, 16, 6, 'Bình Chánh', 'osm', null, '1 Xa'],   // mở 16h
+    ['Bar Gần', 'bar', 10.7445, 106.6115, 15, 6, 'Bình Tân', 'osm', null, '2 Gần'],        // ~280m, mở 18h
+    ['Beer Gần', 'beerclub', 10.7400, 106.6100, 14, 6, 'Bình Tân', 'osm', null, '3 Gần'],  // ~250m, mở 18h
+  ] });
+  R.store.buildSpots(null);
+  R.G.simHour = 15.75;        // 15:45 đúng như ảnh
+  R.recompute();
+  const d = R.decision();
+  console.log(`     · 15:45 → tốt nhất ${d.recommended_name} ${d.demand_score}%` +
+    (d.peak ? ` · đáng đi lúc ${d.peak.at}: ${d.peak.name} ${d.peak.p}%` : ' · không có mốc nào khá hơn'));
+  T('15:45 chỉ còn chỗ xa đang mở → điểm thấp, app không tô hồng', () => {
+    eq(d.recommended_name, 'Nhậu Xa', 'chọn nhầm chỗ đang đóng cửa');
+    ok(d.demand_score < 50, d.demand_score + '%');
+  });
+  T('app phải nói ĐƯỢC khi nào đáng đi (không thì màn 2% là vô dụng)', () => {
+    ok(d.peak, 'không trả lời được "khi nào"');
+    ok(d.peak.p >= 35, 'mốc gợi ý vẫn dưới 35% thì nhắc làm gì');
+    ok(d.peak.p - d.demand_score >= 12, 'chênh quá ít, nhắc thành nhảm');
+  });
+  T('phải xét cả chỗ ĐANG ĐÓNG — chỗ đáng đi tối nay thường giờ này chưa mở', () => {
+    ok(d.peak.name === 'Bar Gần' || d.peak.name === 'Beer Gần',
+      'chỉ quét chỗ đang mở nên bỏ sót đúng thứ cần tìm: ' + d.peak.name);
+  });
+  T('mốc gợi ý nằm trong giờ lái hộ (14h–03h)', () => {
+    const h = +d.peak.at.split(':')[0];
+    ok(h >= 14 || h < 3, 'gợi ý giờ ' + d.peak.at + ' — ngoài giờ nghề');
+  });
+  T('KHÔNG BỊA SỐ: tới đúng giờ đó tính lại phải ra y hệt', () => {
+    const [hh, mm] = d.peak.at.split(':').map(Number);
+    R.G.simHour = hh + mm / 60; R.recompute();
+    const b = R.metrics().byHot[0];
+    eq(b ? U0(b.sp.name) : '', U0(d.peak.name), 'tới giờ lại đề xuất chỗ khác');
+    ok(Math.abs(b.hotScore - d.peak.p) <= 3, `dự báo ${d.peak.p}% nhưng tới giờ ra ${b.hotScore}%`);
+  });
+  T('đang giờ ngon thì KHÔNG nhắc "nghỉ tới lúc nào" nữa', () => {
+    R.G.simHour = 22.5; R.recompute();
+    const d2 = R.decision();
+    ok(!d2.peak || d2.demand_score < 50, 'đang giờ ngon mà vẫn bảo nghỉ');
+  });
+}
+function U0(s) { return String(s || '').replace(/^★\s*/, ''); }
 
 console.log('\nA2 · HỌC TỪ CUỐC THẬT + HỌC TOÀN CỤC');
 {

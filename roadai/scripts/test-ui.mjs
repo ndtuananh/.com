@@ -125,10 +125,21 @@ T('màn chính KHÔNG lộ chữ kỹ thuật cho tài xế (§1)', () => {
     ok(!t.includes(bad), 'lộ "' + bad + '" ra màn chính');
 });
 
-/* ĐẾM CHỮ — mục tiêu lần refactor này là giảm 50–70% chữ trên màn hình */
-const chuMoi = ['#statusbar', '#card', '#filters', '#nav'].reduce((s, id) => s + txt(id).length, 0);
-console.log(`     · chữ trên màn chính: ${chuMoi} ký tự`);
-T('màn chính dưới 220 ký tự (bản cũ ~950)', () => ok(chuMoi < 220, chuMoi + ' ký tự'));
+/* ĐẾM CHỮ — yêu cầu là giảm 50–70% so với bản cũ (~950 ký tự → phải dưới ~475).
+   Đo HAI trường hợp, vì màn hình có một dòng chỉ hiện khi cần:
+     · nền: lúc đang có điểm đáng đi, không cần nhắc gì thêm;
+     · xấu nhất: giờ vắng, có thêm dòng "khi nào đáng đi" — dòng này đắt chữ
+       nhưng là thứ duy nhất cứu màn hình toàn 2% khỏi vô dụng, nên đáng giữ. */
+const demChu = () => ['#statusbar', '#card', '#filters', '#nav'].reduce((s, id) => s + txt(id).length, 0);
+const coPeak = !!$('#c-peak') || !!$('#c-wait');
+const chuMoi = demChu();
+console.log(`     · chữ trên màn chính: ${chuMoi} ký tự${coPeak ? ' (có dòng gợi ý giờ)' : ''}`);
+T('màn chính giảm ít nhất 65% so với bản cũ (~950 ký tự)', () => ok(chuMoi < 335, chuMoi + ' ký tự'));
+T('bỏ dòng gợi ý giờ ra thì màn chính dưới 220 ký tự', () => {
+  const pk = $('#c-peak') || $('#c-wait');
+  const rieng = pk ? (pk.textContent || '').replace(/\s+/g, ' ').trim().length : 0;
+  ok(chuMoi - rieng < 220, (chuMoi - rieng) + ' ký tự khi không có dòng gợi ý');
+});
 
 console.log('\nTHAO TÁC · bấm thử từng nút như tài xế');
 T('bấm "Vì sao?" → mở đúng màn giải thích, có lý do', () => {

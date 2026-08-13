@@ -111,7 +111,12 @@ const SERVICE_FROM = 14;        // đề xuất + báo về điện thoại từ
 function withinService(hour) { return hour >= SERVICE_FROM || hour < 3; }
 function isOpen(sp, hour) {     // quán ĐANG MỞ? (xử lý qua nửa đêm) — ưu tiên giờ THẬT từ bản đồ
   let o = sp.gioMo != null ? sp.gioMo : (OPEN_H[sp.cat] != null ? OPEN_H[sp.cat] : 16), c = sp.closeH;
-  if (c <= o) c += 24; let h = hour; if (h < o) h += 24;
+  if (c <= o) c += 24;
+  /* Dời sang ngày hôm sau khi giờ hiện tại nằm TRƯỚC CẢ khung dung sai 30 phút.
+     Bản cũ so `h < o`: quán mở 16h thì lúc 15:45 bị dời thành 39:45 → luôn báo
+     ĐÓNG, tức là dòng "o - 0.5" bên dưới thành vô nghĩa. Đúng nửa tiếng trước
+     giờ mở là lúc tài xế cần biết để chạy tới đón đầu. */
+  let h = hour; if (h < o - 0.5) h += 24;
   return h >= o - 0.5 && h <= c + 0.25;
 }
 
@@ -848,6 +853,54 @@ function routeUrl(rt) {
   return `https://www.google.com/maps/dir/?api=1&origin=${G.you.lat},${G.you.lng}&destination=${dest}${wp}&travelmode=driving`;
 }
 
+/* ═══ KHI NÀO ĐÁNG ĐI — trả lời câu hỏi thứ 4 mà app đang bỏ trống ═══
+   15:45 mở app ra thì cả bản đồ là một biển "2%": đúng sự thật (giờ đó gần như
+   không ai gọi lái hộ) nhưng VÔ DỤNG, tài xế không biết nên nghỉ tới lúc nào.
+   Hàm này chạy CHÍNH công thức hiện tại ở các mốc 30 phút sắp tới — cùng mô hình,
+   cùng thang điểm, chỉ đổi giờ. KHÔNG phải con số bịa, và kiểm chứng được: tới
+   giờ đó mở app ra sẽ thấy đúng con số này.
+   Thời gian chạy tới nơi lấy theo hiện tại (giao thông tương lai thì không đoán) —
+   đây là số hạng phụ, không đổi thứ hạng.
+   Chỉ tính khi THẬT SỰ cần (điểm tốt nhất đang dưới ngưỡng nên đi) và nhớ lại theo
+   ô 15 phút, để không tốn máy mỗi 30 giây. */
+let _dbCache = null;
+function duBaoSom(m) {
+  const now = curHour();
+  /* Xét MỌI điểm trong vùng phủ sóng, kể cả điểm ĐANG ĐÓNG — vì chỗ đáng đi lúc
+     22h gần như luôn là chỗ giờ này chưa mở (bar, beer club mở 18h). Lấy m.cover
+     (chỉ gồm chỗ đang mở) là bỏ sót đúng thứ cần tìm. */
+  const set = m.raw.filter(r => r.dist <= COVER_R);
+  if (!set.length) return null;
+  const ck = Math.floor(now * 4) + '|' + set.length + '|' + G.dayType + '|' + Math.round(G.rain * 10) + '|' + (G.match ? 1 : 0);
+  if (_dbCache && _dbCache.ck === ck) return _dbCache.v;
+  let best = null;
+  for (let dh = 0.5; dh <= 9; dh += 0.5) {
+    const h = (((now + dh) % 24) + 24) % 24;
+    if (!withinService(h)) continue;
+    const hInt = Math.floor(h);
+    let maxL = 0.001;
+    const ls = [];
+    for (const r of set) {
+      const open = isOpen(r.sp, h);
+      const lam = open ? demandOf(r.sp, h) : 0;
+      if (lam > maxL) maxL = lam;
+      ls.push({ r, open, lam });
+    }
+    for (const x of ls) {
+      if (!x.open) continue;
+      const r = x.r, k = spotKey(r.sp);
+      const p = clamp(sigmoid(scoreOf({
+        sp: r.sp, open: true, eta: r.eta, dist: r.dist,
+        emp: r.emp, bl: bandLift(k, h), cho: choTaiCho(k, h),
+        feat: [1, clamp(x.lam / maxL, 0, 1), r.sEta, trendOf(r.sp, h), twinAffinity(r.sp.cat, hInt, k)],
+      })), 0.02, 0.92);
+      if (!best || p > best.p) best = { hour: h, p, sp: r.sp, after: dh };
+    }
+  }
+  _dbCache = { ck, v: best };
+  return best;
+}
+
 /* ═══════════════════ PHẦN 7 · KHUYẾN NGHỊ (thứ DUY NHẤT giao diện đọc) ═══════════════
    Giao diện KHÔNG được biết OSM/Overture/Digital Twin/feature/theta là gì.
    Nó nhận đúng một vật phẳng và vẽ ra. Muốn thêm gì cho tài xế thì thêm ở đây. */
@@ -887,7 +940,7 @@ function getDecision(m) {
     demand_score: 0, confidence: 0,
     recommended_area: '', recommended_name: '', recommended_addr: '',
     distance: 0, eta: 0, estimated_wait: 0, close_in: null,
-    vehicle: null, nav: '', spot_id: null, reasons: [], here: false,
+    vehicle: null, nav: '', spot_id: null, reasons: [], here: false, peak: null, wait: null,
     clock: fmtClose(now), temp: G.weather ? Math.round(G.weather.temp) : null,
     rain: Math.round(G.rain * 100), golden: isGolden(now),
   };
@@ -909,8 +962,25 @@ function getDecision(m) {
   const dist = (bestRouteDist(r) != null ? bestRouteDist(r) : r.dist) / 1000;
   const eta = bestRouteEta(r) != null ? bestRouteEta(r) : r.eta;
   const here = r.dist <= STAY_M;
+  /* Điểm tốt nhất đang dưới ngưỡng nên đi → nói luôn KHI NÀO đáng đi và đáng đi ĐÂU.
+     Chỉ nhắc khi giờ đó thật sự khá hơn hẳn (≥35% và hơn hiện tại ít nhất 12 điểm),
+     không thì thành câu nhảm "22h được 20%". */
+  let peak = null;
+  if (p < 50) {
+    const s = duBaoSom(m);
+    if (s && s.p >= 0.35 && s.p * 100 - p >= 12) peak = {
+      at: fmtClose(s.hour), p: Math.round(s.p * 100),
+      name: cleanName(s.sp), area: s.sp.quan || '', after: s.after,
+    };
+  }
+  /* ĐIỂM CHỜ TỐI ƯU 🅿️ — đứng giữa cụm quán để với tới nhiều chỗ cùng lúc.
+     Chỉ đề xuất khi nó phủ được từ 3 quán trở lên. */
+  const w = m.wait && m.wait.cnt >= 3 ? m.wait : null;
   return {
-    ...base, ok: true,
+    ...base, ok: true, peak,
+    wait: w ? { lat: w.center.lat, lng: w.center.lng, n: w.cnt,
+                km: +(w.distYou * ROAD_FACTOR / 1000).toFixed(1), eta: Math.round(w.eta),
+                nav: gmapsDir(w.center.lat, w.center.lng) } : null,
     status: p >= 50 ? 'HOT' : p >= 35 ? 'OK' : 'LOW',
     action: p < 35 ? 'WAIT' : here ? 'STAY' : 'MOVE',
     demand_score: p,
