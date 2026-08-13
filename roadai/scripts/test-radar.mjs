@@ -137,6 +137,18 @@ console.log('\nA · LÕI (js/positioning.js chạy thật trong node)');
     ok(m.wait === null || (m.wait && m.wait.cnt >= 2 && isFinite(m.wait.center.lat)),
       'wait sai: ' + JSON.stringify(m.wait));
   });
+  T('🅿️ phải có ĐƯỜNG DẪN và TÊN QUÁN trong cụm (đứng đó còn biết chạy đi đâu)', () => {
+    if (!d.wait) return;   // cụm chưa đủ 3 quán thì không đề xuất, đúng
+    ok(/^https:\/\/www\.google\.com\/maps\/dir/.test(d.wait.nav), 'thiếu đường dẫn tới chỗ đứng');
+    ok(Array.isArray(d.wait.spots) && d.wait.spots.length, 'không kể được quán nào trong cụm');
+    for (const s of d.wait.spots) {
+      ok(s.name && s.name.length, 'quán trong cụm không có tên');
+      ok(/^https:\/\/www\.google\.com\/maps\/dir/.test(s.nav), 'quán trong cụm thiếu đường dẫn riêng');
+      ok(s.m <= 750, 'quán ' + s.name + ' cách tâm cụm ' + s.m + 'm — ngoài bán kính đi bộ');
+      ok(s.p >= 2 && s.p <= 92, 'điểm P của quán trong cụm sai: ' + s.p);
+    }
+    ok(d.wait.spots.every((s, i, a) => !i || a[i - 1].p >= s.p), 'không xếp theo điểm P giảm dần');
+  });
 }
 
 console.log('\nA2b · GIỜ VẮNG — "khi nào đáng đi" (câu hỏi thứ 4 app từng bỏ trống)');

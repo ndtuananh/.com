@@ -55,7 +55,16 @@ function fakeL() {
   const L = new Proxy({}, { get(_, k) {
     if (k === 'map') return () => { rec.layers++; return self; };
     if (k === 'marker') return () => { rec.markers++; return self; };
-    if (k === 'popup') return () => { rec.popups++; return self; };
+    /* Popup phải là đối tượng THẬT tự trả về chính nó, không dùng Proxy chung —
+       Proxy chung trả về `self` nên chuỗi .setLatLng().setContent() rơi ra ngoài
+       và không ghi lại được nội dung. Đây là chỗ soi app định hiện gì cho tài xế. */
+    if (k === 'popup') return () => {
+      rec.popups++;
+      const P = { setLatLng: () => P, openOn: () => P, getElement: () => null,
+        on: () => P, addTo: () => P, remove: () => P, update: () => P,
+        setContent: h => { rec.popupHtml = h; return P; } };
+      return P;
+    };
     return () => self;
   } });
   return { L, rec };
@@ -201,6 +210,15 @@ T('MÃ QUÁN đổi khi kho điểm đổi, không đổi khi chỉ dựng lại
   const r = w.RADAR.metrics().best;
   w.RADAR.act.hideSpot(r.sp.id);
   ok(w.RADAR.banQuan().ma !== a || w.RADAR.spots().length === 0, 'ẩn điểm mà mã không đổi');
+});
+T('🅿️ điểm chờ tối ưu: bấm vào phải có ĐI ĐẾN + tên quán trong cụm', () => {
+  const d = w.RADAR.decision();
+  if (!d.wait) { console.log('      (cụm quanh vị trí thử chưa đủ 3 quán — bỏ qua)'); return true; }
+  w.UI.openWait();
+  const html = String(rec.popupHtml || '');
+  ok(/ĐI ĐẾN/.test(html), 'popup 🅿️ không có nút dẫn đường');
+  ok(/maps\/dir/.test(html), 'không có link Google Maps');
+  ok(/wlist|Đứng giữa cụm/.test(html), 'không kể tên quán trong cụm');
 });
 T('bấm ➕ → mở màn thêm quán, có ô tên + 3 lựa chọn loại xe', () => {
   $('#btn-add').onclick();

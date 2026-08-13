@@ -188,8 +188,37 @@ const UI = (() => {
       const wi = L.divIcon({ className: '', iconSize: [46, 46], iconAnchor: [23, 23],
         html: '<div class="pin pin-wait"><b>🅿️</b></div>' });
       L.marker([w.center.lat, w.center.lng], { icon: wi, zIndexOffset: 950 }).addTo(pinLayer)
-        .on('click', () => toast(`🅿️ Đứng giữa cụm ${w.cnt} điểm · cách ${U.fmtDist(w.distYou)} — phủ nhiều chỗ cùng lúc`, 4600));
+        .on('click', openWait);
     }
+  }
+  /* POPUP 🅿️ — phải có ĐI ĐẾN và phải kể tên quán trong cụm.
+     Trước đây bấm vào chỉ hiện một dòng chữ rồi thôi: biết là chỗ tốt mà không
+     có đường nào tới, cũng không biết đứng đó thì quanh mình có quán nào. */
+  function openWait() {
+    const d = G.decision, w = d && d.wait;
+    if (!w) return;
+    const ds = (w.spots || []).map(s => `<button class="wl" data-go="${s.id}">
+        <i>${s.p}<em>%</em></i>
+        <div><b>${esc(s.name)}${s.xe ? ' ' + K.XE_ICON[s.xe] : ''}</b><small>cách ${s.m} m${s.addr ? ' · ' + esc(s.addr) : ''}</small></div>
+        <span>›</span></button>`).join('');
+    const html = `<div class="pop">
+      <div class="pop-h" style="--c:#fcd34d"><b>🅿️ Điểm chờ tối ưu</b><em>${w.n}</em></div>
+      <div class="pop-s">Đứng giữa cụm <b>${w.n} quán</b> trong bán kính đi bộ 750 m · cách bạn ${w.km} km · ~${w.eta} phút</div>
+      <a class="pop-go" href="${esc(w.nav)}" target="_blank" rel="noopener">🧭 ĐI ĐẾN CHỖ ĐỨNG</a>
+      ${ds ? `<div class="wlist">${ds}</div>` : ''}
+      <div class="pop-n">Đây là chỗ ĐỨNG CHỜ giữa cụm, không phải địa chỉ quán — bấm tên quán ở trên để dẫn thẳng tới quán đó.</div>
+    </div>`;
+    const pop = L.popup({ className: 'sp-popup', maxWidth: 290, closeButton: false })
+      .setLatLng([w.lat, w.lng]).setContent(html).openOn(map);
+    let n = 0;
+    (function bind() {
+      const root = pop.getElement && pop.getElement();
+      if (!root) { if (n++ < 5) setTimeout(bind, 40); return; }
+      root.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
+        const r = RADAR.findR(b.dataset.go);
+        if (r) { map.closePopup(); map.setView([r.sp.lat, r.sp.lng], Math.max(16, map.getZoom())); openSpot(r); }
+      });
+    })();
   }
   /* Nền: vùng phủ sóng 5km + quầng nhiệt + đường tới điểm.
      Chỉ vẽ lại khi thứ liên quan đổi — không đụng tới layer chấm. */
@@ -276,7 +305,7 @@ const UI = (() => {
     // đang nhìn (4km), tài xế nhìn bản đồ toàn 2% mà không thấy ⭐ đâu.
     $('#c-name').onclick = () => { const r = RADAR.findR(d.spot_id); if (r) { map.setView([r.sp.lat, r.sp.lng], Math.max(15, map.getZoom())); openSpot(r); } };
     const pk = $('#c-peak'); if (pk) pk.onclick = () => openSheet('#sheet-why');
-    const wt = $('#c-wait'); if (wt) wt.onclick = () => { map.setView([d.wait.lat, d.wait.lng], Math.max(15, map.getZoom())); toast(`🅿️ Đứng đây phủ ${d.wait.n} điểm · ~${d.wait.eta} phút chạy tới`, 4200); };
+    const wt = $('#c-wait'); if (wt) wt.onclick = () => { map.setView([d.wait.lat, d.wait.lng], Math.max(15, map.getZoom())); openWait(); };
     $('#c-skip').onclick = () => {
       const nb = A.skipBest();
       toast(nb ? '↪ ' + U.cleanName(nb.sp) : 'Đã xem hết điểm gần đây');
@@ -774,7 +803,7 @@ const UI = (() => {
     syncBadge(SYNC.status());
   }
 
-  return { boot, paint, toast, syncBadge, centerMap, moveMe, openSheet, closeSheets, openSpot };
+  return { boot, paint, toast, syncBadge, centerMap, moveMe, openSheet, closeSheets, openSpot, openWait };
 })();
 if (typeof window !== 'undefined') window.UI = UI;
 document.addEventListener('DOMContentLoaded', () => UI.boot());

@@ -798,18 +798,22 @@ function optimalWait(m) {
     : pool;
   for (const c of cands) {
     let cl = 0, cnt = 0, sLat = 0, sLng = 0, wsum = 0;
+    const trong = [];
     const hang = dongDMAT(c.si);   // DMAT đánh chỉ số theo SPOTS, dùng si (không dùng vị trí trong raw)
     for (const r of m.raw) {
       const d = (hang && hang[r.si] != null) ? hang[r.si] : haversine(c.sp, r.sp);
-      if (d <= WALK && r.open) { const db = isZone(r.sp) ? 1.8 : 1, w = r.lambda * db * (1 - d / WALK); cl += r.lambda * db; cnt++; sLat += r.sp.lat * w; sLng += r.sp.lng * w; wsum += w; }
+      if (d <= WALK && r.open) { const db = isZone(r.sp) ? 1.8 : 1, w = r.lambda * db * (1 - d / WALK); cl += r.lambda * db; cnt++; sLat += r.sp.lat * w; sLng += r.sp.lng * w; wsum += w; trong.push(r); }
     }
     if (cnt < 2 || wsum <= 0) continue;
     const center = { lat: sLat / wsum, lng: sLng / wsum };
     const distYou = haversine(G.you, center);
     const eta = (distYou * ROAD_FACTOR / 1000) / Math.max(6, CITY_KMH * lerp(1, .72, congestionNow())) * 60;
     const score = cl / (1 + eta / 12);
-    if (!best || score > best.score) best = { center, cl, cnt, eta, distYou, score };
+    if (!best || score > best.score) best = { center, cl, cnt, eta, distYou, score, trong };
   }
+  /* GIỮ LẠI DANH SÁCH QUÁN TRONG CỤM. Đứng ở 🅿️ mà không biết quanh mình có quán
+     nào thì đứng để làm gì — tài xế cần tên quán cụ thể để còn chạy tới đón. */
+  if (best) best.trong = best.trong.sort((a, b) => b.p - a.p).slice(0, 6);
   return best;
 }
 /* CUNG ĐƯỜNG RÀ CUỐC: xâu chuỗi vài điểm mạnh nhất trong vùng phủ sóng thành 1 vòng
@@ -980,7 +984,13 @@ function getDecision(m) {
     ...base, ok: true, peak,
     wait: w ? { lat: w.center.lat, lng: w.center.lng, n: w.cnt,
                 km: +(w.distYou * ROAD_FACTOR / 1000).toFixed(1), eta: Math.round(w.eta),
-                nav: gmapsDir(w.center.lat, w.center.lng) } : null,
+                nav: gmapsDir(w.center.lat, w.center.lng),
+                // tên quán cụ thể trong cụm, để tài xế đứng đó biết chạy tới đâu
+                spots: (w.trong || []).map(r => ({
+                  id: r.sp.id, name: cleanName(r.sp), addr: r.sp.addr || '',
+                  p: r.hotScore, m: Math.round(haversine(w.center, r.sp)),
+                  xe: (xeCuaSpot(r.sp) || {}).chinh || null, nav: navUrl(r.sp),
+                })) } : null,
     status: p >= 50 ? 'HOT' : p >= 35 ? 'OK' : 'LOW',
     action: p < 35 ? 'WAIT' : here ? 'STAY' : 'MOVE',
     demand_score: p,
