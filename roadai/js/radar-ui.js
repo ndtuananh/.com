@@ -555,6 +555,12 @@ const UI = (() => {
       ${row('Quán đối tác BUTL', n(x => x.source === 'doitac'))}
       ${row('Bản đồ mở · tra được tên', n(x => x.source === 'osm'))}
       ${row('Bản đồ mở · chỉ có địa chỉ', n(x => x.source === 'osm-addr'))}
+      ${(() => { const q = RADAR.quanBo.info(); const nds = n(x => x.source === 'ds');
+        return row('Danh sách quán nhậu bổ sung', nds + (q ? ` · ${q.coGio || 0} quán có giờ đóng THẬT` : '')); })()}
+      ${(() => { const q = RADAR.quanBo.info(); if (!q) return '';
+        return row('Nguồn danh sách bổ sung', q.nguon === 'supabase' ? '🟢 Supabase' : '📦 bản tĩnh (kho đang ngủ)')
+             + row('Mã bản danh sách bổ sung', '#' + esc(q.rev || '—')); })()}
+      ${row('Quán có GIỜ ĐÓNG THẬT (không phải ước)', n(x => x.gioThat))}
       ${row('Dùng chung / tự thêm / khu tự nạp', c.shared + ' / ' + c.mine + ' / ' + c.vung)}
       ${row('Nguồn', esc(d.source || '—'))}
       ${row('Danh sách dùng chung cập nhật', d.updatedAt ? new Date(d.updatedAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '—')}

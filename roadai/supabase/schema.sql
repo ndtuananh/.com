@@ -45,6 +45,34 @@ create index if not exists butl_sync_code_idx on public.butl_sync (code);
 -- dùng cho câu hỏi rẻ "dữ liệu có đổi không?" (/api/pickups?probe=1)
 create index if not exists butl_sync_code_upd_idx on public.butl_sync (code, updated_at desc);
 
+-- ═════════════════════════════════════════════════════════════════════════════
+-- BẢNG THỨ HAI: public.quan_bo — DANH SÁCH QUÁN NHẬU BỔ SUNG (chủ app cung cấp)
+-- Khác butl_sync ở chỗ: đây là DỮ LIỆU DÙNG CHUNG (global), không thuộc tài xế nào.
+-- Quý nhất là 2 cột gio_mo / gio_dong: GIỜ THẬT của từng quán. App vốn phải ƯỚC
+-- giờ tan quán theo nhóm; có giờ thật thì sóng tan quán tính đúng chỗ.
+-- Nạp dữ liệu:  node scripts/nap-quan.mjs --ghi   (nguồn: scripts/quan-nhau.csv)
+-- Bảng này CHẾT hay NGỦ cũng không sao: /api/quan tự rơi về bản tĩnh api/_quanbo.js
+-- nằm sẵn trong mã nguồn đã deploy, tài xế không bao giờ mở ra thấy bản đồ trống.
+-- ═════════════════════════════════════════════════════════════════════════════
+create table if not exists public.quan_bo (
+  id      text primary key,              -- "lat,lng" làm tròn 5 số → nạp lại không đẻ bản trùng
+  ten     text not null,
+  nhom    text not null,
+  lat     double precision not null,
+  lng     double precision not null,
+  size    int  not null default 9,
+  quan    text,
+  dia_chi text,
+  prec    text,                           -- 'chuẩn' | 'đúng số nhà' | 'đúng đường ±500m'
+  gio_mo   double precision,
+  gio_dong double precision,
+  nguon   text not null default 'ds',
+  updated_at timestamptz not null default now()
+);
+create index if not exists quan_bo_viTri_idx on public.quan_bo (lat, lng);
+alter table public.quan_bo enable row level security;
+revoke all on public.quan_bo from anon, authenticated;
+
 -- ── BẢO MẬT ──────────────────────────────────────────────────────────────────
 -- Bật RLS và CỐ TÌNH không tạo policy nào:
 --   → khoá anon (nằm công khai trong app) KHÔNG đọc/ghi được dòng nào;

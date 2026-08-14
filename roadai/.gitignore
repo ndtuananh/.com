@@ -1,3 +1,4 @@
 .vercel
 .env*
 node_modules
+scripts/.toado-cache.json

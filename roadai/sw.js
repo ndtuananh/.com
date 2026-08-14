@@ -6,7 +6,7 @@
    giữ luôn code cũ + danh sách quán cũ, không bao giờ nhận bản mới → 2 máy khác dữ liệu.
    Bản này: CODE (html/js/css) luôn lấy MẠNG TRƯỚC, chỉ dùng cache khi mất sóng.
    → Mở app có mạng là 2 máy luôn chạy CÙNG một bản. */
-const CACHE = 'roadai-v52';
+const CACHE = 'roadai-v53';
 const SHELL = [
   './', './index.html', './kiem-cuoc.html',
   './css/style.css', './css/positioning.css',

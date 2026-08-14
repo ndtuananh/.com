@@ -359,6 +359,42 @@ function themVung(base) {
   return base.concat(moi);
 }
 
+/* ═══ QUÁN NHẬU BỔ SUNG (danh sách chủ app cung cấp) — /api/quan ═══
+   Khác hai kho trên ở chỗ: kho này có GIỜ MỞ/ĐÓNG THẬT của từng quán. App vốn phải
+   ƯỚC giờ tan quán theo nhóm ("quán nhậu ~0h"); có giờ thật thì sóng tan quán tính
+   đúng chỗ và tài xế canh đón đầu được — đây là thứ quý nhất của danh sách này.
+   Là DỮ LIỆU DÙNG CHUNG: mọi máy nhận cùng một bản chụp CDN, cùng MÃ BẢN. Cache
+   xuống máy để mất mạng vẫn còn; /api/quan còn có bản tĩnh nằm trong mã nguồn nên
+   Supabase ngủ cũng không ai mất dữ liệu. */
+const QUANBO_LS = 'roadai_butl_quanbo_v1';
+let QUAN_BO = (() => { const c = ls(QUANBO_LS, null); return (c && Array.isArray(c.spots)) ? c.spots : []; })();
+const G80 = 0.00072;   // ~80m tính theo độ — đủ để coi là một chỗ, khỏi gọi haversine 100.000 lần
+function themBo(base) {
+  if (!QUAN_BO.length) return base;
+  const moi = QUAN_BO.filter(r => !base.some(b => Math.abs(b[2] - r[2]) < G80 && Math.abs(b[3] - r[3]) < G80));
+  return base.concat(moi);
+}
+let refreshingBo = false;
+async function refreshQuanBo(force) {
+  if (refreshingBo) return false;
+  const c = ls(QUANBO_LS, null);
+  if (!force && c && (Date.now() - (c.ts || 0)) < 6 * 3600e3) return false;   // 6 tiếng/lần là đủ
+  refreshingBo = true;
+  try {
+    const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 15000);
+    let r; try { r = await fetch('/api/quan', { cache: 'no-store', signal: ctl.signal }); } finally { clearTimeout(to); }
+    if (!r.ok) return false;
+    const j = await r.json();
+    if (!(j && j.ok && Array.isArray(j.spots) && j.spots.length >= 10)) return false;
+    const doi = !c || c.rev !== j.rev;
+    lsSet(QUANBO_LS, { ts: Date.now(), rev: j.rev, nguon: j.nguon, coGio: j.coGio, spots: j.spots });
+    QUAN_BO = j.spots;
+    G.quanBo = { rev: j.rev, so: j.spots.length, coGio: j.coGio, nguon: j.nguon, at: Date.now() };
+    if (doi) { buildSpots(null); G.lastBestId = null; recompute(); }
+    return true;
+  } catch (e) { return false; } finally { refreshingBo = false; }
+}
+
 let SPOTS = [], DMAT = [];
 /* Một HÀNG của bảng khoảng cách quán–quán, tính khi cần rồi giữ lại.
    Bản cũ tính TRƯỚC toàn bộ n×n: 645 quán = 416.000 phép = 2,1 GIÂY mỗi lần dựng lại.
@@ -377,12 +413,14 @@ function dongDMAT(i) {
 let BASE_SPOTS = null;
 function buildSpots(data) {
   if (data && data.length) BASE_SPOTS = data;
-  const src = mergeLearned(themVung(BASE_SPOTS && BASE_SPOTS.length ? BASE_SPOTS : OSM_SPOTS));
+  // thứ tự nối: dùng chung → khu tự nạp → danh sách bổ sung → điểm THẬT (đè lên trên cùng)
+  const src = mergeLearned(themBo(themVung(BASE_SPOTS && BASE_SPOTS.length ? BASE_SPOTS : OSM_SPOTS)));
   SPOTS = src.map(([name, cat0, lat, lng, size, homeKm, quan, source, pid, addr, prec, evi, gioMo, gioDong, sao, luot, ghiChu, xeKhai], i) => {
     const cat = autoCat(name, cat0);
     /* CHỐT CHẶN CUỐI: dòng nào KHÔNG ghi rõ nguồn đã kiểm thì coi là CHƯA KIỂM ĐƯỢC TÊN
        → app tự thay tên bằng địa chỉ thật, không bao giờ hiện tên chưa tra. */
-    const srcOk = source === 'butl' || source === 'mine' || source === 'doitac' || source === 'osm';
+    // 'ds' = danh sách quán nhậu chủ app cung cấp, toạ độ đã tra bản đồ thật → tên dùng được
+    const srcOk = source === 'butl' || source === 'mine' || source === 'doitac' || source === 'osm' || source === 'ds';
     const src2 = srcOk ? source : 'osm-addr';
     const nameOut = src2 === 'osm-addr' ? (CAT_VI[cat] || 'Điểm') + ' · ' + (String(addr || '').split(',')[0].trim() || quan || 'chưa rõ địa chỉ') : name;
     return {
@@ -391,9 +429,14 @@ function buildSpots(data) {
       addr: addr || '', prec: prec || '', evi: evi || '', ghiChu: ghiChu || '',
       // LỜI KHAI của tài xế lúc thêm quán — dùng khi chưa có cuốc thật nào để đếm
       xeKhai: (xeKhai === 'oto' || xeKhai === 'may' || xeKhai === 'ca2') ? xeKhai : '',
-      sao: sao || null, luot: luot || null, gioMo: isFinite(gioMo) ? +gioMo : null,
-      gioThat: isFinite(gioDong),
-      closeH: isFinite(gioDong) ? +gioDong : (CLOSE_H[cat] != null ? CLOSE_H[cat] : 0) + (Math.random() - .5) * 0.5,
+      sao: sao || null, luot: luot || null, gioMo: soThat(gioMo),
+      /* ⚠️ PHẢI DÙNG Number.isFinite, KHÔNG dùng isFinite.
+         isFinite(null) === TRUE (JS ép null thành 0). Dòng quán đi qua JSON (từ
+         /api/quan, /api/spots) mang gioDong = null cho quán KHÔNG BIẾT GIỜ → app
+         tuyên bố "giờ thật" và chốt giờ tan quán = 00:00. Tức là bịa giờ đóng cửa
+         cho hàng trăm quán, rồi canh sóng tan quán sai bét. Bộ tự kiểm bắt được. */
+      gioThat: soThat(gioDong) != null,
+      closeH: soThat(gioDong) != null ? soThat(gioDong) : (CLOSE_H[cat] != null ? CLOSE_H[cat] : 0) + (Math.random() - .5) * 0.5,
       noise: 0.9 + Math.random() * 0.2,
     };
   });
@@ -402,6 +445,9 @@ function buildSpots(data) {
     const c = spotCounts(); G.dataStatus.count = c.shared; G.dataStatus.mine = c.mine; G.dataStatus.vung = c.vung; G.dataStatus.total = c.total;
   }
 }
+/* Số THẬT hay không có số — null/''/undefined đều là KHÔNG CÓ.
+   Viết riêng vì isFinite(null) trả về true, đã làm app bịa giờ đóng cửa (xem buildSpots). */
+function soThat(v) { if (v == null || v === '') return null; const n = +v; return Number.isFinite(n) ? n : null; }
 const spotKey = sp => sp.name + '@' + (+sp.lat).toFixed(4) + ',' + (+sp.lng).toFixed(4);
 
 /* ═══ MÃ QUÁN — vân tay của TOÀN BỘ kho điểm máy này đang chạy ═══
@@ -1588,7 +1634,10 @@ function boot() {
   try { G.base = localStorage.getItem('roadai_butl_base') || 'dark'; } catch (e) {}
   recompute();
   setInterval(tick, TICK_MS);
-  if (G.autoData) { refreshSpots(true, false); setInterval(() => { if (G.autoData) refreshSpots(false, false); }, SYNC_MS); }
+  if (G.autoData) {
+    refreshSpots(true, false); setInterval(() => { if (G.autoData) refreshSpots(false, false); }, SYNC_MS);
+    refreshQuanBo(false); setInterval(() => { if (G.autoData) refreshQuanBo(false); }, 6 * 3600e3);
+  }
   fetchWeather(); setInterval(fetchWeather, 20 * 60 * 1000);
   window.addEventListener('online', () => { if (G.autoData) refreshSpots(true, false); });
   document.addEventListener('visibilitychange', () => {
@@ -1642,6 +1691,7 @@ const RADAR = {
           // sổ khu dùng chung — tầng đồng bộ đọc/ghi qua đây
           reg: () => ZONE_REG, live: soKhuSong, apply: applyZones, fill: napKhuThieu, pCao: pCaoNhat },
   banQuan, health: kiemKho,
+  quanBo: { info: () => G.quanBo || (ls(QUANBO_LS, null) || null), nap: refreshQuanBo, so: () => QUAN_BO.length },
   flags: { set: flagSet, get: flagGet, canNotify },
   // MÃ BẢN danh sách quán dùng chung máy này đang chạy — để máy khác biết mình có cũ không
   spotsRev: () => (G.dataStatus && G.dataStatus.rev) || '',

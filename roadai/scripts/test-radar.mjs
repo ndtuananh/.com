@@ -252,6 +252,38 @@ console.log('\nA2 · HỌC TỪ CUỐC THẬT + HỌC TOÀN CỤC');
   });
 }
 
+console.log('\nA2c · DANH SÁCH QUÁN BỔ SUNG — giờ đóng THẬT thay cho giờ ƯỚC');
+{
+  // giả bộ /api/quan đã trả về và được cache xuống máy: 1 quán có giờ thật, 1 quán không
+  const cache = JSON.stringify({ ts: Date.now(), rev: 'TEST123', nguon: 'supabase', coGio: 1, spots: [
+    ['Bia Hơi Có Giờ Thật', 'beerclub', 10.7480, 106.6160, 12, 7, 'Bình Tân', 'ds', null, '1 Tên Lửa', 'đúng số nhà', '', 17, 1.5],
+    ['Quán Không Rõ Giờ',   'phonhau',  10.7490, 106.6170, 10, 7, 'Bình Tân', 'ds', null, '2 Tên Lửa', 'đúng đường ±500m', '', null, null],
+  ] });
+  const { R: R2 } = loadEngine({ store: { roadai_butl_quanbo_v1: cache } });
+  R2.store.buildSpots(null);
+  R2.G.simHour = 22.5; R2.recompute();
+  const co = R2.spots().find(s => s.name === 'Bia Hơi Có Giờ Thật');
+  const khong = R2.spots().find(s => s.name === 'Quán Không Rõ Giờ');
+  T('danh sách bổ sung vào được kho điểm, giữ nguyên tên', () => { ok(co, 'không thấy quán bổ sung'); ok(khong); });
+  T('có giờ trong danh sách → dùng GIỜ THẬT, không ước theo nhóm', () => {
+    eq(co.gioThat, true, 'không nhận giờ thật');
+    eq(co.closeH, 1.5, 'giờ đóng sai');
+    eq(co.gioMo, 17, 'giờ mở sai');
+  });
+  T('không có giờ → vẫn ước theo nhóm như cũ, KHÔNG bịa giờ', () => {
+    eq(khong.gioThat, false, 'bịa ra giờ thật cho quán không có dữ liệu');
+    ok(Math.abs(khong.closeH - 0) < 0.5 || Math.abs(khong.closeH - 24) < 0.5, 'closeH=' + khong.closeH);
+  });
+  T('quán bổ sung được chấm điểm P chung một thang', () => {
+    const r = R2.metrics().raw.find(x => x.sp.name === 'Bia Hơi Có Giờ Thật');
+    ok(r && r.hotScore >= 2 && r.hotScore <= 92, 'không có điểm P: ' + JSON.stringify(r && r.hotScore));
+  });
+  T('nguồn "ds" được coi là đã kiểm tên → KHÔNG bị thay bằng địa chỉ', () => {
+    eq(co.source, 'ds');
+    ok(!/^Beer club ·/.test(co.name), 'tên bị thay bằng nhãn địa chỉ');
+  });
+}
+
 console.log('\nA3 · MÃ QUÁN — bằng chứng 2 máy giống nhau 100%');
 {
   const spots = [
@@ -483,6 +515,31 @@ if (BASE) {
     const t = await fetch(`${BASE}/api/health`).then(r => r.text());
     for (const bad of ['picks', 'trips', 'hidden', 'zones', 'code', 'device'])
       ok(!t.includes('"' + bad + '"'), 'lộ trường ' + bad);
+  });
+  await Ta('QUÁN · /api/quan trả danh sách bổ sung, kèm GIỜ ĐÓNG THẬT', async () => {
+    const j = await fetch(`${BASE}/api/quan`, { cache: 'no-store' }).then(r => r.json());
+    console.log(`      ${j.count} quán · ${j.coGio} có giờ đóng thật · nguồn ${j.nguon} · mã bản #${j.rev} · ${j.ms}ms`);
+    ok(j.ok && j.count >= 50, 'quá ít quán: ' + JSON.stringify(j).slice(0, 140));
+    ok(j.coGio / j.count > 0.8, `chỉ ${j.coGio}/${j.count} quán có giờ thật`);
+    for (const s of j.spots.slice(0, 20)) {
+      ok(s[0] && s[0].length > 1, 'quán không tên');
+      ok(s[2] > 10.3 && s[2] < 11.2 && s[3] > 106.3 && s[3] < 107.1, 'toạ độ ngoài TP.HCM: ' + s[0]);
+      eq(s[7], 'ds', 'sai nhãn nguồn');
+      ok(/chuẩn|số nhà|đường/.test(s[10] || ''), 'thiếu độ chính xác toạ độ: ' + s[0]);
+    }
+  });
+  await Ta('QUÁN · hai máy hỏi cùng lúc nhận CÙNG mã bản (một bản chụp CDN)', async () => {
+    const [a, b] = await Promise.all([
+      fetch(`${BASE}/api/quan`).then(r => r.json()),
+      fetch(`${BASE}/api/quan`).then(r => r.json()),
+    ]);
+    eq(a.rev, b.rev, 'hai máy nhận hai bản khác nhau');
+    eq(a.count, b.count);
+  });
+  await Ta('QUÁN · KHÔNG CHẾT: kho có ngủ thì vẫn còn bản tĩnh trong mã nguồn', async () => {
+    const j = await fetch(`${BASE}/api/quan`).then(r => r.json());
+    ok(j.banTinh && j.banTinh.so >= 50, 'không có bản dự phòng nào trong mã nguồn');
+    console.log(`      bản tĩnh dự phòng: ${j.banTinh.so} quán · #${j.banTinh.rev}`);
   });
   await Ta('THẬT 1 · máy A thêm điểm → máy B đọc thấy', async () => {
     const a = await post('devaaaaaaaa', { picks: [P('ta1', 'Quán Kiểm Thử A', 10.7501, 106.6101, { ts: Date.now(), n: 1, win: 1 })], hidden: [], trips: [] });
