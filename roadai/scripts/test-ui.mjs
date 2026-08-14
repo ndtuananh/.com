@@ -102,8 +102,15 @@ run('js/positioning.js'); run('js/radar-sync.js'); run('js/radar-ui.js');
 
 const $ = s => w.document.querySelector(s);
 const txt = s => ($(s) ? ($(s).textContent || '').replace(/\s+/g, ' ').trim() : '');
-// form thêm quán vẽ lại sau 260ms chống dội khi gõ — bộ thử gọi thẳng cho khỏi chờ
-const paintAddSync = () => { const i = $('#add-name'); if (i && i._t) clearTimeout(i._t); w.UI.openSheet('#sheet-add'); };
+// gõ THẬT vào ô: đặt value rồi bắn oninput, y như ngón tay tài xế
+function goTen(v) {
+  const i = $('#add-name'); i.value = v;
+  if (i.oninput) i.oninput({ target: i });
+  if (i._t) { clearTimeout(i._t); i._t = null; }
+  w.UI.syncAddNow();                 // chạy luôn phần chống dội, khỏi chờ 260ms
+  return i;
+}
+const paintAddSync = () => { goTen($('#add-name').value); };
 
 console.log('\nGIAO DIỆN · nạp thật kiem-cuoc.html + 3 file js vào jsdom');
 T('3 tầng nạp được, không lỗi', () => ok(w.RADAR && w.SYNC && w.UI, 'thiếu tầng nào đó'));
@@ -236,10 +243,30 @@ T('CHƯA gõ gì thì KHÔNG đổ gợi ý (đẩy nút lưu xuống dưới m�
   eq(w.document.querySelectorAll('#add-body .goi-r').length, 0,
     'gợi ý hiện ngay lúc mở form → tưởng chỉ chọn được quán có sẵn, không thêm tay được');
 });
-T('gõ đủ 2 chữ mới gợi ý, và nút lưu vẫn nằm trong form', () => {
-  $('#add-name').value = 'Qu'; paintAddSync();
+/* ĐÂY LÀ TEST QUAN TRỌNG NHẤT CỦA FORM NÀY.
+   Ô nhập mà bị THAY khi đang gõ thì trên điện thoại là mất focus, bàn phím đóng,
+   và bộ gõ tiếng Việt Telex đứt giữa chừng → không gõ nổi một chữ. Bộ thử cũ chỉ
+   gán .value nên không bao giờ thấy, để lọt hẳn ra bản chạy thật. */
+T('GÕ TỪNG CHỮ: ô nhập KHÔNG được bị thay (mất focus = không gõ tiếng Việt được)', () => {
+  const truoc = $('#add-name');
+  for (const v of ['Q', 'Qu', 'Quá', 'Quán', 'Quán T']) goTen(v);
+  const sau = $('#add-name');
+  ok(sau === truoc, 'ô nhập bị dựng lại giữa lúc gõ → bàn phím đóng, Telex đứt dấu');
+  eq(sau.value, 'Quán T', 'chữ đã gõ bị mất');
+});
+T('gõ ≥2 chữ mới gợi ý, mà ô nhập + nút lưu vẫn còn nguyên', () => {
+  goTen('Quán Thử');
+  ok(w.document.querySelectorAll('#add-body .goi-r').length > 0, 'không ra gợi ý');
   ok(!!$('#add-save'), 'mất nút lưu khi có gợi ý');
   ok(!!$('#add-addr'), 'mất ô địa chỉ khi có gợi ý');
+  eq($('#add-name').value, 'Quán Thử', 'chữ đang gõ bị nuốt khi gợi ý hiện ra');
+});
+T('ô ĐỊA CHỈ cũng không bị thay, và không giật chữ khỏi tay người đang gõ', () => {
+  const truoc = $('#add-addr');
+  truoc.value = '12 Tên Lửa'; if (truoc.oninput) truoc.oninput({ target: truoc });
+  goTen('Quán Thử N');                       // gõ tiếp bên ô tên
+  eq($('#add-addr'), truoc, 'ô địa chỉ bị dựng lại');
+  eq($('#add-addr').value, '12 Tên Lửa', 'địa chỉ tài xế tự gõ bị ghi đè');
 });
 T('tick loại xe hiện dấu ✓ ở đúng ô được chọn', () => {
   const bs = [...w.document.querySelectorAll('#add-body .vch')];
