@@ -68,6 +68,22 @@ const UI = (() => {
   };
   let map, baseLayer, meMarker, ringLayer, pinLayer, lineLayer;
   let lastSig = '';
+  let vuaThem = null, vuaThemT = null;   // điểm vừa lưu — nhấp nháy 12 giây cho tài xế thấy
+  /* Lưu xong phải CHỈ TẬN NƠI: bay tới, làm chấm nổi hẳn lên, và mở luôn thẻ chi
+     tiết. Không có bước này thì chấm mới lẫn giữa mấy chục chấm khác, tài xế bấm
+     LƯU xong nhìn màn hình không thấy gì và tưởng app nuốt mất dữ liệu. */
+  function chiTanNoi(pid) {
+    vuaThem = pid;
+    clearTimeout(vuaThemT);
+    vuaThemT = setTimeout(() => { vuaThem = null; lastSig = ''; drawPins(G.metrics); }, 12000);
+    const sp = RADAR.spots().find(s => s.pid === pid);
+    if (!sp) return;
+    lastSig = '';
+    if (map) map.setView([sp.lat, sp.lng], Math.max(16, map.getZoom()));
+    drawPins(G.metrics);
+    const r = RADAR.findR(sp.id);
+    if (r) setTimeout(() => openSpot(r), 260);
+  }
 
   function initMap() {
     map = L.map('map', { zoomControl: false, attributionControl: false, tap: false })
@@ -168,14 +184,21 @@ const UI = (() => {
          không biết đi đâu. Hạng ①②③ vẫn chỉ ra được chỗ tốt nhất quanh mình,
          mà không phải bịa cho con số % đẹp lên. */
       const hang = r.hotRank != null && r.hotRank < 3 ? r.hotRank + 1 : 0;
-      const cls = 'pin' + (r.isBest ? ' pin-best' : hang ? ' pin-top' : '') + (real ? ' pin-real' : '') + (r.open ? '' : ' pin-off');
-      const sz = r.isBest ? 56 : hang ? 46 : 40;
+      /* ĐIỂM CỦA CHÍNH TÀI XẾ KHÔNG BAO GIỜ BỊ LÀM MỜ.
+         Lỗi anh Long báo "lưu xong không thấy hiện lên bản đồ": điểm vừa thêm lúc
+         8h sáng bị coi là "quán chưa mở" → vẽ thành chấm xám mờ 40% với đúng một
+         dấu chấm, trên nền bản đồ đen thì coi như vô hình. Quán trên bản đồ đóng
+         cửa thì làm mờ được, chứ dữ liệu do tài xế tự nhập thì phải luôn thấy rõ. */
+      const moi = vuaThem && r.sp.pid === vuaThem;
+      const cls = 'pin' + (r.isBest ? ' pin-best' : hang ? ' pin-top' : '') +
+        (real ? ' pin-real' : '') + (r.open || real ? '' : ' pin-off') + (moi ? ' pin-new' : '');
+      const sz = r.isBest ? 56 : (hang || moi) ? 46 : 40;
       const face = r.open
         ? `<b>${r.hotScore}<i>%</i></b>` +
           (r.isBest ? '<span class="pin-star">⭐</span>'
            : hang ? `<span class="pin-rank">${hang}</span>`
            : r.p >= 0.5 ? '<span class="pin-star">🔥</span>' : '')
-        : '<b class="pin-x">·</b>';
+        : real ? '<b class="pin-dd">📍</b>' : '<b class="pin-x">·</b>';
       const icon = L.divIcon({ className: '', iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
         html: `<div class="${cls}" style="--c:${t.c}">${face}</div>` });
       L.marker([r.sp.lat, r.sp.lng], { icon, zIndexOffset: r.isBest ? 1000 : hang ? 900 : real ? 600 : r.tier * 100 })
@@ -841,23 +864,27 @@ const UI = (() => {
 
     addBusy = true; syncAdd();
     try {
-      let p, gop, capNhat = false;
+      let p, gop, capNhat = false, pid = null;
       if (addPick) {                                   // dùng lại quán đã có
         const sp = A.capNhatQuan(addPick.id, addXe, dc);
         if (!sp) throw new Error('không tìm thấy quán');
         p = { name: addPick.name, lat: addPick.lat, lng: addPick.lng }; gop = false; capNhat = true;
+        const moi = RADAR.spots().find(s => Math.abs(s.lat - sp.lat) < 1e-4 && Math.abs(s.lng - sp.lng) < 1e-4 && s.pid);
+        pid = moi ? moi.pid : null;
       } else {
         if (!G.hasGps) await A.locateNow();
         ({ p, gop } = A.addPointHere(nm, 'phonhau', addXe, dc, addQuan));
+        pid = p.id;
       }
-      SYNC.dirty('pick', (p && p.id) || addPick && addPick.id);
+      SYNC.dirty('pick', pid);
       const ok = await SYNC.push();                    // đẩy lên NGAY, không đợi chu kỳ
       closeSheets();
       const dau = capNhat ? `✓ Đã cập nhật “${nm}” ${K.XE_ICON[addXe]}`
         : gop ? `✓ Đã gộp vào “${U.cleanName(p)}”`
         : `✓ Đã lưu “${nm}” ${K.XE_ICON[addXe]}`;
       toast(dau + (ok ? ' — đã lên kho chung' : ' — chưa có mạng, app sẽ tự gửi sau'), 4200);
-      if (map && p) map.setView([p.lat, p.lng], Math.max(16, map.getZoom()));
+      if (pid) chiTanNoi(pid);                         // bay tới + làm nổi + mở thẻ chi tiết
+      else if (map && p) map.setView([p.lat, p.lng], Math.max(16, map.getZoom()));
     } catch (e) {
       closeSheets();
       toast('Đã lưu vào máy, chưa đẩy lên được — app sẽ tự gửi khi có mạng', 4200);

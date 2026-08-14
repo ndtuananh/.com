@@ -38,7 +38,7 @@ const eq = (a, b, m) => { if (a !== b) throw new Error(`${m || ''} — chờ ${J
 
 /* ---------- LEAFLET GIẢ: Proxy tự trả về chính nó cho mọi thứ ---------- */
 function fakeL() {
-  const rec = { markers: 0, layers: 0, popups: 0 };
+  const rec = { markers: 0, layers: 0, popups: 0, pins: [] };
   const self = new Proxy(function () {}, {
     get(_, k) {
       if (k === 'then') return undefined;                 // đừng để await tưởng đây là promise
@@ -54,7 +54,11 @@ function fakeL() {
   });
   const L = new Proxy({}, { get(_, k) {
     if (k === 'map') return () => { rec.layers++; return self; };
-    if (k === 'marker') return () => { rec.markers++; return self; };
+    if (k === 'marker') return (ll, o) => {
+      rec.markers++;
+      rec.pins.push({ lat: ll && ll[0], lng: ll && ll[1], html: (o && o.icon && o.icon.__html) || '' });
+      return self;
+    };
     /* Popup phải là đối tượng THẬT tự trả về chính nó, không dùng Proxy chung —
        Proxy chung trả về `self` nên chuỗi .setLatLng().setContent() rơi ra ngoài
        và không ghi lại được nội dung. Đây là chỗ soi app định hiện gì cho tài xế. */
@@ -65,6 +69,8 @@ function fakeL() {
         setContent: h => { rec.popupHtml = h; return P; } };
       return P;
     };
+    // ghi lại HTML từng chấm để soi được app THỰC SỰ vẽ gì lên bản đồ
+    if (k === 'divIcon') return o => ({ __html: (o && o.html) || '' });
     return () => self;
   } });
   return { L, rec };
@@ -303,6 +309,31 @@ T('địa chỉ đã lưu phải đi vào kho điểm (hiện được trên b�
   const sp = w.RADAR.spots().find(s => s.name === 'Quán Thử Nghiệm');
   ok(sp, 'điểm không vào kho');
   eq(sp.addr, '53 Đường 30, P. Hiệp Bình', 'địa chỉ rơi mất giữa đường');
+});
+/* Lỗi anh Long báo: "nhấn lưu nhưng không thấy hiện lên bản đồ".
+   Chấm CÓ được vẽ, nhưng ngoài giờ mở cửa nó ra `pin-off` = mờ 40% + đúng một
+   dấu chấm xám, trên nền bản đồ đen thì coi như vô hình. Dữ liệu do tài xế tự
+   nhập thì KHÔNG được làm mờ như quán đóng cửa. */
+const chamCua = ten => {
+  const sp = w.RADAR.spots().find(s => s.name === ten); if (!sp) return null;
+  return rec.pins.slice().reverse().find(x => Math.abs(x.lat - sp.lat) < 1e-6 && Math.abs(x.lng - sp.lng) < 1e-6) || null;
+};
+const veLai = () => { rec.pins.length = 0; w.UI.closeSheets(); w.RADAR.recompute(); };
+T('NGOÀI GIỜ: điểm tự thêm vẫn phải THẤY RÕ, không bị làm mờ như quán đóng cửa', () => {
+  const gio = w.RADAR.G.simHour;
+  w.RADAR.G.simHour = 8.87;                       // 8h52 sáng, đúng ảnh anh Long gửi
+  veLai();
+  const c = chamCua('Quán Thử Nghiệm');
+  ok(c, 'không vẽ chấm nào cho điểm vừa thêm');
+  ok(!/pin-off/.test(c.html), 'chấm bị làm mờ 40% → trên bản đồ đen coi như vô hình');
+  ok(!/pin-x/.test(c.html), 'chỉ vẽ một dấu chấm xám, không nhận ra là điểm gì');
+  ok(/pin-real/.test(c.html) && /📍/.test(c.html), 'thiếu dấu điểm đón: ' + c.html);
+  w.RADAR.G.simHour = gio;
+});
+T('TRONG GIỜ: điểm tự thêm hiện đúng % của nó', () => {
+  w.RADAR.G.simHour = 22.5; veLai();
+  const c = chamCua('Quán Thử Nghiệm');
+  ok(c && /\d+<i>%/.test(c.html), 'không hiện điểm P: ' + (c && c.html));
 });
 T('loại xe đã khai làm điểm đó lọc được ngay bằng 🏍️ (chưa cần cuốc nào)', () => {
   w.RADAR.store.buildSpots(); w.RADAR.recompute();

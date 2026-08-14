@@ -149,6 +149,14 @@ body.sheet-open .fab,body.sheet-open .newzone{opacity:0;pointer-events:none}
 .pin-real{border-color:#5eead4;box-shadow:0 0 0 3px rgba(45,212,191,.3),0 3px 9px rgba(0,0,0,.65)}
 .pin-off{opacity:.4;border-color:#64748b}
 .pin-off b{color:#64748b;font-size:20px}
+/* điểm tài xế tự thêm, ngoài giờ mở cửa: vẫn thấy RÕ, chỉ đổi mặt sang 📍 */
+.pin-dd{font-size:19px;line-height:1}
+/* điểm VỪA LƯU — nhấp nháy 12 giây để tài xế thấy ngay nó nằm đâu */
+.pin-new{border-color:#5eead4!important;animation:pinNew 1.1s ease-out infinite}
+@keyframes pinNew{
+  0%{box-shadow:0 0 0 0 rgba(45,212,191,.85),0 4px 12px rgba(0,0,0,.7)}
+  100%{box-shadow:0 0 0 18px rgba(45,212,191,0),0 4px 12px rgba(0,0,0,.7)}
+}
 .pin-grp{width:46px;height:46px;border-color:var(--c);background:rgba(6,12,24,.92)}
 .pin-grp b{font-size:14px}
 .pin-grp em{position:absolute;bottom:-7px;right:-7px;font-style:normal;font-size:10.5px;font-weight:900;
