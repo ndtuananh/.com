@@ -1443,18 +1443,57 @@ async function diaChiTaiDay(lat, lng) {
   _dcCache.set(k, kq);
   return kq;
 }
-/* Khai lại loại xe cho một quán đã có (kể cả quán từ bản đồ, không phải điểm tự nạp).
-   Quán bản đồ thì tạo một điểm tự nạp ngay tại đó — máy chủ sẽ gộp vào cùng chỗ. */
-function setXe(spotId, xe) {
-  const r = findR(spotId); if (!r) return false;
-  if (r.sp.source === 'mine' && r.sp.pid) {
-    let own = ownPick(r.sp.pid);
-    if (!own) { const m = myPick(r.sp.pid); if (!m) return false; own = { ...m, n: 0, win: 0, fix: 0, del: 0 }; MY_PICKS.push(own); }
-    own.xe = xe; own.ts = Date.now(); savePicks();
+/* CẬP NHẬT một quán ĐÃ CÓ (loại xe / địa chỉ) thay vì đẻ chấm mới.
+   Quán lấy từ bản đồ (không phải điểm tự nạp) thì tạo một điểm tự nạp NGAY TẠI
+   TOẠ ĐỘ CỦA NÓ — máy chủ gộp <55m nên vẫn là một chỗ, không sinh chấm trùng. */
+function spotById(id) {
+  const r = findR(id); if (r) return r.sp;
+  return SPOTS.find(s => s.id === id) || null;
+}
+function capNhatQuan(spotId, xe, addr) {
+  const sp = spotById(spotId); if (!sp) return null;
+  if (sp.source === 'mine' && sp.pid) {
+    let own = ownPick(sp.pid);
+    if (!own) { const m = myPick(sp.pid); if (!m) return null; own = { ...m, n: 0, win: 0, fix: 0, del: 0 }; MY_PICKS.push(own); }
+    if (xe) own.xe = xe;
+    if (addr) own.addr = String(addr).slice(0, 120);
+    own.ts = Date.now(); savePicks();
   } else {
-    upsertPick(cleanName(r.sp), r.sp.lat, r.sp.lng, r.sp.cat, r.sp.quan, xe);
+    upsertPick(cleanName(sp), sp.lat, sp.lng, sp.cat, sp.quan, xe, addr || sp.addr);
   }
-  buildSpots(); recompute(); return true;
+  buildSpots(); G.lastBestId = null; recompute();
+  return sp;
+}
+const setXe = (spotId, xe) => !!capNhatQuan(spotId, xe, null);
+
+/* ═══ CHỐNG TRÙNG THEO TÊN ═══
+   upsertPick chỉ gộp khi cách dưới 55m. Nhưng toạ độ quán trên bản đồ có thể lệch
+   cả trăm mét, và GPS lúc trời mưa còn lệch hơn — nên gõ đúng tên một quán ĐÃ CÓ
+   rồi bấm LƯU vẫn đẻ ra chấm thứ hai cùng tên. Chạy vài lần là kho đầy chấm rác,
+   không chấm nào đủ cuốc để app kết luận được gì.
+   Ở đây soi theo TÊN + khoảng cách trước khi tạo:
+     · dưới 60m  → chắc chắn cùng chỗ, khỏi cần khớp tên
+     · dưới 400m → phải khớp tên (trùng hẳn, chứa nhau, hoặc ≥70% số từ)
+   Trả về danh sách ứng viên để MÀN HÌNH HỎI LẠI tài xế, không tự quyết. */
+function timTrung(name, lat, lng, banKinh) {
+  const R2 = banKinh || 400;
+  const k = boDau(name), tu = k.split(' ').filter(w => w.length > 1);
+  if (!k) return [];
+  const diem = { lat: lat != null ? lat : G.you.lat, lng: lng != null ? lng : G.you.lng };
+  const ra = [];
+  for (const sp of SPOTS) {
+    const d = haversine(diem, sp);
+    if (d > R2) continue;
+    const t = boDau(cleanName(sp));
+    let khop = 0;
+    if (t === k) khop = 100;
+    else if (t.includes(k) || k.includes(t)) khop = 85;
+    else if (tu.length) { const hit = tu.filter(w => t.includes(w)).length; khop = Math.round(hit / tu.length * 100); }
+    if (d < 60 && khop >= 40) khop = Math.max(khop, 80);   // sát nhau vậy thì gần như chắc là một
+    if (khop < 70) continue;
+    ra.push({ sp, d, khop });
+  }
+  return ra.sort((a, b) => b.khop - a.khop || a.d - b.d).slice(0, 3);
 }
 /* GỢI Ý QUÁN ĐÃ CÓ khi tài xế gõ tên — chống nhập trùng.
    Bài học cũ: gõ tay mỗi lần một kiểu ("Ốc Quyên", "oc quyen", "Quán Ốc Quyên")
@@ -1620,7 +1659,8 @@ const RADAR = {
     ls, lsSet, rid,
   },
   // hành động
-  act: { setOnline, setFilter, skipBest, addPointHere, renamePick, delPick, toggleFav, setNote, setXe, timQuanGan, diaChiTaiDay,
+  act: { setOnline, setFilter, skipBest, addPointHere, renamePick, delPick, toggleFav, setNote,
+         setXe, capNhatQuan, timQuanGan, timTrung, spotById, diaChiTaiDay,
          hideSpot, unhideAll, fixSpot, resetBrain, logJob, logDong, locateNow, setYou,
          refreshSpots, hardResync, enableNotif, notifyBest, fetchWeather },
   // tiện ích dùng chung

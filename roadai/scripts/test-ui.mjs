@@ -291,6 +291,63 @@ T('gõ tên trùng → gợi ý quán đã có, không bắt tạo chấm mới'
   ok(g.length && g[0].sp.name === 'Quán Thử Nghiệm', 'không gợi ý ra quán vừa thêm');
   w.UI.closeSheets();
 });
+
+console.log('\nCHỐNG TRÙNG · gõ tay đúng tên quán đã có thì KHÔNG đẻ chấm mới');
+T('timTrung nhận ra tên trùng dù toạ độ lệch cả trăm mét', () => {
+  const t = w.RADAR.act.timTrung('Quán Thử Nghiệm', w.RADAR.G.you.lat + 0.0025, w.RADAR.G.you.lng);
+  ok(t.length, 'không nhận ra trùng → mỗi lần gõ lại đẻ thêm một chấm rác');
+  eq(t[0].sp.name, 'Quán Thử Nghiệm');
+  ok(t[0].d > 55, 'chỉ bắt được vì ở gần, chưa chứng minh là bắt theo TÊN (' + Math.round(t[0].d) + 'm)');
+});
+T('tên khác hẳn thì KHÔNG bị chặn nhầm', () => {
+  eq(w.RADAR.act.timTrung('Lẩu Dê Ba Râu', w.RADAR.G.you.lat, w.RADAR.G.you.lng).length, 0);
+});
+await Ta('gõ lại đúng tên đã có rồi bấm LƯU → app HỎI LẠI, chưa tạo gì', async () => {
+  const n0 = w.RADAR.picks.my().length;
+  $('#btn-add').onclick();
+  $('#add-name').value = 'Quán Thử Nghiệm';
+  w.document.querySelectorAll('#add-body .vch')[1].onclick();   // ô tô
+  $('#add-name').value = 'Quán Thử Nghiệm';
+  await $('#add-save').onclick();
+  eq(w.RADAR.picks.my().length, n0, 'vẫn đẻ chấm trùng');
+  ok(!!$('#add-body .trung'), 'không hiện cảnh báo trùng');
+  ok(!!$('#add-force'), 'không cho đường thoát khi thật sự là quán khác');
+  ok(!$('#sheet-add').hidden, 'đóng form mất, tài xế không biết chuyện gì xảy ra');
+});
+await Ta('bấm vào quán trùng → ghim lại, LƯU thì CẬP NHẬT chứ không tạo mới', async () => {
+  const n0 = w.RADAR.picks.my().length;
+  $('#add-body .trung .goi-r').onclick();
+  ok(!!$('#add-body .daco'), 'không ghim được quán đã chọn');
+  await $('#add-save').onclick();
+  eq(w.RADAR.picks.my().length, n0, 'cập nhật mà vẫn đẻ thêm bản ghi');
+  const p = w.RADAR.picks.my().find(x => x.name === 'Quán Thử Nghiệm');
+  eq(p.xe, 'oto', 'không cập nhật được loại xe vào quán đã có');
+});
+await Ta('đứng ĐÚNG chỗ cũ mà ép thêm mới → vẫn GỘP (không hứa suông "đã thêm")', async () => {
+  const n0 = w.RADAR.picks.my().length;
+  $('#btn-add').onclick();
+  $('#add-name').value = 'Quán Thử Nghiệm';
+  w.document.querySelectorAll('#add-body .vch')[0].onclick();
+  $('#add-name').value = 'Quán Thử Nghiệm';
+  await $('#add-save').onclick();          // ra cảnh báo
+  await $('#add-force').onclick();         // tài xế khẳng định là quán khác
+  // Hai chấm cách 0m thì máy chủ cũng gộp ở 55m — tạo bản ghi thứ hai là tự lừa mình.
+  eq(w.RADAR.picks.my().length, n0, 'đẻ bản ghi thứ hai ngay tại cùng một toạ độ');
+  ok(/gộp/i.test(txt('#toast')), 'không nói thật là đã gộp: "' + txt('#toast') + '"');
+});
+await Ta('đứng CÁCH 130m mà ép thêm mới → tạo chấm riêng (2 quán khác nhau)', async () => {
+  const n0 = w.RADAR.picks.my().length;
+  const y = w.RADAR.G.you;
+  w.RADAR.act.setYou(y.lat + 0.00117, y.lng, false);   // ~130m, ngoài ngưỡng gộp 55m
+  $('#btn-add').onclick();
+  $('#add-name').value = 'Quán Thử Nghiệm';
+  w.document.querySelectorAll('#add-body .vch')[0].onclick();
+  $('#add-name').value = 'Quán Thử Nghiệm';
+  await $('#add-save').onclick();          // vẫn phải cảnh báo vì trùng tên trong 400m
+  ok(!!$('#add-force'), 'không cảnh báo trùng tên ở khoảng cách 130m');
+  await $('#add-force').onclick();         // tài xế khẳng định là quán khác
+  eq(w.RADAR.picks.my().length, n0 + 1, 'chặn cả khi tài xế đã khẳng định là quán khác');
+});
 T('bấm 📝 Ghi cuốc → hiện 3 nút to', () => {
   $('#nav-log').onclick();
   ok(!!$('#lg-yes') && !!$('#lg-busy') && !!$('#lg-no'), 'thiếu nút ghi cuốc');
