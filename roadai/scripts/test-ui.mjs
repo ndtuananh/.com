@@ -102,6 +102,8 @@ run('js/positioning.js'); run('js/radar-sync.js'); run('js/radar-ui.js');
 
 const $ = s => w.document.querySelector(s);
 const txt = s => ($(s) ? ($(s).textContent || '').replace(/\s+/g, ' ').trim() : '');
+// form thêm quán vẽ lại sau 260ms chống dội khi gõ — bộ thử gọi thẳng cho khỏi chờ
+const paintAddSync = () => { const i = $('#add-name'); if (i && i._t) clearTimeout(i._t); w.UI.openSheet('#sheet-add'); };
 
 console.log('\nGIAO DIỆN · nạp thật kiem-cuoc.html + 3 file js vào jsdom');
 T('3 tầng nạp được, không lỗi', () => ok(w.RADAR && w.SYNC && w.UI, 'thiếu tầng nào đó'));
@@ -220,12 +222,33 @@ T('🅿️ điểm chờ tối ưu: bấm vào phải có ĐI ĐẾN + tên quá
   ok(/maps\/dir/.test(html), 'không có link Google Maps');
   ok(/wlist|Đứng giữa cụm/.test(html), 'không kể tên quán trong cụm');
 });
-T('bấm ➕ → mở màn thêm quán, có ô tên + 3 lựa chọn loại xe', () => {
+T('bấm ➕ → form đủ 4 phần: tên, địa chỉ, tick loại xe, nút lưu', () => {
   $('#btn-add').onclick();
   ok(!$('#sheet-add').hidden, 'không mở màn thêm quán');
   ok(!!$('#add-name'), 'thiếu ô gõ tên quán');
+  ok(!!$('#add-addr'), 'thiếu ô địa chỉ theo định vị');
   eq(w.document.querySelectorAll('#add-body .vch').length, 3, 'thiếu lựa chọn loại xe');
+  eq(w.document.querySelectorAll('#add-body .vch .tick').length, 3, 'loại xe không có ô tick');
+  ok(!!$('#add-relocate'), 'thiếu nút lấy lại vị trí');
   ok(!!$('#add-save'), 'thiếu nút lưu');
+});
+T('CHƯA gõ gì thì KHÔNG đổ gợi ý (đẩy nút lưu xuống dưới màn hình)', () => {
+  eq(w.document.querySelectorAll('#add-body .goi-r').length, 0,
+    'gợi ý hiện ngay lúc mở form → tưởng chỉ chọn được quán có sẵn, không thêm tay được');
+});
+T('gõ đủ 2 chữ mới gợi ý, và nút lưu vẫn nằm trong form', () => {
+  $('#add-name').value = 'Qu'; paintAddSync();
+  ok(!!$('#add-save'), 'mất nút lưu khi có gợi ý');
+  ok(!!$('#add-addr'), 'mất ô địa chỉ khi có gợi ý');
+});
+T('tick loại xe hiện dấu ✓ ở đúng ô được chọn', () => {
+  const bs = [...w.document.querySelectorAll('#add-body .vch')];
+  bs[1].onclick();                                  // ô tô
+  const ticks = [...w.document.querySelectorAll('#add-body .vch')].map(b => (b.querySelector('.tick').textContent || '').trim());
+  eq(ticks.filter(t => t === '✓').length, 1, 'số ô được tick sai: ' + JSON.stringify(ticks));
+  eq(ticks[1], '✓', 'tick nhầm ô');
+  bs[1].onclick();                                  // bấm lại = bỏ chọn
+  eq([...w.document.querySelectorAll('#add-body .vch .tick')].filter(t => (t.textContent || '').trim()).length, 0, 'không bỏ tick được');
 });
 T('thiếu tên hoặc thiếu loại xe thì KHÔNG lưu (không đẻ điểm trống)', () => {
   const n0 = w.RADAR.picks.my().length;
@@ -235,15 +258,24 @@ T('thiếu tên hoặc thiếu loại xe thì KHÔNG lưu (không đẻ điểm 
   $('#add-save').onclick();                       // có tên, chưa chọn xe
   eq(w.RADAR.picks.my().length, n0, 'lưu được điểm không rõ loại xe');
 });
-await Ta('chọn 🏍️ rồi lưu → có điểm mới, kèm loại xe, và xếp hàng đẩy lên máy chủ', async () => {
+await Ta('điền đủ rồi lưu → có điểm mới kèm tên, ĐỊA CHỈ, loại xe, và xếp hàng đẩy lên', async () => {
   const n0 = w.RADAR.picks.my().length, q0 = w.SYNC.status().pending;
   w.document.querySelectorAll('#add-body .vch')[0].onclick();   // xe máy
   $('#add-name').value = 'Quán Thử Nghiệm';
+  $('#add-addr').value = '53 Đường 30, P. Hiệp Bình';
   await $('#add-save').onclick();
   eq(w.RADAR.picks.my().length, n0 + 1, 'không lưu được');
   const p = w.RADAR.picks.my()[w.RADAR.picks.my().length - 1];
-  eq(p.name, 'Quán Thử Nghiệm'); eq(p.xe, 'may', 'không lưu loại xe');
+  eq(p.name, 'Quán Thử Nghiệm');
+  eq(p.xe, 'may', 'không lưu loại xe');
+  eq(p.addr, '53 Đường 30, P. Hiệp Bình', 'không lưu địa chỉ');
   ok(w.SYNC.status().pending > q0, 'không xếp hàng đẩy lên máy chủ');
+});
+T('địa chỉ đã lưu phải đi vào kho điểm (hiện được trên bản đồ)', () => {
+  w.RADAR.store.buildSpots(); w.RADAR.recompute();
+  const sp = w.RADAR.spots().find(s => s.name === 'Quán Thử Nghiệm');
+  ok(sp, 'điểm không vào kho');
+  eq(sp.addr, '53 Đường 30, P. Hiệp Bình', 'địa chỉ rơi mất giữa đường');
 });
 T('loại xe đã khai làm điểm đó lọc được ngay bằng 🏍️ (chưa cần cuốc nào)', () => {
   w.RADAR.store.buildSpots(); w.RADAR.recompute();

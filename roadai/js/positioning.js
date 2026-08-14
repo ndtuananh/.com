@@ -172,7 +172,7 @@ function rebuildPicksAll() {
    phải cuốc đếm được — cố ý để riêng, không cộng vào oto/may (thứ đếm từ cuốc
    thật). Trộn hai cái là app tự bịa thành tích. */
 const pickRow = p => [p.name, p.cat || 'phonhau', p.lat, p.lng, 13, 7, p.quan || 'Tôi thêm', 'mine', p.id,
-  '', '', '', undefined, undefined, null, null, '', p.xe || ''];
+  p.addr || '', '', '', undefined, undefined, null, null, '', p.xe || ''];
 /* LỌC TRÙNG 3 kho điểm THẬT: chỉ gộp khi gần như chắc chắn LÀ MỘT CHỖ —
    cùng tên & dưới 250m, hoặc sát nhau dưới 35m. Gộp bừa theo khoảng cách sẽ nuốt
    quán thật (Nam Phương Lầu và Warning Zone Võ Văn Tần cách ~100m nhưng là 2 quán). */
@@ -198,17 +198,21 @@ const myPick = id => PICKS_ALL.find(p => p.id === id) || null;
 const ownPick = id => MY_PICKS.find(p => p.id === id) || null;
 function nearPick(list, lat, lng, m) { let best = null, bd = m == null ? PICK_MERGE_M : m; for (const p of list) { if (p.del) continue; const d = haversine({ lat, lng }, p); if (d < bd) { bd = d; best = p; } } return best; }
 /* Thêm điểm — TRÙNG CHỖ THÌ GỘP, không đẻ chấm mới. Trả về {p, gop}. */
-function upsertPick(name, lat, lng, cat, quan, xe) {
+function upsertPick(name, lat, lng, cat, quan, xe, addr) {
   lat = +(+lat).toFixed(5); lng = +(+lng).toFixed(5);
   const hit = nearPick(MY_PICKS, lat, lng);
   if (hit) {
     if (name && !isAutoName(name) && isAutoName(hit.name)) hit.name = name;
     if (cat) hit.cat = cat;
     if (xe) hit.xe = xe;                 // khai lại loại xe thì lấy lời khai mới nhất
+    if (addr) hit.addr = String(addr).slice(0, 120);
+    if (quan) hit.quan = String(quan).slice(0, 40);
     hit.ts = Date.now(); hit.del = 0;
     savePicks(); return { p: hit, gop: true };
   }
-  const p = { id: 'm' + rid(7), name: (name || 'Điểm đón của tôi').trim().slice(0, 70), cat: cat || 'phonhau', lat, lng, quan: quan || 'Tôi thêm', xe: xe || '', ts: Date.now(), n: 0, win: 0, fix: 0, del: 0 };
+  const p = { id: 'm' + rid(7), name: (name || 'Điểm đón của tôi').trim().slice(0, 70), cat: cat || 'phonhau',
+    lat, lng, quan: (quan || 'Tôi thêm').slice(0, 40), addr: String(addr || '').slice(0, 120),
+    xe: xe || '', ts: Date.now(), n: 0, win: 0, fix: 0, del: 0 };
   MY_PICKS.push(p); savePicks(); return { p, gop: false };
 }
 /* NẮN TOẠ ĐỘ: mỗi cuốc thật ở đây kéo điểm về đúng chỗ GPS đo được (trung bình động). */
@@ -1418,10 +1422,26 @@ function skipBest() {
   return G.metrics && G.metrics.best;
 }
 /* THÊM QUÁN. Backend tự: gộp trùng trong 55m → chấm điểm → lưu → đồng bộ mọi máy. */
-function addPointHere(name, cat, xe) {
-  const { p, gop } = upsertPick(name || '★ Điểm đón của tôi', G.you.lat, G.you.lng, cat || 'phonhau', null, xe);
+function addPointHere(name, cat, xe, addr, quan) {
+  const { p, gop } = upsertPick(name || '★ Điểm đón của tôi', G.you.lat, G.you.lng, cat || 'phonhau', quan, xe, addr);
   buildSpots(); G.lastBestId = null; SKIPPED.clear(); recompute();
   return { p, gop };
+}
+/* ĐỊA CHỈ THEO ĐỊNH VỊ — hỏi máy chủ (VietMap, hụt thì OpenStreetMap).
+   Nhớ theo toạ độ làm tròn: bấm ➕ mấy lần liền ở cùng chỗ chỉ hỏi một lần. */
+const _dcCache = new Map();
+async function diaChiTaiDay(lat, lng) {
+  const la = +(+(lat != null ? lat : G.you.lat)).toFixed(5), lo = +(+(lng != null ? lng : G.you.lng)).toFixed(5);
+  const k = la + ',' + lo;
+  if (_dcCache.has(k)) return _dcCache.get(k);
+  let kq = { ok: false, addr: '', quan: '' };
+  try {
+    const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 9000);
+    let r; try { r = await fetch(`/api/diachi?lat=${la}&lng=${lo}`, { signal: ctl.signal }); } finally { clearTimeout(to); }
+    if (r.ok) { const j = await r.json(); if (j && j.ok) kq = { ok: true, addr: j.addr || '', quan: j.quan || '' }; }
+  } catch (e) {}
+  _dcCache.set(k, kq);
+  return kq;
 }
 /* Khai lại loại xe cho một quán đã có (kể cả quán từ bản đồ, không phải điểm tự nạp).
    Quán bản đồ thì tạo một điểm tự nạp ngay tại đó — máy chủ sẽ gộp vào cùng chỗ. */
@@ -1600,7 +1620,7 @@ const RADAR = {
     ls, lsSet, rid,
   },
   // hành động
-  act: { setOnline, setFilter, skipBest, addPointHere, renamePick, delPick, toggleFav, setNote, setXe, timQuanGan,
+  act: { setOnline, setFilter, skipBest, addPointHere, renamePick, delPick, toggleFav, setNote, setXe, timQuanGan, diaChiTaiDay,
          hideSpot, unhideAll, fixSpot, resetBrain, logJob, logDong, locateNow, setYou,
          refreshSpots, hardResync, enableNotif, notifyBest, fetchWeather },
   // tiện ích dùng chung

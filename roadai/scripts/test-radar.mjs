@@ -526,13 +526,31 @@ if (BASE) {
     const j = await fetch(`${BASE}/api/pickups?code=xx`).then(r => r.json());
     eq(j.ok, false);
   });
-  await Ta('THẬT 7b · máy A thêm quán kèm loại xe → máy B nhận đúng loại xe', async () => {
-    await post('devaaaaaaaa', { picks: [P('txe1', 'Quán Xe Máy', 10.7777, 106.6777, { ts: Date.now(), xe: 'may' })], hidden: [], trips: [] });
+  await Ta('THẬT 7b · máy A thêm quán kèm ĐỊA CHỈ + loại xe → máy B nhận đủ', async () => {
+    await post('devaaaaaaaa', { picks: [{ ...P('txe1', 'Quán Xe Máy', 10.7777, 106.6777, { ts: Date.now(), xe: 'may' }),
+      addr: '53 Đường 30, P. Hiệp Bình' }], hidden: [], trips: [] });
     const b = await get();
     const p = (b.picks || []).find(x => x.name === 'Quán Xe Máy');
     ok(p, 'máy B không thấy quán vừa thêm');
     eq(p.xe, 'may', 'loại xe không sang được máy kia');
+    eq(p.addr, '53 Đường 30, P. Hiệp Bình', 'địa chỉ không sang được máy kia');
     eq(p.n, 0, 'lời khai bị tính thành cuốc thật');
+  });
+  await Ta('THẬT 7c · /api/diachi tra được địa chỉ CỤ THỂ (có tên đường, không dừng ở phường)', async () => {
+    const cho = [[10.8100, 106.7200], [10.7440, 106.6130], [10.7670, 106.6926]];
+    let duN = 0;
+    for (const [la, lo] of cho) {
+      const j = await fetch(`${BASE}/api/diachi?lat=${la}&lng=${lo}`).then(r => r.json());
+      console.log(`      ${la},${lo} → ${j.ok ? j.nguon + ' · "' + j.addr + '"' : 'không tra được'}`);
+      ok(j.ok && j.addr && j.addr.length > 4, 'không tra được: ' + JSON.stringify(j).slice(0, 120));
+      ok(!/^[A-Z0-9]{4,8}\+[A-Z0-9]{2,4}/.test(j.addr), 'lọt Plus Code vào địa chỉ');
+      if (/(\d+[a-zA-Z]?\/?\d*\s)|(đường|hẻm|phố|ngõ|quốc lộ|tỉnh lộ|đại lộ|khu phố|ấp)\s/i.test(j.addr)) duN++;
+    }
+    ok(duN >= 2, `chỉ ${duN}/3 chỗ ra được tên đường — địa chỉ dừng ở cấp phường thì tài xế không dùng được`);
+  });
+  await Ta('THẬT 7d · /api/diachi chặn toạ độ ngoài Việt Nam', async () => {
+    const j = await fetch(`${BASE}/api/diachi?lat=48.85&lng=2.35`).then(r => r.json());
+    eq(j.ok, false);
   });
   await Ta('THẬT 8 · máy A tự nạp khu → máy B thấy khu trong sổ chung', async () => {
     const a = await post('devaaaaaaaa', { picks: [], hidden: [], trips: [],

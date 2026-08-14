@@ -667,35 +667,68 @@ const UI = (() => {
      lưu → đẩy lên máy chủ → mọi máy đang mở app đều có.
      Gõ tên thì gợi ý quán ĐÃ CÓ gần đây — chống chuyện cùng một quán bị nhập 3
      kiểu tên thành 3 chấm, không chấm nào đủ cuốc để kết luận gì. */
-  let addXe = '', addBusy = false;
+  let addXe = '', addBusy = false, addAddr = '', addQuan = '', addDcState = 'cho';
   function openAdd() {
-    addXe = '';
+    addXe = ''; addAddr = ''; addQuan = ''; addDcState = 'cho';
     openSheet('#sheet-add');
-    A.locateNow().then(() => paintAdd());     // lấy GPS ngầm, không chặn tay tài xế
     paintAdd();
-    setTimeout(() => { const i = $('#add-name'); if (i) i.focus(); }, 150);
+    // Lấy GPS rồi hỏi ĐỊA CHỈ THẬT chỗ đang đứng — chạy ngầm, không chặn tay tài xế.
+    (async () => {
+      await A.locateNow();
+      addDcState = 'dang'; paintAdd();
+      const d = await A.diaChiTaiDay();
+      if (d.ok) { addAddr = d.addr; addQuan = d.quan; addDcState = 'xong'; }
+      else addDcState = 'hut';
+      paintAdd();
+    })();
   }
   function paintAdd() {
     const el = $('#add-body'); if (!el || $('#sheet-add').hidden) return;
     const q = (($('#add-name') && $('#add-name').value) || '').trim();
-    const goi = A.timQuanGan(q, 5);
-    const veh = (k, ico, lbl) => `<button data-xe="${k}" class="vch${addXe === k ? ' on' : ''}">${ico}<span>${lbl}</span></button>`;
+    const dcCu = $('#add-addr') ? $('#add-addr').value : null;
+    if (dcCu != null && addDcState === 'xong') addAddr = dcCu;    // giữ phần tài xế sửa tay
+    /* GỢI Ý CHỈ HIỆN KHI ĐÃ GÕ ≥2 CHỮ.
+       Bản trước đổ 5 dòng gợi ý ngay lúc mở form, đẩy ô địa chỉ, mấy nút chọn xe
+       và nút LƯU xuống dưới màn hình — nhìn vào tưởng app chỉ cho chọn quán có
+       sẵn, không thêm tay được. Đúng cái anh Long báo. */
+    const goi = q.length >= 2 ? A.timQuanGan(q, 4) : [];
+    const veh = (k, ico, lbl) => `<button data-xe="${k}" class="vch${addXe === k ? ' on' : ''}">
+      <i class="tick">${addXe === k ? '✓' : ''}</i>${ico}<span>${lbl}</span></button>`;
+    const dc = { cho: '⏳ đang lấy vị trí…', dang: '⏳ đang tra địa chỉ…',
+                 hut: 'Bản đồ chưa tra được — anh gõ tay giúp em', xong: '' }[addDcState];
     el.innerHTML = `
-      <input id="add-name" class="inp" type="search" autocomplete="off" placeholder="Tên quán…" value="${esc(q)}" />
+      <label class="lbl">Tên quán <em>bắt buộc</em></label>
+      <input id="add-name" class="inp" type="text" autocomplete="off" enterkeyhint="done"
+             placeholder="Vd: Ốc Quyên, Bia Hơi 68…" value="${esc(q)}" />
       ${goi.length ? `<div class="goi">${goi.map(x => `<button class="goi-r" data-sp="${x.sp.id}">
           <b>${esc(U.cleanName(x.sp))}</b><small>${esc(x.sp.addr || K.CAT_VI[x.sp.cat] || '')} · cách ${U.fmtDist(x.d)}</small></button>`).join('')}
-        </div><p class="hint">Quán đã có sẵn thì bấm vào dòng trên — app gộp vào đúng chỗ đó thay vì tạo chấm trùng.</p>` : ''}
+        </div><p class="hint">Quán này đã có sẵn thì bấm vào dòng trên — app gộp vào đúng chỗ đó thay vì tạo chấm trùng.</p>` : ''}
 
-      <h4>Khách ở đây thường đi</h4>
+      <label class="lbl">Địa chỉ <em>lấy theo định vị · sửa được</em></label>
+      <input id="add-addr" class="inp" type="text" autocomplete="off"
+             placeholder="${esc(dc || 'Số nhà, đường, phường…')}" value="${esc(addAddr)}" />
+      <div class="gps-row">${G.hasGps ? '📍' : '⏳'} ${G.you.lat.toFixed(5)}, ${G.you.lng.toFixed(5)}${addQuan ? ' · ' + esc(addQuan) : ''}
+        <button id="add-relocate" class="lnk">lấy lại vị trí</button></div>
+
+      <label class="lbl">Khách ở đây thường đi <em>bắt buộc</em></label>
       <div class="vehs">${veh('may', '🏍️', 'Xe máy')}${veh('oto', '🚗', 'Ô tô')}${veh('ca2', '🚗🏍️', 'Cả hai')}</div>
 
-      <div class="dev-row"><span>Vị trí</span><b>${G.hasGps ? '📍 GPS · ' + G.you.lat.toFixed(5) + ', ' + G.you.lng.toFixed(5) : '⏳ đang lấy GPS…'}</b></div>
-      <button id="add-save" class="more"${addBusy ? ' disabled' : ''}>${addBusy ? '⏳ ĐANG LƯU…' : 'LƯU QUÁN'}</button>
-      <p class="hint">Lưu xong app đẩy lên kho chung ngay — máy còn lại đang mở app sẽ có quán này trong khoảng 12 giây.</p>`;
+      <p class="hint">Lưu xong app đẩy thẳng lên kho chung — máy còn lại đang mở app sẽ có quán này trong khoảng 12 giây.</p>
+      <div class="add-bar"><button id="add-save" class="more"${addBusy ? ' disabled' : ''}>${addBusy ? '⏳ ĐANG LƯU…' : '💾 LƯU QUÁN'}</button></div>`;
     const inp = $('#add-name');
-    if (inp) { inp.oninput = () => { clearTimeout(inp._t); inp._t = setTimeout(paintAdd, 220); }; }
+    if (inp) {
+      inp.oninput = () => { clearTimeout(inp._t); inp._t = setTimeout(paintAdd, 260); };
+      inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } };
+    }
     $$('#add-body .vch').forEach(b => b.onclick = () => { addXe = addXe === b.dataset.xe ? '' : b.dataset.xe; paintAdd(); });
     $$('#add-body .goi-r').forEach(b => b.onclick = () => chonQuanCo(b.dataset.sp));
+    $('#add-relocate').onclick = async () => {
+      addDcState = 'dang'; addAddr = ''; paintAdd();
+      await A.locateNow();
+      const d = await A.diaChiTaiDay();
+      if (d.ok) { addAddr = d.addr; addQuan = d.quan; addDcState = 'xong'; } else addDcState = 'hut';
+      paintAdd();
+    };
     $('#add-save').onclick = luuQuan;
   }
   // Chọn quán đã có → chỉ cập nhật loại xe cho nó, KHÔNG đẻ chấm mới
@@ -710,20 +743,23 @@ const UI = (() => {
   async function luuQuan() {
     if (addBusy) return;
     const nm = (($('#add-name') && $('#add-name').value) || '').trim();
-    if (!nm) { toast('Gõ tên quán đã'); const i = $('#add-name'); if (i) i.focus(); return; }
+    const dc = (($('#add-addr') && $('#add-addr').value) || '').trim();
+    if (!nm) { toast('Gõ tên quán đã'); const i = $('#add-name'); if (i) { i.focus(); i.scrollIntoView({ block: 'center' }); } return; }
     if (!addXe) { toast('Chọn khách ở đây đi xe máy hay ô tô'); return; }
     addBusy = true; paintAdd();
     try {
       if (!G.hasGps) await A.locateNow();
-      const { p, gop } = A.addPointHere(nm, 'phonhau', addXe);
+      const { p, gop } = A.addPointHere(nm, 'phonhau', addXe, dc, addQuan);
       SYNC.dirty('pick', p.id);
-      await SYNC.push();                       // đẩy lên NGAY, không đợi chu kỳ
+      const ok = await SYNC.push();            // đẩy lên NGAY, không đợi chu kỳ
       closeSheets();
-      toast(gop ? `✓ Đã gộp vào “${U.cleanName({ name: p.name })}” — đã đồng bộ`
-                : `✓ Đã lưu “${nm}” · ${K.XE_ICON[addXe]} — đã đồng bộ`, 4000);
+      toast((gop ? `✓ Đã gộp vào “${U.cleanName(p)}”` : `✓ Đã lưu “${nm}” ${K.XE_ICON[addXe]}`) +
+        (ok ? ' — đã lên kho chung' : ' — chưa có mạng, app sẽ tự gửi sau'), 4200);
       if (map) map.setView([p.lat, p.lng], Math.max(16, map.getZoom()));
-    } catch (e) { toast('Lưu được vào máy, chưa đẩy lên được — app sẽ tự gửi khi có mạng', 4200); closeSheets(); }
-    finally { addBusy = false; }
+    } catch (e) {
+      closeSheets();
+      toast('Đã lưu vào máy, chưa đẩy lên được — app sẽ tự gửi khi có mạng', 4200);
+    } finally { addBusy = false; }
   }
 
   /* ═════════════ CÀI APP ═════════════ */
