@@ -1660,6 +1660,7 @@ function startGps() {
   if (!navigator.geolocation.watchPosition) return;
   navigator.geolocation.watchPosition(p => {
     G.hasGps = true;
+    if (isFinite(p.coords.accuracy)) G.gpsAcc = Math.round(p.coords.accuracy);
     const nx = { lat: p.coords.latitude, lng: p.coords.longitude };
     const moved = _lastFix ? haversine(_lastFix, nx) : Infinity;
     G.you = nx; G.youFromGps = true;
@@ -1667,14 +1668,38 @@ function startGps() {
     if (moved > 250 && Date.now() - _lastRecalc > 20000) { _lastFix = nx; _lastRecalc = Date.now(); G.lastBestId = null; recompute(); }
   }, () => {}, { enableHighAccuracy: false, maximumAge: 15000, timeout: 20000 });
 }
-function locateNow() {
+/* LẤY VỊ TRÍ — CHỌN BẢN ĐO TỐT NHẤT, KHÔNG VƠ LẤY BẢN ĐẦU.
+   Anh Long dính 14/08/2026: bấm ➕ ở An Lạc, máy trả toạ độ "Xã Phạm Văn Hai,
+   Bình Chánh" — LỆCH 13,7 KM. Đó là fix theo TRẠM PHÁT SÓNG, máy vẫn báo thành
+   công nên app tin luôn và lưu quán sai chỗ 14km.
+   Cách chữa: nghe liên tục tối đa 7 giây, giữ bản đo có SAI SỐ NHỎ NHẤT, và dừng
+   sớm khi đã đạt ±40m. Sai số được ghi lại (G.gpsAcc) để màn hình nói thật cho
+   tài xế biết toạ độ này đáng tin tới đâu. */
+function locateNow(toiDa) {
   if (!navigator.geolocation) return Promise.resolve(false);
-  return new Promise(res => navigator.geolocation.getCurrentPosition(p => {
-    G.hasGps = true; setYou(p.coords.latitude, p.coords.longitude, true);
-    _lastFix = { ...G.you }; _lastRecalc = Date.now();
-    G.pendingLog = null; G.chainFrom = null; SKIPPED.clear(); G.lastBestId = null;
-    recompute(); fetchWeather(); res(true);
-  }, () => res(false), { enableHighAccuracy: true, timeout: 8000 }));
+  const HAN = toiDa || 7000, DU_TOT = 40;
+  return new Promise(res => {
+    let tot = null, xong = false, id = null;
+    const chot = () => {
+      if (xong) return; xong = true;
+      if (id != null && navigator.geolocation.clearWatch) { try { navigator.geolocation.clearWatch(id); } catch (e) {} }
+      if (!tot) return res(false);
+      G.hasGps = true; G.gpsAcc = Math.round(tot.acc);
+      setYou(tot.lat, tot.lng, true);
+      _lastFix = { ...G.you }; _lastRecalc = Date.now();
+      G.pendingLog = null; G.chainFrom = null; SKIPPED.clear(); G.lastBestId = null;
+      recompute(); fetchWeather(); res(true);
+    };
+    const nhan = p => {
+      const acc = isFinite(p.coords.accuracy) ? p.coords.accuracy : 9999;
+      if (!tot || acc < tot.acc) tot = { lat: p.coords.latitude, lng: p.coords.longitude, acc };
+      if (tot.acc <= DU_TOT) chot();
+    };
+    try { id = navigator.geolocation.watchPosition(nhan, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: HAN }); }
+    catch (e) {}
+    navigator.geolocation.getCurrentPosition(nhan, () => {}, { enableHighAccuracy: true, timeout: HAN, maximumAge: 0 });
+    setTimeout(chot, HAN);
+  });
 }
 
 /* Mặt tiền cho giao diện + tầng đồng bộ. Đây là danh sách ĐẦY ĐỦ những gì

@@ -127,10 +127,17 @@ const UI = (() => {
   function drawable(m) {
     if (!m) return [];
     const hop = r => r.dist <= K.COVER_R;
+    /* ĐIỂM CỦA CHÍNH TÀI XẾ KHÔNG BỊ CẮT THEO VÙNG PHỦ SÓNG 5KM.
+       Lỗi anh Long dính 14/08/2026: GPS bắt theo trạm phát sóng, lệch 13,7 km →
+       quán vừa thêm nằm ngoài vòng 5km → BỊ LỌC KHỎI BẢN ĐỒ, bấm LƯU xong nhìn
+       không thấy gì. Quán trên bản đồ thì cắt cho đỡ rối được, chứ dữ liệu tài
+       xế tự nhập thì đứng ở đâu cũng phải thấy — không thì không có cách nào
+       biết mình vừa lưu nhầm chỗ để mà sửa. */
+    const cuaToi = r => r.sp.source === 'butl' || r.sp.source === 'mine';
     if (G.hienHet) return m.raw.slice(0, 400);
-    if (m.offHours) return m.raw.filter(r => hop(r) && (r.sp.source === 'butl' || r.sp.source === 'mine'));
+    if (m.offHours) return m.raw.filter(cuaToi);
     const manh = m.byHot.filter(r => r.open && hop(r)).slice(0, 30);
-    const don = m.raw.filter(r => hop(r) && (r.sp.source === 'butl' || r.sp.source === 'mine'));
+    const don = m.raw.filter(cuaToi);
     const seen = new Set();
     return [...manh, ...don, ...(m.best ? [m.best] : [])].filter(r => !seen.has(r.sp.id) && seen.add(r.sp.id));
   }
@@ -476,19 +483,13 @@ const UI = (() => {
       <div class="seg"><button data-base="dark"${G.base === 'dark' ? ' class="on"' : ''}>🌙 Tối</button><button data-base="light"${G.base === 'light' ? ' class="on"' : ''}>☀️ Sáng</button></div>
       <button id="set-install" class="more" hidden>📲 Cài app vào máy</button>
 
-      <h4>Dữ liệu quán</h4>
+      <h4>Dữ liệu</h4>
       <div class="dev-row"><span>Điểm đang dùng</span><b>${RADAR.banQuan().n}</b></div>
       <div class="dev-row"><span>Điểm quanh bạn (4km)</span><b>${RADAR.vung.near()}</b></div>
-      <div class="dev-row"><span>Nạp lần cuối</span><b>${lucNao(napAt())}</b></div>
-      <button id="set-nap" class="more">📍 NẠP QUÁN KHU NÀY</button>
-      <p class="hint">App tự nạp khi bạn chạy sang khu chưa có dữ liệu. Bấm nút này khi muốn làm mới ngay — nạp xong app báo luôn <b>điểm cao nhất</b> của khu, và máy kia đang mở app cũng có theo.</p>
-
-      <h4>Thiết bị</h4>
-      <div class="dev-row"><span>Trạng thái</span><b>${s.dot} ${s.vi}${s.pending ? ' · ' + s.pending + ' chờ gửi' : ''}</b></div>
-      <div class="dev-row"><span>Máy đang dùng chung</span><b>${s.devices || 1}</b></div>
-      <div class="dev-code">MÃ TÀI XẾ<b>${esc(s.code)}</b></div>
-      <p class="hint">Muốn dùng chung dữ liệu trên máy thứ 2: mở app máy đó, vào đây, bấm <b>Ghép máy</b> rồi gõ mã trên. Từ đó điểm đã lưu và cuốc đã ghi của cả hai máy nhập làm một.</p>
-      <button id="set-pair" class="more">🔗 GHÉP MÁY</button>
+      <div class="dev-row"><span>Cập nhật lần cuối</span><b>${lucNao(napAt())}</b></div>
+      <div class="dev-row"><span>Đồng bộ</span><b>${s.dot} ${s.vi}${s.pending ? ' · ' + s.pending + ' chờ gửi' : ''}</b></div>
+      <div class="dev-row"><span>Máy đang dùng chung kho</span><b>${s.devices || 1}</b></div>
+      <p class="hint">App tự nạp dữ liệu khu vực khi bạn chạy tới, tự đồng bộ với các máy khác — không phải bấm gì. Mọi máy cài app đều dùng chung một kho nên dữ liệu luôn giống nhau.</p>
 
       <button id="set-diag" class="more ghost">⚙️ Chẩn đoán hệ thống</button>`;
     const on = (id, fn) => { const e = $(id); if (e) e.onchange = fn; };
@@ -500,19 +501,6 @@ const UI = (() => {
     on('#sw-fc', e => { G.showForecast = e.target.checked; RADAR.flags.set('roadai_butl_forecast', G.showForecast); lastRing = ''; RADAR.recompute(); });
     on('#sw-wx', e => { G.rainManual = !e.target.checked; if (!G.rainManual) A.fetchWeather(); RADAR.recompute(); });
     $$('#set-body .seg button').forEach(b => b.onclick = () => { setBase(b.dataset.base); paintSet(); });
-    $('#set-pair').onclick = async () => {
-      const v = window.prompt('Gõ MÃ TÀI XẾ của máy kia để dùng chung dữ liệu:', SYNC.status().code);
-      if (v == null) return;
-      const r = await SYNC.pair(v);
-      toast(r.ok ? `✓ Đã ghép · ${r.n} điểm · ${r.trips} cuốc dùng chung` : (r.why || 'Chưa ghép được — kiểm tra mạng'), 4200);
-      paintSet();
-    };
-    $('#set-nap').onclick = async () => {
-      const b = $('#set-nap'); b.textContent = '⏳ ĐANG NẠP…'; b.disabled = true;
-      await RADAR.vung.nap(true);          // toast của engine sẽ báo số điểm + điểm P cao nhất
-      SYNC.push();                          // đẩy sổ khu lên ngay cho máy kia có theo
-      paintSet();
-    };
     $('#set-diag').onclick = () => openSheet('#sheet-diag');
     if (deferredPrompt) { const b = $('#set-install'); b.hidden = false; b.onclick = doInstall; }
   }
@@ -820,8 +808,18 @@ const UI = (() => {
       hut: 'Bản đồ chưa tra được — anh gõ tay giúp em', xong: 'Số nhà, đường, phường…' }[addDcState];
     // Chỉ điền hộ khi tài xế CHƯA tự gõ gì — không giật chữ khỏi tay người đang nhập.
     if (!addrTouched && addAddr && dc.value !== addAddr) dc.value = addAddr;
+    /* NÓI THẬT SAI SỐ GPS.
+       Anh Long bấm ➕ ở An Lạc mà máy trả toạ độ Bình Chánh — LỆCH 13,7 KM (fix
+       theo trạm phát sóng). App im lặng lưu luôn, quán nằm sai chỗ 14km mà không
+       ai biết. Giờ hiện thẳng ±bao nhiêu mét, và quá 1km thì KHÔNG CHO LƯU. */
     const g = $('#add-gps');
-    if (g) g.textContent = `${G.hasGps ? '📍' : '⏳'} ${G.you.lat.toFixed(5)}, ${G.you.lng.toFixed(5)}` + (addQuan ? ' · ' + addQuan : '');
+    if (g) {
+      const acc = G.gpsAcc;
+      const canh = acc == null ? '' : acc > 1000 ? ` · ⚠️ ±${(acc / 1000).toFixed(1)} km — GPS chưa bắt được, ra chỗ thoáng rồi bấm "lấy lại vị trí"`
+        : acc > 150 ? ` · ⚠️ ±${Math.round(acc)} m — hơi lệch` : ` · ±${Math.round(acc)} m`;
+      g.innerHTML = `${G.hasGps ? '📍' : '⏳'} ${G.you.lat.toFixed(5)}, ${G.you.lng.toFixed(5)}` +
+        (addQuan ? ' · ' + esc(addQuan) : '') + `<b class="${acc > 1000 ? 'bad' : ''}">${esc(canh)}</b>`;
+    }
   }
   const tenDangGo = () => addPick ? addPick.name : (($('#add-name') && $('#add-name').value) || '').trim();
   function syncAdd() {
@@ -854,6 +852,14 @@ const UI = (() => {
     const dc = (($('#add-addr') && $('#add-addr').value) || '').trim();
     if (!nm) { toast('Gõ tên quán đã'); const i = $('#add-name'); if (i) { i.focus(); i.scrollIntoView({ block: 'center' }); } return; }
     if (!addXe) { toast('Chọn khách ở đây đi xe máy hay ô tô'); return; }
+    /* CHẶN LƯU KHI GPS QUÁ LỆCH — thà không lưu còn hơn cắm chấm sai 14km rồi
+       sau này không ai biết nó sai để mà sửa. Chỉ chặn khi đang thêm quán MỚI;
+       dùng lại quán có sẵn thì toạ độ lấy của quán đó, không liên quan GPS. */
+    if (!addPick && G.gpsAcc != null && G.gpsAcc > 1000) {
+      toast(`GPS đang lệch ±${(G.gpsAcc / 1000).toFixed(1)} km — ra chỗ thoáng, bấm "lấy lại vị trí" rồi lưu`, 5200);
+      const g = $('#add-gps'); if (g && g.scrollIntoView) g.scrollIntoView({ block: 'center' });
+      return;
+    }
 
     /* CHỐNG TRÙNG: gõ đúng tên một quán đã có rồi bấm LƯU thì KHÔNG tạo chấm mới —
        hỏi lại trước. upsertPick chỉ gộp khi cách <55m, mà toạ độ quán trên bản đồ
@@ -919,14 +925,15 @@ const UI = (() => {
       if (!$('#sheet-dash').hidden) paintDash();
       if (!$('#sheet-why').hidden) paintWhy();
       if (!$('#sheet-diag').hidden) paintDiag();
-      /* Thanh "khu này chưa có điểm" — chỉ hiện đúng lúc cần, tự ẩn khi đã có dữ liệu.
-         Hiện ra thì phải ĐẨY 2 nút tròn xuống, không thì nó nằm chồng lên nhau. */
+      /* Khu chưa có dữ liệu: app TỰ nạp, tài xế không phải bấm gì (anh chủ chốt
+         14/08/2026 — bỏ nút "nạp quán quanh đây"). Chỉ còn một dòng báo trong lúc
+         nó đang chạy, để tài xế biết app đang làm việc chứ không phải treo. */
       const nb = $('#newzone');
       if (nb) {
-        const hien = G.quanGan != null && G.quanGan < RADAR.vung.min;
-        nb.hidden = !hien;
-        nb.textContent = RADAR.vung.busy() ? '⏳ ĐANG TÌM ĐIỂM QUANH ĐÂY…' : '📍 TÌM ĐIỂM QUANH ĐÂY';
-        document.body.classList.toggle('zone-on', hien);
+        const dangNap = RADAR.vung.busy();
+        nb.hidden = !dangNap;
+        nb.textContent = '⏳ Đang tìm điểm quanh đây…';
+        document.body.classList.toggle('zone-on', dangNap);
       }
     } finally { painting = false; }
   }
@@ -959,7 +966,7 @@ const UI = (() => {
       $$('#filters button').forEach(x => x.classList.remove('on'));
       b.classList.add('on'); A.setFilter(b.dataset.f);
     });
-    const nz = $('#newzone'); if (nz) nz.onclick = () => { nz.hidden = true; toast('Đang tìm điểm quanh đây…', 5000); RADAR.vung.nap(true); };
+    // #newzone giờ chỉ là dòng báo "đang nạp", không còn là nút bấm
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheets(); });
   }
 

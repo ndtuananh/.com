@@ -58,8 +58,24 @@ const SYNC = (() => {
   const CODE_LS = 'roadai_butl_code', DEV_LS = 'roadai_butl_dev';
   const CODE_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // bỏ O/0/I/1 cho khỏi đọc nhầm qua Zalo
   const newCode = () => { let s = ''; for (let i = 0; i < 8; i++) s += CODE_ABC[Math.floor(Math.random() * CODE_ABC.length)]; return s; };
-  let CODE = ''; try { CODE = (localStorage.getItem(CODE_LS) || '').toUpperCase(); } catch (e) {}
-  if (!/^[A-Z0-9]{6,16}$/.test(CODE)) { CODE = newCode(); try { localStorage.setItem(CODE_LS, CODE); } catch (e) {} }
+  /* ═══ MỘT KHO CHUNG, KHÔNG PHẢI GHÉP MÁY ═══
+     Trước đây mỗi máy tự sinh một MÃ TÀI XẾ ngẫu nhiên, muốn dùng chung dữ liệu
+     thì phải đọc mã qua Zalo rồi gõ vào máy kia. Anh chủ chốt 14/08/2026: bỏ hẳn
+     bước đó — máy nào cài app cũng vào THẲNG cùng một kho, dữ liệu đồng nhất ngay
+     từ lần mở đầu tiên, không thao tác gì.
+     Máy vẫn có MÃ MÁY riêng nên hai máy ghi cùng lúc không đè nhau (mỗi máy một
+     dòng trong bảng); chỉ có cái khoá gom nhóm là dùng chung.
+     ⚠️ Khi làm bản thương mại nhiều người dùng thì PHẢI đổi chỗ này sang Supabase
+     Auth + RLS theo user_id, không thì mọi tài xế nhìn chung một kho. */
+  const CODE_CHUNG = 'BUTLCHUNG';
+  let CODE = CODE_CHUNG;
+  try {
+    const cu = (localStorage.getItem(CODE_LS) || '').toUpperCase();
+    localStorage.setItem(CODE_LS, CODE);
+    // máy cũ đang giữ mã riêng: dữ liệu trong máy vẫn còn nguyên, lần đẩy đầu tiên
+    // sẽ tự chuyển hết sang kho chung (push gửi trạng thái của máy, không phụ thuộc mã cũ)
+    if (cu && cu !== CODE) localStorage.setItem('roadai_butl_code_cu', cu);
+  } catch (e) {}
   let DEV = ''; try { DEV = localStorage.getItem(DEV_LS) || ''; } catch (e) {}
   if (!/^[a-z0-9]{6,24}$/.test(DEV)) { DEV = rid(12); try { localStorage.setItem(DEV_LS, DEV); } catch (e) {} }
 

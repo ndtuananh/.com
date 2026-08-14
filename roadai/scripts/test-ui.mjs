@@ -196,11 +196,22 @@ T('bấm ⚙️ Cài đặt → đúng 4 công tắc, KHÔNG có số liệu k�
   ok(t.includes('chẩn đoán'), 'thiếu lối vào Chẩn đoán');
   ok(!t.includes('mô phỏng'), 'vẫn còn chữ "mô phỏng" — đây là app thật');
 });
-T('Cài đặt có nút NẠP QUÁN tay + ngày giờ nạp lần cuối', () => {
-  ok(!!$('#set-nap'), 'thiếu nút nạp quán thủ công');
+T('Cài đặt KHÔNG còn ghép máy và KHÔNG còn nút nạp quán (app tự lo)', () => {
+  ok(!$('#set-pair'), 'vẫn còn nút ghép máy');
+  ok(!$('#set-nap'), 'vẫn còn nút nạp quán thủ công');
+  const t = txt('#set-body').toLowerCase();
+  ok(!t.includes('ghép máy'), 'vẫn còn chữ ghép máy');
+  ok(!t.includes('mã tài xế'), 'còn bắt tài xế nhìn mã');
+});
+T('mọi máy dùng CHUNG MỘT KHO, không phải ghép tay', () => {
+  eq(w.SYNC.status().code, 'BUTLCHUNG', 'mã kho không cố định → mỗi máy một kho, dữ liệu lệch nhau');
+});
+T('Cài đặt cho biết dữ liệu đang có gì, cập nhật lúc nào (không cần bấm gì)', () => {
   const t = txt('#set-body');
-  ok(t.includes('Nạp lần cuối'), 'không ghi ngày giờ nạp');
+  ok(t.includes('Cập nhật lần cuối'), 'không ghi ngày giờ cập nhật');
   ok(t.includes('Điểm đang dùng'), 'không cho biết đang có bao nhiêu điểm');
+  ok(t.includes('Đồng bộ'), 'không cho biết đã đồng bộ chưa');
+  ok(/tự nạp|tự đồng bộ/i.test(t), 'không nói rõ app tự làm, tài xế khỏi bấm');
 });
 T('Chẩn đoán hệ thống (tầng 3) mới là nơi có OSM / MÃ BẢN / đồng bộ', () => {
   $('#set-diag').onclick();
@@ -334,6 +345,16 @@ T('TRONG GIỜ: điểm tự thêm hiện đúng % của nó', () => {
   w.RADAR.G.simHour = 22.5; veLai();
   const c = chamCua('Quán Thử Nghiệm');
   ok(c && /\d+<i>%/.test(c.html), 'không hiện điểm P: ' + (c && c.html));
+});
+/* Anh Long 14/08/2026: GPS bắt theo trạm phát sóng, lệch 13,7 km → quán vừa thêm
+   nằm ngoài vòng phủ sóng 5km nên BỊ LỌC KHỎI BẢN ĐỒ, bấm LƯU xong không thấy gì. */
+T('NGOÀI 5KM: điểm tự thêm VẪN phải vẽ (không thì lưu sai chỗ mà không biết đường sửa)', () => {
+  const y = w.RADAR.G.you;
+  w.RADAR.act.setYou(y.lat + 0.12, y.lng, false);   // dời mình đi ~13km
+  veLai();
+  const c = chamCua('Quán Thử Nghiệm');
+  ok(c, 'quán tự thêm cách 13km bị lọc khỏi bản đồ — đúng lỗi anh Long gặp');
+  w.RADAR.act.setYou(y.lat, y.lng, false); veLai();
 });
 T('loại xe đã khai làm điểm đó lọc được ngay bằng 🏍️ (chưa cần cuốc nào)', () => {
   w.RADAR.store.buildSpots(); w.RADAR.recompute();
