@@ -524,6 +524,17 @@ const UI = (() => {
       ${row('Kéo / đẩy / lỗi', s.pulls + ' / ' + s.pushes + ' / ' + s.fails)}
       ${row('Xung đột đã xử lý', s.conflicts)}
       ${row('Kho cuốc trên máy chủ', s.tripsReady === false ? '⚠️ chưa bật (chạy supabase/schema.sql)' : s.tripsReady ? 'sẵn sàng' : '—')}
+      ${(() => {
+        /* SOI ĐƯỢC NGAY MÁY VÀ MÁY CHỦ CÓ KHỚP KHÔNG.
+           Lỗi 22/08/2026: máy chủ âm thầm cắt điểm mới, app vẫn báo "đã lên kho
+           chung" — không có dòng nào để phát hiện, mất dữ liệu 5 ngày mới biết. */
+        const trongMay = RADAR.picks.live(RADAR.picks.my()).length;
+        const treKho = RADAR.picks.live(RADAR.picks.all()).length;
+        const lech = trongMay > treKho;
+        return row('Điểm của tôi: trong máy / trên kho',
+          `<span class="${lech ? 'bad' : ''}">${trongMay} / ${treKho}${lech ? ' ⚠️ chưa lên hết' : ' ✓'}</span>`);
+      })()}
+      ${s.daCat ? row('Máy chủ phải bỏ bớt', '<span class="bad">' + s.daCat + ' điểm cũ (kho đầy)</span>') : ''}
       ${row('Cuốc: máy này / tất cả', RADAR.trips.mine().length + ' / ' + RADAR.trips.all().length)}
       ${row('Khu trong sổ dùng chung', (s.zones || 0) + ' · máy này giữ ' + RADAR.vung.list().length)}
       ${row('Mã máy', s.dev)}

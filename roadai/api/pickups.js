@@ -36,7 +36,24 @@ export const config = { maxDuration: 30 };
 const CODE_RE = /^[A-Z0-9]{6,16}$/;
 const DEV_RE = /^[a-z0-9]{6,24}$/;
 const CATS = new Set(['phonhau', 'beerclub', 'bar', 'karaoke', 'nhahang', 'sanbong', 'vanphong', 'tieccuoi', 'diemdon']);
-const MAX_PICKS = 500, MAX_HIDDEN = 3000, MAX_DEVICES = 12;
+/* ═══ SỨC CHỨA — VÀ BÀI HỌC ĐẮT NHẤT CỦA DỰ ÁN NÀY (22/08/2026) ═══
+   MAX_PICKS cũ = 500, và máy chủ cắt bằng `.slice(0, 500)`. Danh sách điểm của
+   máy con là mảng ĐẨY VÀO CUỐI, nên cắt như vậy là giữ 500 điểm CŨ NHẤT và VỨT
+   HẾT ĐIỂM MỚI — im lặng, không báo ai. Máy anh Long chạm trần: 138 bia mộ +
+   314 chấm GPS tự sinh chưa có cuốc nào ăn hết chỗ, điểm mới nhất máy chủ giữ
+   được là 17/08 trong khi anh vẫn thêm quán tới 22/08.
+   Triệu chứng đúng như anh Long tả: "tắt radar mở lên nó hiện 3-5 giây rồi mất"
+   — máy hiện bản trong máy, rồi bản gộp từ máy chủ (thiếu điểm mới) đè lên.
+   Ba việc phải làm cùng lúc, thiếu một cái là lỗi quay lại:
+     ① XẾP THEO GIÁ TRỊ TRƯỚC KHI CẮT (xemXepPicks) — điểm mới và điểm có cuốc
+        thật không bao giờ bị cắt trước;
+     ② BIA MỘ CÓ HẠN DÙNG — nó chỉ để chống hồi sinh trong lúc đồng bộ, việc đó
+        xong trong vài giây, giữ 60 ngày là quá dư;
+     ③ NÓI THẬT KHI CẮT (`daCat` trong kết quả) — cắt im lặng là kiểu hỏng tệ
+        nhất: app báo "đã lên kho chung" trong khi dữ liệu bị vứt. */
+const MAX_PICKS = 1500, MAX_HIDDEN = 3000, MAX_DEVICES = 12;
+const MAX_TOMB = 250;                     // bia mộ giữ tối đa
+const HAN_TOMB = 60 * 864e5;              // và chỉ giữ 60 ngày
 const MAX_TRIPS_DEV = 1000;    // giữ tối đa 1000 cuốc/máy trong kho
 const MAX_TRIPS_OUT = 900;     // trả về tối đa 900 cuốc gần nhất (giữ payload 4G nhẹ)
 const MAX_ZONES = 16;          // sổ khu của cả tài khoản (mỗi máy tự chọn 6 khu gần nó nhất)
@@ -93,6 +110,20 @@ function cleanTrip(t) {
   if (t.xe === 'oto' || t.xe === 'may') o.xe = t.xe;
   const p = num(t.p, 0, 1); if (p != null) o.p = +p.toFixed(3);
   return o;
+}
+/* XẾP ĐIỂM THEO GIÁ TRỊ rồi mới cắt. Thứ tự ưu tiên giữ lại:
+     ① điểm còn sống, ĐÃ CÓ CUỐC THẬT   — bằng chứng, mất là mất trắng thành tích
+     ② điểm còn sống, mới nhất trước     — quán tài xế vừa thêm phải sống sót
+     ③ bia mộ mới nhất, tối đa 250 & 60 ngày — chỉ để chống hồi sinh
+   Trả kèm số bị cắt để máy chủ nói thật ra ngoài. */
+function xepVaCat(picks, gio) {
+  const song = picks.filter(p => !p.del);
+  const mo = picks.filter(p => p.del)
+    .filter(p => gio - p.ts < HAN_TOMB)
+    .sort((a, b) => b.ts - a.ts).slice(0, MAX_TOMB);
+  song.sort((a, b) => (b.n > 0) - (a.n > 0) || b.ts - a.ts);
+  const giu = song.slice(0, Math.max(0, MAX_PICKS - mo.length)).concat(mo);
+  return { giu, cat: picks.length - giu.length };
 }
 function cleanMeta(m) {
   if (!m || typeof m !== 'object') return null;
@@ -283,7 +314,9 @@ export default async function handler(req, res) {
       const dev = str(body.deviceId, 24).toLowerCase();
       if (!DEV_RE.test(dev)) return res.status(200).json({ ok: false, reason: 'ma_may_khong_hop_le' });
 
-      const picks = (Array.isArray(body.picks) ? body.picks : []).map(cleanPick).filter(Boolean).slice(0, MAX_PICKS);
+      // ⚠️ KHÔNG được `.slice(0, MAX_PICKS)` thẳng — xem chú thích ở MAX_PICKS.
+      const { giu: picks, cat: daCat } = xepVaCat(
+        (Array.isArray(body.picks) ? body.picks : []).map(cleanPick).filter(Boolean), Date.now());
       const hidden = (Array.isArray(body.hidden) ? body.hidden : []).map(cleanHidden).filter(Boolean).slice(0, MAX_HIDDEN);
       const gui = (Array.isArray(body.trips) ? body.trips : []).map(cleanTrip).filter(Boolean);
       const zones = (Array.isArray(body.zones) ? body.zones : []).map(cleanZone).filter(Boolean).slice(0, MAX_ZONES);
@@ -304,7 +337,9 @@ export default async function handler(req, res) {
       // Postgres ghi xong đọc lại là thấy ngay → trả bản GỘP MỚI NHẤT luôn cho chắc.
       const files = await readAll(code);
       const t = await readTag(code).catch(() => ({ tag: null }));
-      return reply(res, files, { tag: t.tag, saved: picks.length, mineTrips: trips.length });
+      // `daCat` = số điểm máy chủ buộc phải bỏ. Máy con hiện ra cho tài xế biết,
+      // KHÔNG cắt im lặng rồi vẫn báo "đã lên kho chung".
+      return reply(res, files, { tag: t.tag, saved: picks.length, daCat, mineTrips: trips.length });
     }
     return res.status(405).json({ ok: false, reason: 'method' });
   } catch (e) {
@@ -314,4 +349,4 @@ export default async function handler(req, res) {
 
 /* Xuất ra để bộ thử (scripts/test-sync.mjs) chạy thẳng luật gộp, không cần máy chủ.
    Luật gộp mà sai thì mọi máy sai theo — phải thử được nó một cách độc lập. */
-export { merge, cleanPick, cleanTrip, cleanHidden, cleanZone };
+export { merge, cleanPick, cleanTrip, cleanHidden, cleanZone, xepVaCat };

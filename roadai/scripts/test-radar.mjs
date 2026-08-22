@@ -432,6 +432,50 @@ T('BỔ SUNG · dữ liệu rác từ ngoài bị chặn ở máy chủ', () => 
   const t = cleanTrip({ id: 'a', ts: 1, key: 'k', type: 'dong', win: 1 });
   eq(t.win, 0, 'quan sát "đang đông" bị tính thành cuốc thắng');
 });
+/* ═══ LỖI MẤT DỮ LIỆU 22/08/2026 — anh Long: "tắt radar mở lên nó hiện 3-5 giây
+   rồi mất". Máy chủ cắt `.slice(0, 500)` = giữ 500 điểm CŨ NHẤT, vứt hết điểm mới,
+   im lặng. Kho anh Long: 138 bia mộ + 314 chấm GPS chưa có cuốc ăn hết chỗ, điểm
+   mới nhất máy chủ giữ được là 17/08 trong khi anh vẫn thêm quán tới 22/08. ═══ */
+const { xepVaCat } = await import(path.join(ROOT, 'api/pickups.js').replace(/\\/g, '/').replace(/^([a-zA-Z]):/, 'file:///$1:'));
+console.log('\nB0 · KHO ĐẦY — điểm MỚI phải sống sót, không được cắt im lặng');
+T('600 điểm: quán VỪA THÊM không bao giờ bị cắt', () => {
+  const gio = Date.now(), ds = [];
+  for (let i = 0; i < 600; i++) ds.push(P('old' + i, '★ Nổ cuốc (GPS)', 10.7 + i * 1e-4, 106.6, { ts: gio - (600 - i) * 864e5 / 24 }));
+  const moi = P('vuathem', 'Quán Anh Long Vừa Thêm', 10.9, 106.9, { ts: gio });
+  ds.push(moi);
+  const { giu, cat } = xepVaCat(ds, gio);
+  ok(giu.some(p => p.id === 'vuathem'), `điểm vừa thêm BỊ CẮT — đúng lỗi anh Long mất dữ liệu 5 ngày (cắt ${cat})`);
+});
+T('điểm CÓ CUỐC THẬT không bao giờ bị cắt (bằng chứng, mất là mất trắng)', () => {
+  const gio = Date.now(), ds = [];
+  // 1600 điểm mới toanh, và 1 điểm CŨ nhưng đã có 9 cuốc thật
+  const bang = P('bangchung', 'Ốc Quyên', 10.75, 106.61, { ts: gio - 300 * 864e5, n: 9, win: 6 });
+  ds.push(bang);
+  for (let i = 0; i < 1600; i++) ds.push(P('m' + i, 'Quán ' + i, 10.7 + i * 1e-4, 106.6, { ts: gio - i }));
+  const { giu } = xepVaCat(ds, gio);
+  ok(giu.some(p => p.id === 'bangchung'), 'cắt mất điểm đã có 9 cuốc thật');
+});
+T('bia mộ có hạn dùng, không ăn hết chỗ của điểm thật', () => {
+  const gio = Date.now(), ds = [];
+  for (let i = 0; i < 400; i++) ds.push(P('t' + i, 'Đã xoá', 10.7 + i * 1e-4, 106.6, { ts: gio - 200 * 864e5, del: 1 }));
+  for (let i = 0; i < 100; i++) ds.push(P('s' + i, 'Quán sống', 10.8 + i * 1e-4, 106.7, { ts: gio }));
+  const { giu } = xepVaCat(ds, gio);
+  eq(giu.filter(p => p.del).length, 0, 'bia mộ 200 ngày tuổi vẫn còn chiếm chỗ');
+  eq(giu.filter(p => !p.del).length, 100, 'mất điểm sống');
+});
+T('CẮT THÌ PHẢI BÁO — không im lặng rồi vẫn nói "đã lên kho chung"', () => {
+  const gio = Date.now(), ds = [];
+  for (let i = 0; i < 2000; i++) ds.push(P('x' + i, 'Q' + i, 10.7 + i * 1e-4, 106.6, { ts: gio - i }));
+  const { cat } = xepVaCat(ds, gio);
+  ok(cat > 0, 'cắt mà báo 0 → app tưởng gửi đủ');
+});
+T('chưa chạm trần thì KHÔNG cắt gì cả', () => {
+  const gio = Date.now(), ds = [];
+  for (let i = 0; i < 300; i++) ds.push(P('y' + i, 'Q' + i, 10.7 + i * 1e-4, 106.6, { ts: gio - i }));
+  const { giu, cat } = xepVaCat(ds, gio);
+  eq(cat, 0); eq(giu.length, 300);
+});
+
 T('XE 1 · máy A khai "khách đi xe máy" → máy B nhận được lời khai', () => {
   const m = merge([{ dev: 'a', picks: [P('a1', 'Ốc Quyên', 10.75, 106.61, { ts: 2000, xe: 'may' })], hidden: [], trips: [], zones: [] },
                    { dev: 'b', picks: [], hidden: [], trips: [], zones: [] }]);

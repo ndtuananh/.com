@@ -155,7 +155,27 @@ if (!Array.isArray(MY_PICKS)) {                     // chuyển đổi từ bả
   lsSet(PICKS_LS, MY_PICKS);
 }
 let PICKS_ALL = MY_PICKS.slice();
-function savePicks() { lsSet(PICKS_LS, MY_PICKS); rebuildPicksAll(); }
+/* DỌN KHO ĐIỂM TRƯỚC KHI LƯU — không để nó phình tới mức máy chủ phải cắt.
+   Máy anh Long từng có 500 điểm: 138 BIA MỘ (đã xoá) + 314 chấm GPS tự sinh chưa
+   có cuốc nào. Bia mộ chỉ để chống hồi sinh trong lúc đồng bộ — việc đó xong
+   trong vài giây, giữ 60 ngày là quá dư. Chấm GPS tự sinh quá cũ mà chưa từng ra
+   cuốc nào thì cũng chỉ là rác.
+   TUYỆT ĐỐI KHÔNG đụng tới điểm CÓ CUỐC THẬT: đó là bằng chứng, mất là mất trắng. */
+const TOMB_HAN = 60 * 864e5;      // bia mộ giữ 60 ngày
+const PICK_TRAN = 900;            // ngưỡng bắt đầu dọn chấm tự sinh quá cũ
+function donPicks() {
+  const gio = Date.now();
+  let a = MY_PICKS.filter(p => !p.del || (gio - (p.ts || 0)) < TOMB_HAN);
+  if (a.length > PICK_TRAN) {
+    // vẫn quá nhiều → bỏ chấm TỰ SINH cũ nhất, chưa có cuốc nào, chưa được đặt tên
+    const bo = a.filter(p => !p.del && !p.n && isAutoName(p.name))
+      .sort((x, y) => (x.ts || 0) - (y.ts || 0))
+      .slice(0, a.length - PICK_TRAN);
+    if (bo.length) { const id = new Set(bo.map(p => p.id)); a = a.filter(p => !id.has(p.id)); }
+  }
+  if (a.length !== MY_PICKS.length) MY_PICKS = a;
+}
+function savePicks() { donPicks(); lsSet(PICKS_LS, MY_PICKS); rebuildPicksAll(); }
 function livePicks(a) { return a.filter(p => !p.del); }
 // gộp tại chỗ khi chưa gọi được máy chủ (mất mạng) — cùng luật 55m như máy chủ
 function rebuildPicksAll() {

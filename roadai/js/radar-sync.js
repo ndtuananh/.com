@@ -112,7 +112,7 @@ const SYNC = (() => {
     state: 'idle',        // idle | syncing | offline
     at: 0, rev: null, tag: null, devices: 0, err: null,
     tripsReady: null,     // máy chủ đã có chỗ chứa cuốc chưa (xem migration trong supabase/schema.sql)
-    zones: 0, devs: [],
+    zones: 0, devs: [], daCat: 0,
     pulls: 0, pushes: 0, fails: 0, conflicts: 0, lastMs: 0,
   };
   let busy = false, pushTimer = null, wantPush = false, failStreak = 0, lastFull = 0, reseeded = false;
@@ -127,7 +127,7 @@ const SYNC = (() => {
       state: st.state,
       dot: st.state === 'syncing' ? '🟡' : st.state === 'offline' ? '🔴' : '🟢',
       vi: st.state === 'syncing' ? 'Đang đồng bộ' : st.state === 'offline' ? 'Mất kết nối' : 'Đã đồng bộ',
-      pending: QUEUE.length, at: st.at, rev: st.rev, devices: st.devices, err: st.err,
+      pending: QUEUE.length, at: st.at, rev: st.rev, devices: st.devices, err: st.err, daCat: st.daCat || 0,
       code: CODE, dev: DEV, ver: APP_VER, tripsReady: st.tripsReady, zones: st.zones, devs: st.devs,
       pulls: st.pulls, pushes: st.pushes, fails: st.fails, conflicts: st.conflicts, lastMs: st.lastMs,
     };
@@ -251,6 +251,13 @@ const SYNC = (() => {
       });
       if (!j.ok) { st.fails++; setState('idle', j.reason || 'máy chủ từ chối'); return false; }
       st.pushes++; st.tag = j.tag || st.tag; st.lastMs = Date.now() - t0;
+      /* MÁY CHỦ CẮT BỚT THÌ PHẢI NÓI RA. Cắt im lặng chính là thứ đã làm anh Long
+         mất điểm suốt 5 ngày mà app vẫn báo "✓ đã lên kho chung" (22/08/2026). */
+      st.daCat = j.daCat || 0;
+      if (st.daCat) {
+        st.err = 'máy chủ phải bỏ ' + st.daCat + ' điểm cũ (kho đầy)';
+        if (window.UI && UI.toast) UI.toast(`⚠️ Kho đầy — máy chủ bỏ bớt ${st.daCat} điểm cũ nhất. Điểm mới và điểm đã có cuốc vẫn giữ nguyên.`, 6000);
+      }
       markSent(guiTrips.map(t => t.id));
       FORCE_FULL = j.tripsReady === false ? false
         : (j.mineTrips != null && j.mineTrips < Math.min(900, mine.length));
