@@ -541,7 +541,8 @@ const UI = (() => {
       ${row('Mã tài xế', s.code)}
       ${row('Phiên bản app', s.ver)}
       ${s.err ? row('Lỗi gần nhất', '<span class="bad">' + esc(s.err) + '</span>') : ''}
-      <div class="dev-code">MÃ BẢN ĐỒNG BỘ<b>${esc(s.rev || '—')}</b></div>
+      ${(() => { const d = RADAR.banDuLieu(); return `<div class="dev-code">MÃ DỮ LIỆU (điểm·cuốc·ẩn)<b>${esc(d.ma)}</b></div><p class="hint">Hai máy mở mục này, <b>MÃ DỮ LIỆU</b> giống nhau = dữ liệu tài khoản khớp 100% (${d.diem} điểm · ${d.cuoc} cuốc · ${d.an} điểm ẩn). Khác mã là còn thứ chưa lên kho — chờ 15 giây rồi xem lại.</p>`; })()}
+      <div class="dev-code">MÃ BẢN ĐỒNG BỘ<b>${esc(s.rev || "—")}</b></div>
 
       <h4>Máy đang dùng chung tài khoản</h4>
       ${(s.devs || []).length ? s.devs.map(d => `<div class="cal"><span>${d.dev === s.dev ? '🟢 máy này' : '📱 ' + esc(d.dev.slice(0, 8))}</span>

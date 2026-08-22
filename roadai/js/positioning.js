@@ -476,6 +476,20 @@ const spotKey = sp => sp.name + '@' + (+sp.lat).toFixed(4) + ',' + (+sp.lng).toF
    Băm trên danh sách ĐÃ SẮP XẾP nên không phụ thuộc thứ tự gộp; cố ý bỏ id
    (đánh theo vị trí) và closeH (có nhiễu ngẫu nhiên) ra ngoài. */
 function fnv(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0; } return h.toString(36).toUpperCase().padStart(7, '0').slice(-7); }
+/* ═══ MÃ DỮ LIỆU — vân tay của DỮ LIỆU TÀI KHOẢN (điểm tự nạp · cuốc · điểm ẩn) ═══
+   `banQuan()` chỉ soi kho ĐIỂM. Còn thứ quyết định app thông minh tới đâu là cuốc
+   thật và điểm ẩn — hai máy lệch ở đó thì cùng đứng một chỗ vẫn ra hai đề xuất, mà
+   nhìn MÃ QUÁN không thấy gì bất thường. Băm trên tập ĐÃ SẮP XẾP nên không phụ
+   thuộc thứ tự đồng bộ. Hai máy cùng mã này = dữ liệu tài khoản giống nhau 100%. */
+function banDuLieu() {
+  const p = livePicks(PICKS_ALL)
+    .map(x => x.id + '|' + x.n + '|' + x.win + '|' + (+x.lat).toFixed(5) + ',' + (+x.lng).toFixed(5))
+    .sort();
+  const t = allTrips().map(x => x.id).sort();
+  const h = [...HIDDEN].sort();
+  return { ma: fnv(p.join('\n') + '#' + t.join(',') + '#' + h.join(',')),
+    diem: p.length, cuoc: t.length, an: h.length };
+}
 function banQuan() {
   /* Phải trừ ĐIỂM ĐÃ ẨN ra. Điểm bị báo "đóng cửa/sai" vẫn nằm trong SPOTS nhưng
      không được đề xuất, nên hai máy lệch nhau đúng chỗ đó mà mã vẫn giống thì mã
@@ -602,12 +616,23 @@ if (!Array.isArray(MY_TRIPS)) {                 // chuyển nhật ký cũ sang,
 let NET_TRIPS = (() => { const a = ls(NET_LS, []); return Array.isArray(a) ? a : []; })();
 let _allTrips = null, _nkIdx = null;
 function invalidateTrips() { _allTrips = null; _nkIdx = null; }
+/* ═══ CỬA SỔ CUỐC DÙNG CHUNG — ĐỂ MỌI MÁY NHÌN CÙNG MỘT TẬP ═══
+   Máy chủ chỉ trả 900 cuốc mới nhất. Nếu máy con vẫn tính cả nhật ký RIÊNG cũ hơn
+   thế, thì máy nào giữ nhiều cuốc cũ sẽ nhìn thấy nhiều hơn → thống kê và dự báo
+   hai máy lệch nhau. Đo thật: A có 700 cuốc cũ, B có 700 cuốc mới → A thấy 1400,
+   B thấy 900.
+   Vì vậy khi máy chủ báo đã cắt, nó gửi kèm mốc cuốc cũ nhất còn trong cửa sổ;
+   máy con lọc nhật ký RIÊNG theo đúng mốc đó lúc TÍNH TOÁN.
+   Nhật ký gốc trong máy vẫn giữ nguyên — không xoá gì, chỉ không tính phần ngoài
+   cửa sổ để hai máy nói cùng một con số. */
+let TRIP_FROM = (() => { const v = ls('roadai_butl_trips_from', 0); return isFinite(v) ? v : 0; })();
 function allTrips() {
   if (_allTrips) return _allTrips;
   const seen = new Set(), out = [];
   for (const t of MY_TRIPS.concat(NET_TRIPS)) {
     const k = t && (t.id || (t.ts + '|' + t.key));
     if (!t || seen.has(k)) continue;
+    if (TRIP_FROM && (t.ts || 0) < TRIP_FROM) continue;   // ngoài cửa sổ chung → không tính
     seen.add(k); out.push(t);
   }
   out.sort((a, b) => (b.ts || 0) - (a.ts || 0));
@@ -623,10 +648,13 @@ function addTrip(j) {
   return t;
 }
 // Máy chủ trả về bản đã gộp → tách phần của máy khác ra làm NET_TRIPS, dựng lại TWIN_NET.
-function applyNetTrips(list, myDev) {
+function applyNetTrips(list, myDev, tuMoc) {
   const net = (Array.isArray(list) ? list : []).filter(t => t && t.dev && t.dev !== myDev);
   NET_TRIPS = net.slice(0, TRIP_MAX);
   lsSet(NET_LS, NET_TRIPS);
+  // mốc cửa sổ chung do máy chủ quy định (0 = chưa cắt gì, tính hết)
+  TRIP_FROM = isFinite(tuMoc) ? +tuMoc : 0;
+  lsSet('roadai_butl_trips_from', TRIP_FROM);
   rebuildTwinNet();
   invalidateTrips();
   G.jobsN = allTrips().length;
@@ -755,7 +783,13 @@ if (!HIDE_LOG || typeof HIDE_LOG !== 'object') { HIDE_LOG = {}; for (const k of 
 function saveHidden() { lsSet(HIDE_LS, [...HIDDEN]); lsSet(HIDELOG_LS, HIDE_LOG); }
 function hideSpotKey(k) { HIDDEN.add(k); HIDE_LOG[k] = { ts: Date.now(), on: 1 }; saveHidden(); }
 function unhideKey(k) { HIDDEN.delete(k); HIDE_LOG[k] = { ts: Date.now(), on: 0 }; saveHidden(); }
-const hideLogArr = () => Object.keys(HIDE_LOG).slice(0, 3000).map(k => ({ k, ts: HIDE_LOG[k].ts, on: HIDE_LOG[k].on }));
+/* Xếp theo mốc thời gian MỚI NHẤT trước rồi mới cắt. Object.keys() trả về theo thứ tự
+   CHÈN VÀO — mỗi máy một thứ tự khác nhau, nên cắt thẳng 3000 là hai máy gửi lên hai
+   tập điểm ẩn khác nhau → bản đồ hai máy khác nhau. */
+const hideLogArr = () => Object.keys(HIDE_LOG)
+  .map(k => ({ k, ts: HIDE_LOG[k].ts, on: HIDE_LOG[k].on }))
+  .sort((a, b) => (b.ts || 0) - (a.ts || 0) || (a.k < b.k ? -1 : 1))
+  .slice(0, 3000);
 let SKIPPED = new Set();   // điểm vừa "Bỏ qua" (tạm trong phiên) — để đề xuất điểm KHÁC
 
 /* ═══════════════════ PHẦN 6 · CHẤM ĐIỂM & DỰ BÁO ═══════════════════ */
@@ -1735,7 +1769,7 @@ const RADAR = {
           busy: () => _dangNapVung || _dangNapThieu, min: VUNG_IT, max: VUNG_TOI_DA,
           // sổ khu dùng chung — tầng đồng bộ đọc/ghi qua đây
           reg: () => ZONE_REG, live: soKhuSong, apply: applyZones, fill: napKhuThieu, pCao: pCaoNhat },
-  banQuan, health: kiemKho,
+  banQuan, banDuLieu, health: kiemKho,
   quanBo: { info: () => G.quanBo || (ls(QUANBO_LS, null) || null), nap: refreshQuanBo, so: () => QUAN_BO.length },
   flags: { set: flagSet, get: flagGet, canNotify },
   // MÃ BẢN danh sách quán dùng chung máy này đang chạy — để máy khác biết mình có cũ không

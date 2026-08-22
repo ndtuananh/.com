@@ -205,7 +205,7 @@ const SYNC = (() => {
     for (const k of [...S.hiddenSet()]) if (!srv.has(k)) S.hiddenDel(k);
     S.saveHidden();
     // cuốc thật của các máy KHÁC → nuôi chung một bộ não (§31 học toàn cục)
-    if (Array.isArray(j.trips)) { RADAR.trips.addNet(j.trips, DEV); st.tripsReady = true; }
+    if (Array.isArray(j.trips)) { RADAR.trips.addNet(j.trips, DEV, j.tripsFrom || 0); st.tripsReady = true; st.tripsCat = j.tripsCat || 0; }
     else if (j.tripsReady === false) st.tripsReady = false;
     /* SỔ KHU: máy nào nạp được khu nào thì cả tài khoản có khu đó. Máy này theo sổ
        rồi TỰ đi lấy quán của khu chưa có — tài xế không phải bấm gì, không phải

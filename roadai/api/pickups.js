@@ -187,7 +187,18 @@ function merge(files) {
   for (const f of files) for (const t of (f.trips || [])) {
     if (!tri.has(t.id)) tri.set(t.id, { ...t, dev: f.dev });
   }
-  const trips = [...tri.values()].sort((a, b) => b.ts - a.ts || (a.id < b.id ? -1 : 1)).slice(0, MAX_TRIPS_OUT);
+  /* ═══ CỬA SỔ CUỐC — CHỖ NÀY TỪNG LÀM HAI MÁY TÍNH RA HAI KẾT QUẢ ═══
+     Máy chủ chỉ trả 900 cuốc mới nhất cho gói 4G nhẹ. Nhưng mỗi máy còn giữ nhật
+     ký RIÊNG tới 1500 cuốc, nên máy nào có nhiều cuốc CŨ thì nhìn thấy nhiều hơn.
+     Đo thật: A có 700 cuốc cũ, B có 700 cuốc mới → A nhìn thấy 1400, B nhìn thấy
+     900. Hai máy cùng kho mà thống kê và dự báo lệch hẳn nhau.
+     Chữa: trả kèm `tripsFrom` = mốc thời gian cuốc CŨ NHẤT trong cửa sổ. Máy con
+     cắt nhật ký RIÊNG của nó theo đúng mốc đó khi tính toán → mọi máy nhìn CÙNG
+     MỘT tập cuốc. (Nhật ký gốc trong máy vẫn giữ nguyên, không xoá gì.) */
+  const tSap = [...tri.values()].sort((a, b) => b.ts - a.ts || (a.id < b.id ? -1 : 1));
+  const trips = tSap.slice(0, MAX_TRIPS_OUT);
+  const tripsCat = tSap.length - trips.length;
+  const tripsFrom = tripsCat > 0 && trips.length ? trips[trips.length - 1].ts : 0;
 
   /* ---- KHU ĐÃ NẠP: gộp theo ô lưới, bản ts MỚI NHẤT thắng (kể cả bản xoá).
          Máy nào nạp được khu nào là cả tài khoản có khu đó — không bắt từng máy
@@ -211,7 +222,7 @@ function merge(files) {
     picks: kept.filter(p => !p.del).sort(cmp),
     tomb: tomb.sort(cmp).filter((t, i, a) => i === 0 || t.id !== a[i - 1].id),
     hidden: [...hid.values()].filter(h => h.on).map(h => h.k).sort(),
-    trips, zones, devs,
+    trips, tripsCat, tripsFrom, zones, devs,
   };
 }
 

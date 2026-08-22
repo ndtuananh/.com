@@ -476,6 +476,36 @@ T('chưa chạm trần thì KHÔNG cắt gì cả', () => {
   eq(cat, 0); eq(giu.length, 300);
 });
 
+
+T('CỬA SỔ CUỐC · hai máy phải nhìn CÙNG MỘT tập cuốc, không lệch', () => {
+  // A: 700 cuốc CŨ · B: 700 cuốc MỚI · máy chủ chỉ trả 900 mới nhất
+  const A = [], B = [];
+  for (let i = 1; i <= 700; i++) A.push(TR('a' + i, 'K@1,1', i, 1));
+  for (let i = 701; i <= 1400; i++) B.push(TR('b' + i, 'K@1,1', i, 1));
+  const m = merge([{ dev: 'a', picks: [], hidden: [], trips: A, zones: [] },
+                   { dev: 'b', picks: [], hidden: [], trips: B, zones: [] }]);
+  ok(m.tripsCat > 0, 'kịch bản chưa chạm trần, test vô nghĩa');
+  ok(m.tripsFrom > 0, 'máy chủ cắt mà KHÔNG báo mốc cửa sổ → mỗi máy tự tính một kiểu');
+  // mô phỏng đúng cách máy con tính: nhật ký riêng + phần của máy kia, cắt theo mốc
+  const thay = (own, dev) => {
+    const net = m.trips.filter(t => t.dev !== dev);
+    const set = new Map();
+    for (const t of own.concat(net)) if (t.ts >= m.tripsFrom) set.set(t.id, t);
+    return set.size;
+  };
+  const nA = thay(A, 'a'), nB = thay(B, 'b');
+  eq(nA, nB, );
+});
+T('ĐIỂM ẨN · cắt phải TẤT ĐỊNH, không phụ thuộc thứ tự chèn của từng máy', () => {
+  const mk = (thuTu) => thuTu.map(i => H('quan' + i, 1000 + i, 1));
+  const a = merge([{ dev: 'a', picks: [], hidden: mk([3, 1, 2]), trips: [], zones: [] }]);
+  const b = merge([{ dev: 'a', picks: [], hidden: mk([2, 3, 1]), trips: [], zones: [] }]);
+  eq(JSON.stringify(a.hidden), JSON.stringify(b.hidden), 'đổi thứ tự chèn ra kết quả khác');
+});
+T('chưa chạm trần cuốc thì KHÔNG đặt mốc cửa sổ (tính hết)', () => {
+  const m = merge([{ dev: 'a', picks: [], hidden: [], trips: [TR('t1', 'K', 5, 1)], zones: [] }]);
+  eq(m.tripsCat, 0); eq(m.tripsFrom, 0);
+});
 T('XE 1 · máy A khai "khách đi xe máy" → máy B nhận được lời khai', () => {
   const m = merge([{ dev: 'a', picks: [P('a1', 'Ốc Quyên', 10.75, 106.61, { ts: 2000, xe: 'may' })], hidden: [], trips: [], zones: [] },
                    { dev: 'b', picks: [], hidden: [], trips: [], zones: [] }]);
