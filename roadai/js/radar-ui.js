@@ -62,11 +62,26 @@ const UI = (() => {
   }
 
   /* ═════════════ BẢN ĐỒ ═════════════ */
+  /* NỀN BẢN ĐỒ — DANH SÁCH DỰ PHÒNG, KHÔNG PHỤ THUỘC MỘT NHÀ CUNG CẤP (21/10/2026).
+     CARTO (basemaps.cartocdn.com) đổi luật, đòi API key: vẫn trả ảnh 200 OK nhưng
+     là ô xám in chữ "API KEY REQUIRED" → bản đồ tài xế thành nền đen trống, không
+     còn tên đường. Vì nó trả 200 nên không bắt lỗi được — phải bỏ hẳn CARTO.
+     Mỗi chế độ có nhiều nguồn; nguồn nào hỏng (lỗi tải liên tục) tự chuyển nguồn sau.
+     `dark:1` = ảnh nền sáng, lật màu bằng CSS cho hợp giao diện tối. */
+  const ESRI = n => 'https://server.arcgisonline.com/ArcGIS/rest/services/' + n + '/MapServer/tile/{z}/{y}/{x}';
   const OSM = {
-    dark: { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', sub: 'abcd' },
-    light: { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', sub: 'abcd' },
+    dark: [
+      { url: ESRI('Canvas/World_Dark_Gray_Base'), max: 16, nhan: ESRI('Canvas/World_Dark_Gray_Reference') },
+      { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', max: 19, dark: 1 },
+      { url: '/api/vietmap?path=tm/{z}/{x}/{y}.png', max: 18, dark: 1 },
+    ],
+    light: [
+      { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', max: 19 },
+      { url: '/api/vietmap?path=tm/{z}/{x}/{y}.png', max: 18 },
+      { url: ESRI('World_Street_Map'), max: 19 },
+    ],
   };
-  let map, baseLayer, meMarker, ringLayer, pinLayer, lineLayer;
+  let map, baseLayer, labelLayer, meMarker, ringLayer, pinLayer, lineLayer;
   let lastSig = '';
   let vuaThem = null, vuaThemT = null;   // điểm vừa lưu — nhấp nháy 12 giây cho tài xế thấy
   /* Lưu xong phải CHỈ TẬN NƠI: bay tới, làm chấm nổi hẳn lên, và mở luôn thẻ chi
@@ -88,6 +103,8 @@ const UI = (() => {
   function initMap() {
     map = L.map('map', { zoomControl: false, attributionControl: false, tap: false })
       .setView([G.you.lat, G.you.lng], 14);
+    map.createPane('nhan').style.zIndex = 250;   // nhãn đường: trên nền, dưới vòng/chấm
+    map.getPane('nhan').style.pointerEvents = 'none';
     setBase(G.base);
     ringLayer = L.layerGroup().addTo(map);   // vùng phủ sóng + quầng nhiệt (nền)
     lineLayer = L.layerGroup().addTo(map);   // đường tới điểm + cung đường
@@ -97,10 +114,23 @@ const UI = (() => {
   }
   function setBase(b) {
     G.base = b; try { localStorage.setItem('roadai_butl_base', b); } catch (e) {}
-    if (baseLayer) map.removeLayer(baseLayer);
-    const st = OSM[b] || OSM.dark;
-    baseLayer = L.tileLayer(st.url, { maxZoom: 20, subdomains: st.sub }).addTo(map);
+    napNen(OSM[b] || OSM.dark, 0);
     document.body.classList.toggle('light-base', b === 'light');
+  }
+  function napNen(ds, i) {
+    if (baseLayer) map.removeLayer(baseLayer);
+    if (labelLayer) { map.removeLayer(labelLayer); labelLayer = null; }
+    const st = ds[i]; if (!st) return;
+    const opt = { maxZoom: 20, maxNativeZoom: st.max, className: st.dark ? 'tile-dark' : '' };
+    const lop = L.tileLayer(st.url, opt);
+    // ô lỗi liên tục mà chưa ô nào tải được → nguồn này chết, chuyển nguồn kế tiếp
+    let loi = 0, ok = 0;
+    lop.on('tileload', () => { ok++; });
+    lop.on('tileerror', () => {
+      if (++loi >= 4 && !ok && baseLayer === lop && ds[i + 1]) napNen(ds, i + 1);
+    });
+    baseLayer = lop.addTo(map);
+    if (st.nhan) labelLayer = L.tileLayer(st.nhan, { maxZoom: 20, maxNativeZoom: st.max, pane: 'nhan' }).addTo(map);
   }
   function moveMe(pt) {
     if (!meMarker) {

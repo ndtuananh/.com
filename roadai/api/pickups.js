@@ -123,7 +123,10 @@ function xepVaCat(picks, gio) {
     .sort((a, b) => b.ts - a.ts).slice(0, MAX_TOMB);
   song.sort((a, b) => (b.n > 0) - (a.n > 0) || b.ts - a.ts);
   const giu = song.slice(0, Math.max(0, MAX_PICKS - mo.length)).concat(mo);
-  return { giu, cat: picks.length - giu.length };
+  /* `cat` CHỈ ĐẾM ĐIỂM CÒN SỐNG bị bỏ. Bia mộ (điểm tài xế ĐÃ XOÁ) quá 250/60 ngày
+     bị dọn là chuyện bình thường, không mất gì — đếm chung vào đây là báo động giả
+     "Kho đầy — bỏ 11 điểm" mỗi lần đồng bộ (anh Long chụp màn hình 21/10/2026). */
+  return { giu, cat: Math.max(0, song.length - (giu.length - mo.length)) };
 }
 function cleanMeta(m) {
   if (!m || typeof m !== 'object') return null;

@@ -34,9 +34,10 @@ const placeCache = new Map();   // refid -> {lat,lng}
 const routeCache = new Map();   // key -> raw routes
 let pendingSearch = false;      // chờ đăng nhập xong tự tìm đường
 // Nền OSM miễn phí, sáng & nhiều nhãn/POI (giống VietMap/Google), không cần key
+// CARTO đã đòi API key (trả ô 'API KEY REQUIRED') → dùng OSM gốc / Esri, không cần key
 const OSM_STYLES = {
-  light: { url:'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', sub:'abcd', attr:'© OpenStreetMap © CARTO · Routing OSRM' },
-  dark:  { url:'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',            sub:'abcd', attr:'© OpenStreetMap © CARTO · Routing OSRM' },
+  light: { url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png', max:19, attr:'© OpenStreetMap · Routing OSRM' },
+  dark:  { url:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', max:16, attr:'© Esri · © OpenStreetMap · Routing OSRM' },
 };
 
 /* ---------- MAP ---------- */
@@ -57,7 +58,7 @@ function buildBaseLayer(){
     attrib.setPrefix(''); attrib._container && (attrib._container.innerHTML='© VietMap · Routing VietMap · RoadAI');
   } else {
     const st = OSM_STYLES[S.baseStyle] || OSM_STYLES.light;
-    S.baseLayer = L.tileLayer(st.url, { maxZoom:20, subdomains:st.sub });
+    S.baseLayer = L.tileLayer(st.url, { maxZoom:20, maxNativeZoom:st.max });
     attrib._container && (attrib._container.innerHTML = st.attr + ' · RoadAI');
   }
   S.baseLayer.addTo(map);

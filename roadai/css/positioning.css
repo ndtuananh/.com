@@ -360,3 +360,5 @@ body.light-base .leaflet-control-attribution{background:rgba(255,255,255,.85);co
   .c-act{margin-top:9px}
   .c-go,.c-alt{min-height:46px}
 }
+/* nền OSM/VietMap sáng → lật màu cho hợp giao diện tối (CARTO dark đã đòi API key) */
+.leaflet-tile-pane .tile-dark{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.88) saturate(.6)}

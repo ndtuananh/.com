@@ -162,10 +162,14 @@ let PICKS_ALL = MY_PICKS.slice();
    cuốc nào thì cũng chỉ là rác.
    TUYỆT ĐỐI KHÔNG đụng tới điểm CÓ CUỐC THẬT: đó là bằng chứng, mất là mất trắng. */
 const TOMB_HAN = 60 * 864e5;      // bia mộ giữ 60 ngày
+const TOMB_MAX = 250;             // = MAX_TOMB của máy chủ
 const PICK_TRAN = 900;            // ngưỡng bắt đầu dọn chấm tự sinh quá cũ
 function donPicks() {
   const gio = Date.now();
   let a = MY_PICKS.filter(p => !p.del || (gio - (p.ts || 0)) < TOMB_HAN);
+  // bia mộ giữ tối đa 250 cái mới nhất — ĐÚNG luật máy chủ (MAX_TOMB), lệch là máy chủ cứ phải cắt mãi
+  const mo = a.filter(p => p.del).sort((x, y) => (y.ts || 0) - (x.ts || 0));
+  if (mo.length > TOMB_MAX) { const bo = new Set(mo.slice(TOMB_MAX).map(p => p.id)); a = a.filter(p => !bo.has(p.id)); }
   if (a.length > PICK_TRAN) {
     // vẫn quá nhiều → bỏ chấm TỰ SINH cũ nhất, chưa có cuốc nào, chưa được đặt tên
     const bo = a.filter(p => !p.del && !p.n && isAutoName(p.name))

@@ -163,6 +163,7 @@ const SYNC = (() => {
   /* ---- ÁP BẢN ĐÃ GỘP TỪ MÁY CHỦ VÀO KHO ----
      Máy chủ là cấp trên: nó bảo điểm nào bị gộp vào điểm nào, điểm nào đã xoá,
      thì máy con sửa kho RIÊNG của mình cho khớp — không cãi, không tự ghi đè ngược. */
+  let daCatDaBao = 0;
   function applyMerged(j) {
     if (!j || !j.ok) return false;
     const MY = RADAR.picks.my();
@@ -256,7 +257,8 @@ const SYNC = (() => {
       st.daCat = j.daCat || 0;
       if (st.daCat) {
         st.err = 'máy chủ phải bỏ ' + st.daCat + ' điểm cũ (kho đầy)';
-        if (window.UI && UI.toast) UI.toast(`⚠️ Kho đầy — máy chủ bỏ bớt ${st.daCat} điểm cũ nhất. Điểm mới và điểm đã có cuốc vẫn giữ nguyên.`, 6000);
+        // báo MỘT lần cho mỗi con số — không nhắc lại mỗi lần đồng bộ
+        if (st.daCat !== daCatDaBao && window.UI && UI.toast) daCatDaBao = st.daCat, UI.toast(`⚠️ Kho đầy — máy chủ bỏ bớt ${st.daCat} điểm cũ nhất. Điểm mới và điểm đã có cuốc vẫn giữ nguyên.`, 6000);
       }
       markSent(guiTrips.map(t => t.id));
       FORCE_FULL = j.tripsReady === false ? false
